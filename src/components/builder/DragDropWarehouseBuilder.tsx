@@ -258,10 +258,14 @@ export function DragDropWarehouseBuilder({
 
   // ── Save ──────────────────────────────────────────────────────────────────
   const handleSave = () => {
+    // Switch to the new warehouse first so addZone/addDock target it
+    switchWarehouse(warehouseName);
+
     const halfW = warehouseW / 2;
     const halfD = warehouseD / 2;
+
     for (const el of placed) {
-      // Convert canvas grid (0-based from top-left of floor) to centered coords
+      // Convert 2D canvas coords (0,0 = top-left) → centered 3D coords
       const cx = el.x - halfW;
       const cz = el.z - halfD;
       if (el.kind === "zone" && el.zoneType) {
@@ -284,11 +288,9 @@ export function DragDropWarehouseBuilder({
         });
       }
     }
+
     setSaved(true);
-    setTimeout(() => {
-      switchWarehouse(warehouseName);
-      onClose();
-    }, 600);
+    setTimeout(() => onClose(), 600);
   };
 
   // ── Selected element details ──────────────────────────────────────────────
