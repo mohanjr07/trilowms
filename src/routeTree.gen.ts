@@ -9,13 +9,25 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PutawayRouteImport } from './routes/putaway'
 import { Route as InventoryRouteImport } from './routes/inventory'
+import { Route as InboundRouteImport } from './routes/inbound'
 import { Route as BuilderRouteImport } from './routes/builder'
 import { Route as IndexRouteImport } from './routes/index'
 
+const PutawayRoute = PutawayRouteImport.update({
+  id: '/putaway',
+  path: '/putaway',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InventoryRoute = InventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InboundRoute = InboundRouteImport.update({
+  id: '/inbound',
+  path: '/inbound',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BuilderRoute = BuilderRouteImport.update({
@@ -32,40 +44,62 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/builder': typeof BuilderRoute
+  '/inbound': typeof InboundRoute
   '/inventory': typeof InventoryRoute
+  '/putaway': typeof PutawayRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/builder': typeof BuilderRoute
+  '/inbound': typeof InboundRoute
   '/inventory': typeof InventoryRoute
+  '/putaway': typeof PutawayRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/builder': typeof BuilderRoute
+  '/inbound': typeof InboundRoute
   '/inventory': typeof InventoryRoute
+  '/putaway': typeof PutawayRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/builder' | '/inventory'
+  fullPaths: '/' | '/builder' | '/inbound' | '/inventory' | '/putaway'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/builder' | '/inventory'
-  id: '__root__' | '/' | '/builder' | '/inventory'
+  to: '/' | '/builder' | '/inbound' | '/inventory' | '/putaway'
+  id: '__root__' | '/' | '/builder' | '/inbound' | '/inventory' | '/putaway'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BuilderRoute: typeof BuilderRoute
+  InboundRoute: typeof InboundRoute
   InventoryRoute: typeof InventoryRoute
+  PutawayRoute: typeof PutawayRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/putaway': {
+      id: '/putaway'
+      path: '/putaway'
+      fullPath: '/putaway'
+      preLoaderRoute: typeof PutawayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/inventory': {
       id: '/inventory'
       path: '/inventory'
       fullPath: '/inventory'
       preLoaderRoute: typeof InventoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inbound': {
+      id: '/inbound'
+      path: '/inbound'
+      fullPath: '/inbound'
+      preLoaderRoute: typeof InboundRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/builder': {
@@ -88,7 +122,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BuilderRoute: BuilderRoute,
+  InboundRoute: InboundRoute,
   InventoryRoute: InventoryRoute,
+  PutawayRoute: PutawayRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
