@@ -9,8 +9,86 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as YardRouteImport } from './routes/yard'
+import { Route as ReturnsRouteImport } from './routes/returns'
+import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as QcRouteImport } from './routes/qc'
+import { Route as PutawayRouteImport } from './routes/putaway'
+import { Route as PickingRouteImport } from './routes/picking'
+import { Route as PackingRouteImport } from './routes/packing'
+import { Route as OutboundRouteImport } from './routes/outbound'
+import { Route as LaborRouteImport } from './routes/labor'
+import { Route as InventoryRouteImport } from './routes/inventory'
+import { Route as InboundRouteImport } from './routes/inbound'
+import { Route as BuilderRouteImport } from './routes/builder'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 
+const YardRoute = YardRouteImport.update({
+  id: '/yard',
+  path: '/yard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReturnsRoute = ReturnsRouteImport.update({
+  id: '/returns',
+  path: '/returns',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QcRoute = QcRouteImport.update({
+  id: '/qc',
+  path: '/qc',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PutawayRoute = PutawayRouteImport.update({
+  id: '/putaway',
+  path: '/putaway',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PickingRoute = PickingRouteImport.update({
+  id: '/picking',
+  path: '/picking',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PackingRoute = PackingRouteImport.update({
+  id: '/packing',
+  path: '/packing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OutboundRoute = OutboundRouteImport.update({
+  id: '/outbound',
+  path: '/outbound',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaborRoute = LaborRouteImport.update({
+  id: '/labor',
+  path: '/labor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InventoryRoute = InventoryRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InboundRoute = InboundRouteImport.update({
+  id: '/inbound',
+  path: '/inbound',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BuilderRoute = BuilderRouteImport.update({
+  id: '/builder',
+  path: '/builder',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -19,28 +97,214 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/builder': typeof BuilderRoute
+  '/inbound': typeof InboundRoute
+  '/inventory': typeof InventoryRoute
+  '/labor': typeof LaborRoute
+  '/outbound': typeof OutboundRoute
+  '/packing': typeof PackingRoute
+  '/picking': typeof PickingRoute
+  '/putaway': typeof PutawayRoute
+  '/qc': typeof QcRoute
+  '/reports': typeof ReportsRoute
+  '/returns': typeof ReturnsRoute
+  '/yard': typeof YardRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/builder': typeof BuilderRoute
+  '/inbound': typeof InboundRoute
+  '/inventory': typeof InventoryRoute
+  '/labor': typeof LaborRoute
+  '/outbound': typeof OutboundRoute
+  '/packing': typeof PackingRoute
+  '/picking': typeof PickingRoute
+  '/putaway': typeof PutawayRoute
+  '/qc': typeof QcRoute
+  '/reports': typeof ReportsRoute
+  '/returns': typeof ReturnsRoute
+  '/yard': typeof YardRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/builder': typeof BuilderRoute
+  '/inbound': typeof InboundRoute
+  '/inventory': typeof InventoryRoute
+  '/labor': typeof LaborRoute
+  '/outbound': typeof OutboundRoute
+  '/packing': typeof PackingRoute
+  '/picking': typeof PickingRoute
+  '/putaway': typeof PutawayRoute
+  '/qc': typeof QcRoute
+  '/reports': typeof ReportsRoute
+  '/returns': typeof ReturnsRoute
+  '/yard': typeof YardRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/builder'
+    | '/inbound'
+    | '/inventory'
+    | '/labor'
+    | '/outbound'
+    | '/packing'
+    | '/picking'
+    | '/putaway'
+    | '/qc'
+    | '/reports'
+    | '/returns'
+    | '/yard'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/admin'
+    | '/builder'
+    | '/inbound'
+    | '/inventory'
+    | '/labor'
+    | '/outbound'
+    | '/packing'
+    | '/picking'
+    | '/putaway'
+    | '/qc'
+    | '/reports'
+    | '/returns'
+    | '/yard'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/builder'
+    | '/inbound'
+    | '/inventory'
+    | '/labor'
+    | '/outbound'
+    | '/packing'
+    | '/picking'
+    | '/putaway'
+    | '/qc'
+    | '/reports'
+    | '/returns'
+    | '/yard'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
+  BuilderRoute: typeof BuilderRoute
+  InboundRoute: typeof InboundRoute
+  InventoryRoute: typeof InventoryRoute
+  LaborRoute: typeof LaborRoute
+  OutboundRoute: typeof OutboundRoute
+  PackingRoute: typeof PackingRoute
+  PickingRoute: typeof PickingRoute
+  PutawayRoute: typeof PutawayRoute
+  QcRoute: typeof QcRoute
+  ReportsRoute: typeof ReportsRoute
+  ReturnsRoute: typeof ReturnsRoute
+  YardRoute: typeof YardRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/yard': {
+      id: '/yard'
+      path: '/yard'
+      fullPath: '/yard'
+      preLoaderRoute: typeof YardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/returns': {
+      id: '/returns'
+      path: '/returns'
+      fullPath: '/returns'
+      preLoaderRoute: typeof ReturnsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/qc': {
+      id: '/qc'
+      path: '/qc'
+      fullPath: '/qc'
+      preLoaderRoute: typeof QcRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/putaway': {
+      id: '/putaway'
+      path: '/putaway'
+      fullPath: '/putaway'
+      preLoaderRoute: typeof PutawayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/picking': {
+      id: '/picking'
+      path: '/picking'
+      fullPath: '/picking'
+      preLoaderRoute: typeof PickingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/packing': {
+      id: '/packing'
+      path: '/packing'
+      fullPath: '/packing'
+      preLoaderRoute: typeof PackingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/outbound': {
+      id: '/outbound'
+      path: '/outbound'
+      fullPath: '/outbound'
+      preLoaderRoute: typeof OutboundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/labor': {
+      id: '/labor'
+      path: '/labor'
+      fullPath: '/labor'
+      preLoaderRoute: typeof LaborRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inventory': {
+      id: '/inventory'
+      path: '/inventory'
+      fullPath: '/inventory'
+      preLoaderRoute: typeof InventoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inbound': {
+      id: '/inbound'
+      path: '/inbound'
+      fullPath: '/inbound'
+      preLoaderRoute: typeof InboundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/builder': {
+      id: '/builder'
+      path: '/builder'
+      fullPath: '/builder'
+      preLoaderRoute: typeof BuilderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -53,6 +317,19 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
+  BuilderRoute: BuilderRoute,
+  InboundRoute: InboundRoute,
+  InventoryRoute: InventoryRoute,
+  LaborRoute: LaborRoute,
+  OutboundRoute: OutboundRoute,
+  PackingRoute: PackingRoute,
+  PickingRoute: PickingRoute,
+  PutawayRoute: PutawayRoute,
+  QcRoute: QcRoute,
+  ReportsRoute: ReportsRoute,
+  ReturnsRoute: ReturnsRoute,
+  YardRoute: YardRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
