@@ -1,8 +1,10 @@
 import {
-  Eye, Flame, Activity, Truck, Forklift, Tag, Save, RotateCcw, Maximize, Layers3,
+  Eye, Flame, Activity, Truck, Forklift, Tag, Save, RotateCcw, Maximize, Layers3, PencilRuler,
 } from "lucide-react";
+import { useState } from "react";
 import { useWMSStore, type ViewMode } from "@/lib/wms-store";
 import { useEditorStore } from "@/lib/wms-editor-store";
+import { EditLayoutModal } from "./WarehouseEditorModals";
 import { cn } from "@/lib/utils";
 
 const modes: { id: ViewMode; label: string; icon: typeof Flame; color: string }[] = [
@@ -16,7 +18,8 @@ const modes: { id: ViewMode; label: string; icon: typeof Flame; color: string }[
 
 export function BuilderToolbar() {
   const { viewMode, setViewMode, showForklifts, showDocks, showLabels, toggle } = useWMSStore();
-  const { resetToDefault } = useEditorStore();
+  const { resetToDefault, warehouse } = useEditorStore();
+  const [showEditLayout, setShowEditLayout] = useState(false);
 
   const handleReset = () => {
     if (confirm("Reset warehouse to default layout? All your changes will be lost.")) {
@@ -25,6 +28,7 @@ export function BuilderToolbar() {
   };
 
   return (
+    <>
     <div className="h-12 panel border-b flex items-center px-3 gap-2 text-xs">
       <div className="flex items-center gap-1 pr-3 border-r border-border/60">
         <span className="text-[10px] font-bold tracking-wider text-muted-foreground mr-2">VIEW MODE</span>
@@ -68,6 +72,12 @@ export function BuilderToolbar() {
           <Maximize className="h-3.5 w-3.5" /> Fullscreen
         </button>
         <button
+          onClick={() => setShowEditLayout(true)}
+          className="px-2.5 py-1.5 rounded border border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 flex items-center gap-1.5 font-medium"
+        >
+          <PencilRuler className="h-3.5 w-3.5" /> Edit Layout
+        </button>
+        <button
           onClick={() => alert("Layout auto-saved to browser storage.")}
           className="px-3 py-1.5 rounded bg-primary text-primary-foreground font-medium hover:opacity-90 flex items-center gap-1.5 glow-amber"
         >
@@ -75,6 +85,10 @@ export function BuilderToolbar() {
         </button>
       </div>
     </div>
+    {showEditLayout && (
+      <EditLayoutModal warehouse={warehouse} onClose={() => setShowEditLayout(false)} />
+    )}
+    </>
   );
 }
 

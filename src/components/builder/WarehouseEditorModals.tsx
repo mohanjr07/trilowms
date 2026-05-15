@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { X, Plus, Warehouse } from "lucide-react";
-import { ZONE_COLORS, type ZoneType } from "@/lib/wms-data";
+import { ZONE_COLORS, type ZoneType, type Warehouse as WarehouseType } from "@/lib/wms-data";
 import { useEditorStore, type ZoneFormData, type DockFormData } from "@/lib/wms-editor-store";
 import { DragDropWarehouseBuilder } from "./DragDropWarehouseBuilder";
 import { cn } from "@/lib/utils";
@@ -317,5 +317,50 @@ export function NewWarehouseModal({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </Modal>
+  );
+}
+
+// ─── Edit Layout Modal ────────────────────────────────────────────────────────
+// Opens the drag-drop builder pre-populated with the current warehouse's zones and docks
+
+export type { PlacedElement } from "./DragDropWarehouseBuilder";
+
+export function EditLayoutModal({ onClose, warehouse }: { onClose: () => void; warehouse: WarehouseType }) {
+  // Convert existing Warehouse zones + docks → PlacedElement[]
+  const halfW = warehouse.size.w / 2;
+  const halfD = warehouse.size.d / 2;
+
+  const initialPlaced = [
+    ...warehouse.zones.map((z) => ({
+      id: z.id,
+      kind: "zone" as const,
+      x: z.bounds.x + halfW,
+      z: z.bounds.z + halfD,
+      w: z.bounds.w,
+      d: z.bounds.d,
+      label: z.name,
+      zoneType: z.type,
+    })),
+    ...warehouse.docks.map((d) => ({
+      id: d.id,
+      kind: "dock" as const,
+      x: d.position[0] + halfW - 2,
+      z: d.position[1] + halfD - 1,
+      w: 4,
+      d: 2,
+      label: d.code,
+      dockKind: d.kind,
+    })),
+  ];
+
+  return (
+    <DragDropWarehouseBuilder
+      warehouseName={warehouse.name}
+      warehouseW={warehouse.size.w}
+      warehouseD={warehouse.size.d}
+      onClose={onClose}
+      initialPlaced={initialPlaced}
+      isEdit
+    />
   );
 }

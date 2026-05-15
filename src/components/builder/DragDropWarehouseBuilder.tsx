@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 
 type ElementKind = "zone" | "dock" | "rack" | "bin";
 
-interface PlacedElement {
+export interface PlacedElement {
   id: string;
   kind: ElementKind;
   x: number;
@@ -123,15 +123,17 @@ interface DragDropWarehouseBuilderProps {
   warehouseW: number;
   warehouseD: number;
   onClose: () => void;
+  initialPlaced?: PlacedElement[];
+  isEdit?: boolean;
 }
 
-export function DragDropWarehouseBuilder({ warehouseName, warehouseW, warehouseD, onClose }: DragDropWarehouseBuilderProps) {
-  const { addEmptyZone, addDock, addRackToZone, addBinsToRack, switchWarehouse } = useEditorStore();
+export function DragDropWarehouseBuilder({ warehouseName, warehouseW, warehouseD, onClose, initialPlaced, isEdit }: DragDropWarehouseBuilderProps) {
+  const { addEmptyZone, addDock, addRackToZone, addBinsToRack, switchWarehouse, deleteZone, deleteDock } = useEditorStore();
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [placed, setPlaced] = useState<PlacedElement[]>([]);
+  const [placed, setPlaced] = useState<PlacedElement[]>(initialPlaced ?? []);
   const [selected, setSelected] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [pendingBinDrop, setPendingBinDrop] = useState<{ rackEl: PlacedElement } | null>(null);
@@ -297,6 +299,14 @@ export function DragDropWarehouseBuilder({ warehouseName, warehouseW, warehouseD
     const racks = placed.filter((e) => e.kind === "rack");
     const bins = placed.filter((e) => e.kind === "bin");
 
+    // If editing, clear existing zones & docks first
+    if (isEdit) {
+      const store = useEditorStore.getState();
+      const wh = store.warehouse;
+      wh.zones.forEach((z) => store.deleteZone(z.id));
+      wh.docks.forEach((d) => store.deleteDock(d.id));
+    }
+
     for (const el of zones) {
       if (el.zoneType) addEmptyZone(el.label, el.zoneType, { x: el.x - halfW, z: el.z - halfD, w: el.w, d: el.d });
     }
@@ -380,7 +390,7 @@ export function DragDropWarehouseBuilder({ warehouseName, warehouseW, warehouseD
       {/* CENTER: Canvas */}
       <div className="flex-1 flex flex-col min-w-0">
         <div className="h-11 border-b border-border/60 bg-[#0f1520] flex items-center gap-2 px-3">
-          <span className="text-xs font-bold tracking-wider text-muted-foreground">WAREHOUSE FLOOR PLAN</span>
+          <span className="text-xs font-bold tracking-wider text-muted-foreground">{isEdit ? "EDIT WAREHOUSE LAYOUT" : "WAREHOUSE FLOOR PLAN"}</span>
           <div className="flex items-center gap-1 ml-4 border-l border-border/60 pl-4">
             <button onClick={() => setZoom((z) => Math.min(3, z+0.2))} className="h-6 w-6 rounded hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground"><ZoomIn className="h-3.5 w-3.5" /></button>
             <button onClick={() => setZoom((z) => Math.max(0.4, z-0.2))} className="h-6 w-6 rounded hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground"><ZoomOut className="h-3.5 w-3.5" /></button>
@@ -402,7 +412,7 @@ export function DragDropWarehouseBuilder({ warehouseName, warehouseW, warehouseD
             </button>
             <button onClick={handleSave} disabled={saved}
               className="px-3 py-1.5 rounded bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 disabled:opacity-60 flex items-center gap-1.5">
-              {saved ? <><Check className="h-3.5 w-3.5" /> Saved!</> : <><Check className="h-3.5 w-3.5" /> Save Layout</>}
+              {saved ? <><Check className="h-3.5 w-3.5" /> Saved!</> : <><Check className="h-3.5 w-3.5" /> {isEdit ? "Save Changes" : "Save Layout"}</>}
             </button>
           </div>
         </div>

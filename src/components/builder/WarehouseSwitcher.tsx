@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, Plus, Copy, Trash2, Warehouse, Check } from "lucide-react";
+import { ChevronDown, Plus, Copy, Trash2, Warehouse, Check, PencilRuler } from "lucide-react";
 import { useEditorStore } from "@/lib/wms-editor-store";
 import { useWMSStore } from "@/lib/wms-store";
-import { NewWarehouseModal } from "./WarehouseEditorModals";
+import { NewWarehouseModal, EditLayoutModal } from "./WarehouseEditorModals";
 import { cn } from "@/lib/utils";
 
 export function WarehouseSwitcher() {
@@ -11,6 +11,7 @@ export function WarehouseSwitcher() {
   const active = warehouses.find((w) => w.name === activeId) ?? warehouses[0];
   const [open, setOpen] = useState(false);
   const [showNew, setShowNew] = useState(false);
+  const [editingWarehouse, setEditingWarehouse] = useState<typeof active | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   // Close on outside click
@@ -62,6 +63,13 @@ export function WarehouseSwitcher() {
                     <span className="text-[10px] text-muted-foreground shrink-0">{w.zones.length}z · {w.docks.length}d</span>
                     <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 ml-1">
                       <button
+                        title="Edit Layout"
+                        onClick={(e) => { e.stopPropagation(); switchWarehouse(w.name); setEditingWarehouse(w); setOpen(false); }}
+                        className="h-5 w-5 flex items-center justify-center rounded hover:bg-secondary text-muted-foreground hover:text-primary"
+                      >
+                        <PencilRuler className="h-3 w-3" />
+                      </button>
+                      <button
                         title="Duplicate"
                         onClick={(e) => { e.stopPropagation(); duplicateWarehouse(w.name); onWarehouseSwitch(w.name + " (Copy)"); setOpen(false); }}
                         className="h-5 w-5 flex items-center justify-center rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
@@ -102,6 +110,12 @@ export function WarehouseSwitcher() {
       </div>
 
       {showNew && <NewWarehouseModal onClose={() => setShowNew(false)} />}
+      {editingWarehouse && (
+        <EditLayoutModal
+          warehouse={editingWarehouse}
+          onClose={() => setEditingWarehouse(null)}
+        />
+      )}
     </>
   );
 }
