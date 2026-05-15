@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Outlet } from "@tanstack/react-router";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
@@ -6,16 +6,16 @@ import { useEditorStore } from "@/lib/wms-editor-store";
 
 export function AppShell() {
   const _loadFromCloud = useEditorStore((s) => s._loadFromCloud);
-  const isHydrating = useEditorStore((s) => s.isHydrating);
+  // Start as true so we never flash stale localStorage data before Supabase responds
+  const [ready, setReady] = useState(false);
 
-  // On first mount, pull latest warehouse data from Supabase.
-  // This ensures warehouses created on any device survive a refresh.
   useEffect(() => {
-    _loadFromCloud();
+    // Load from Supabase first, then show the UI regardless of outcome
+    _loadFromCloud().finally(() => setReady(true));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (isHydrating) {
+  if (!ready) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3 text-muted-foreground">
