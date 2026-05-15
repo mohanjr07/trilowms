@@ -51,7 +51,7 @@ interface EditorState {
   warehouses: Warehouse[];
   activeId: string;
 
-  // Autosave tracking
+  // Autosave tracking (not persisted — reset fresh each page load)
   lastSavedAt: number | null;
   isDirty: boolean;
   _markSaved: () => void;
@@ -109,7 +109,7 @@ function updateActive(warehouses: Warehouse[], activeId: string, fn: (w: Warehou
 export const useEditorStore = create<EditorState>()(
   persist(
     (rawSet, get) => {
-      // Auto-mark isDirty whenever warehouses change
+      // Wrap set so any mutation to warehouses/activeId auto-marks dirty
       const set: typeof rawSet = (updater, replace?) => {
         if (typeof updater === "function") {
           rawSet((s) => {
@@ -121,200 +121,195 @@ export const useEditorStore = create<EditorState>()(
           rawSet(updater, replace as never);
         }
       };
-      return ({
-      warehouses: [defaultWarehouse],
-      activeId: defaultWarehouse.name,
-      lastSavedAt: null,
-      isDirty: false,
-      _markSaved: () => set({ lastSavedAt: Date.now(), isDirty: false }),
 
-      get warehouse() {
-        const { warehouses, activeId } = get();
-        return warehouses.find((w) => w.name === activeId) ?? warehouses[0];
-      },
+      return {
+        warehouses: [defaultWarehouse],
+        activeId: defaultWarehouse.name,
 
-      createWarehouse: (form) => set((s) => {
-        const newW = makeBlankWarehouse(form);
-        return { isDirty: true, warehouses: [...s.warehouses, newW], activeId: newW.name };
-      }),
+        // Autosave UI state — starts clean on every page load
+        lastSavedAt: null,
+        isDirty: false,
+        _markSaved: () => rawSet({ lastSavedAt: Date.now(), isDirty: false }),
 
-      switchWarehouse: (name) => set({ activeId: name }),
+        get warehouse() {
+          const { warehouses, activeId } = get();
+          return warehouses.find((w) => w.name === activeId) ?? warehouses[0];
+        },
 
-      deleteWarehouse: (name) => set((s) => {
-        if (s.warehouses.length <= 1) return s; // keep at least one
-        const remaining = s.warehouses.filter((w) => w.name !== name);
-        const newActive = s.activeId === name ? remaining[0].name : s.activeId;
-        return { warehouses: remaining, activeId: newActive };
-      }),
+        createWarehouse: (form) => set((s) => {
+          const newW = makeBlankWarehouse(form);
+          return { warehouses: [...s.warehouses, newW], activeId: newW.name };
+        }),
 
-      duplicateWarehouse: (name) => set((s) => {
-        const src = s.warehouses.find((w) => w.name === name);
-        if (!src) return s;
-        const copy: Warehouse = { ...src, name: `${src.name} (Copy)` };
-        return { isDirty: true, warehouses: [...s.warehouses, copy], activeId: copy.name };
-      }),
+        switchWarehouse: (name) => set({ activeId: name }),
 
-      addZone: (form) => set((s) => {
-        const zone = makeZone(
-          form.name, form.type,
-          { x: form.x, z: form.z, w: form.w, d: form.d },
-          form.aisleCount, form.racksPerAisle,
-        );
-        return { warehouses: updateActive(s.warehouses, s.activeId, (w) => ({ ...w, zones: [...w.zones, zone] })) };
-      }),
+        deleteWarehouse: (name) => set((s) => {
+          if (s.warehouses.length <= 1) return s; // keep at least one
+          const remaining = s.warehouses.filter((w) => w.name !== name);
+          const newActive = s.activeId === name ? remaining[0].name : s.activeId;
+          return { warehouses: remaining, activeId: newActive };
+        }),
 
-      addEmptyZone: (name, type, bounds) => set((s) => {
-        const zone = makeEmptyZone(name, type, bounds);
-        return { warehouses: updateActive(s.warehouses, s.activeId, (w) => ({ ...w, zones: [...w.zones, zone] })) };
-      }),
+        duplicateWarehouse: (name) => set((s) => {
+          const src = s.warehouses.find((w) => w.name === name);
+          if (!src) return s;
+          const copy: Warehouse = { ...src, name: `${src.name} (Copy)` };
+          return { warehouses: [...s.warehouses, copy], activeId: copy.name };
+        }),
 
-      updateZone: (id, form) => set((s) => ({
-        warehouses: updateActive(s.warehouses, s.activeId, (w) => ({
-          ...w,
-          zones: w.zones.map((z) => {
-            if (z.id !== id) return z;
-            return makeZone(
-              form.name ?? z.name,
-              form.type ?? z.type,
-              { x: form.x ?? z.bounds.x, z: form.z ?? z.bounds.z, w: form.w ?? z.bounds.w, d: form.d ?? z.bounds.d },
-              form.aisleCount ?? z.aisles.length,
-              form.racksPerAisle ?? (z.aisles[0]?.racks.length / 2 || 4),
-            );
-          }),
-        })),
-      })),
+        addZone: (form) => set((s) => {
+          const zone = makeZone(
+            form.name, form.type,
+            { x: form.x, z: form.z, w: form.w, d: form.d },
+            form.aisleCount, form.racksPerAisle,
+          );
+          return { warehouses: updateActive(s.warehouses, s.activeId, (w) => ({ ...w, zones: [...w.zones, zone] })) };
+        }),
 
-      deleteZone: (id) => set((s) => ({
-        warehouses: updateActive(s.warehouses, s.activeId, (w) => ({
-          ...w, zones: w.zones.filter((z) => z.id !== id),
-        })),
-      })),
+        addEmptyZone: (name, type, bounds) => set((s) => {
+          const zone = makeEmptyZone(name, type, bounds);
+          return { warehouses: updateActive(s.warehouses, s.activeId, (w) => ({ ...w, zones: [...w.zones, zone] })) };
+        }),
 
-      addDock: (form) => set((s) => {
-        const dock: Dock = {
-          id: `dock-${Date.now()}`,
-          code: form.code,
-          kind: form.kind,
-          occupied: false,
-          position: [form.x, form.z],
-        };
-        return { warehouses: updateActive(s.warehouses, s.activeId, (w) => ({ ...w, docks: [...w.docks, dock] })) };
-      }),
-
-      deleteDock: (id) => set((s) => ({
-        warehouses: updateActive(s.warehouses, s.activeId, (w) => ({
-          ...w, docks: w.docks.filter((d) => d.id !== id),
-        })),
-      })),
-
-      addRackToZone: (zoneId, position) => set((s) => {
-        return {
+        updateZone: (id, form) => set((s) => ({
           warehouses: updateActive(s.warehouses, s.activeId, (w) => ({
             ...w,
             zones: w.zones.map((z) => {
-              if (z.id !== zoneId) return z;
-              // Count existing racks across all aisles for unique index
-              const existingCount = z.aisles.reduce((sum, a) => sum + a.racks.length, 0);
-              const rack = makeEmptyRack(zoneId, existingCount + 1, position);
-              // Place in a single default aisle or create one
-              if (z.aisles.length === 0) {
+              if (z.id !== id) return z;
+              return makeZone(
+                form.name ?? z.name,
+                form.type ?? z.type,
+                { x: form.x ?? z.bounds.x, z: form.z ?? z.bounds.z, w: form.w ?? z.bounds.w, d: form.d ?? z.bounds.d },
+                form.aisleCount ?? z.aisles.length,
+                form.racksPerAisle ?? (z.aisles[0]?.racks.length / 2 || 4),
+              );
+            }),
+          })),
+        })),
+
+        deleteZone: (id) => set((s) => ({
+          warehouses: updateActive(s.warehouses, s.activeId, (w) => ({
+            ...w, zones: w.zones.filter((z) => z.id !== id),
+          })),
+        })),
+
+        addDock: (form) => set((s) => {
+          const dock: Dock = {
+            id: `dock-${Date.now()}`,
+            code: form.code,
+            kind: form.kind,
+            occupied: false,
+            position: [form.x, form.z],
+          };
+          return { warehouses: updateActive(s.warehouses, s.activeId, (w) => ({ ...w, docks: [...w.docks, dock] })) };
+        }),
+
+        deleteDock: (id) => set((s) => ({
+          warehouses: updateActive(s.warehouses, s.activeId, (w) => ({
+            ...w, docks: w.docks.filter((d) => d.id !== id),
+          })),
+        })),
+
+        addRackToZone: (zoneId, position) => set((s) => {
+          return {
+            warehouses: updateActive(s.warehouses, s.activeId, (w) => ({
+              ...w,
+              zones: w.zones.map((z) => {
+                if (z.id !== zoneId) return z;
+                const existingCount = z.aisles.reduce((sum, a) => sum + a.racks.length, 0);
+                const rack = makeEmptyRack(zoneId, existingCount + 1, position);
+                if (z.aisles.length === 0) {
+                  return {
+                    ...z,
+                    aisles: [{ id: `${zoneId}-A1`, code: "Aisle 1", racks: [rack] }],
+                  };
+                }
+                const [firstAisle, ...rest] = z.aisles;
                 return {
                   ...z,
-                  aisles: [{ id: `${zoneId}-A1`, code: "Aisle 1", racks: [rack] }],
+                  aisles: [{ ...firstAisle, racks: [...firstAisle.racks, rack] }, ...rest],
                 };
-              }
-              // Add to first aisle
-              const [firstAisle, ...rest] = z.aisles;
-              return {
-                ...z,
-                aisles: [{ ...firstAisle, racks: [...firstAisle.racks, rack] }, ...rest],
-              };
-            }),
-          })),
-        };
-      }),
+              }),
+            })),
+          };
+        }),
 
-      addBinsToRack: (zoneId, rackId, count) => set((s) => {
-        return {
-          warehouses: updateActive(s.warehouses, s.activeId, (w) => ({
-            ...w,
-            zones: w.zones.map((z) => {
-              if (z.id !== zoneId) return z;
-              return {
-                ...z,
-                aisles: z.aisles.map((a) => ({
-                  ...a,
-                  racks: a.racks.map((r) => {
-                    if (r.id !== rackId) return r;
-                    const newBins = generateBinsForRack(r, count);
-                    return { ...r, bins: [...r.bins, ...newBins] };
-                  }),
-                })),
-              };
-            }),
-          })),
-        };
-      }),
+        addBinsToRack: (zoneId, rackId, count) => set((s) => {
+          return {
+            warehouses: updateActive(s.warehouses, s.activeId, (w) => ({
+              ...w,
+              zones: w.zones.map((z) => {
+                if (z.id !== zoneId) return z;
+                return {
+                  ...z,
+                  aisles: z.aisles.map((a) => ({
+                    ...a,
+                    racks: a.racks.map((r) => {
+                      if (r.id !== rackId) return r;
+                      const newBins = generateBinsForRack(r, count);
+                      return { ...r, bins: [...r.bins, ...newBins] };
+                    }),
+                  })),
+                };
+              }),
+            })),
+          };
+        }),
 
-      renameWarehouse: (name) => set((s) => ({
-        warehouses: updateActive(s.warehouses, s.activeId, (w) => ({ ...w, name })),
-        activeId: name,
-      })),
+        renameWarehouse: (name) => set((s) => ({
+          warehouses: updateActive(s.warehouses, s.activeId, (w) => ({ ...w, name })),
+          activeId: name,
+        })),
 
-      resizeWarehouse: (w, d) => set((s) => ({
-        warehouses: updateActive(s.warehouses, s.activeId, (wh) => ({ ...wh, size: { w, d } })),
-      })),
+        resizeWarehouse: (w, d) => set((s) => ({
+          warehouses: updateActive(s.warehouses, s.activeId, (wh) => ({ ...wh, size: { w, d } })),
+        })),
 
-      resetToDefault: () => set((s) => ({
-        warehouses: updateActive(s.warehouses, s.activeId, () => defaultWarehouse),
-        activeId: defaultWarehouse.name,
-      })),
+        resetToDefault: () => set((s) => ({
+          warehouses: updateActive(s.warehouses, s.activeId, () => defaultWarehouse),
+          activeId: defaultWarehouse.name,
+        })),
 
-      commitLayout: (name, zoneForms, dockForms) => set((s) => {
-        // Build zone objects
-        const zones = zoneForms.map((form) =>
-          makeZone(form.name, form.type, { x: form.x, z: form.z, w: form.w, d: form.d }, form.aisleCount, form.racksPerAisle),
-        );
-        // Build dock objects
-        const docks: Dock[] = dockForms.map((form, i) => ({
-          id: `dock-${Date.now()}-${i}`,
-          code: form.code,
-          kind: form.kind,
-          occupied: false,
-          position: [form.x, form.z] as [number, number],
-        }));
-        // Write zones+docks into the named warehouse and switch to it atomically
-        const warehouses = s.warehouses.map((w) =>
-          w.name === name ? { ...w, zones, docks } : w,
-        );
-        return { warehouses, activeId: name };
-      }),
+        commitLayout: (name, zoneForms, dockForms) => set((s) => {
+          const zones = zoneForms.map((form) =>
+            makeZone(form.name, form.type, { x: form.x, z: form.z, w: form.w, d: form.d }, form.aisleCount, form.racksPerAisle),
+          );
+          const docks: Dock[] = dockForms.map((form, i) => ({
+            id: `dock-${Date.now()}-${i}`,
+            code: form.code,
+            kind: form.kind,
+            occupied: false,
+            position: [form.x, form.z] as [number, number],
+          }));
+          const warehouses = s.warehouses.map((w) =>
+            w.name === name ? { ...w, zones, docks } : w,
+          );
+          return { warehouses, activeId: name };
+        }),
 
-      commitEmptyLayout: (name, zoneDefs, dockDefs) => set((s) => {
-        const zones = zoneDefs.map((z) => makeEmptyZone(z.name, z.type, z.bounds));
-        const docks: Dock[] = dockDefs.map((d, i) => ({
-          id: `dock-${Date.now()}-${i}`,
-          code: d.code,
-          kind: d.kind,
-          occupied: false,
-          position: d.position,
-        }));
-        const warehouses = s.warehouses.map((w) =>
-          w.name === name ? { ...w, zones, docks } : w,
-        );
-        return { warehouses, activeId: name };
-      }),
-    });
+        commitEmptyLayout: (name, zoneDefs, dockDefs) => set((s) => {
+          const zones = zoneDefs.map((z) => makeEmptyZone(z.name, z.type, z.bounds));
+          const docks: Dock[] = dockDefs.map((d, i) => ({
+            id: `dock-${Date.now()}-${i}`,
+            code: d.code,
+            kind: d.kind,
+            occupied: false,
+            position: d.position,
+          }));
+          const warehouses = s.warehouses.map((w) =>
+            w.name === name ? { ...w, zones, docks } : w,
+          );
+          return { warehouses, activeId: name };
+        }),
+      };
     },
-    { 
+    {
       name: "trilowms-warehouse-editor",
-      version: 1,
-      // Restore lastSavedAt from storage so indicator is accurate after reload
-      onRehydrateStorage: () => (state) => {
-        if (state) {
-          state.isDirty = false; // fresh load = clean
-        }
-      },
+      // Only persist warehouse data — NOT isDirty/lastSavedAt (those reset each page load)
+      partialize: (state) => ({
+        warehouses: state.warehouses,
+        activeId: state.activeId,
+      }),
     },
   ),
 );
