@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { supabase } from "./supabase";
 import {
   warehouse as defaultWarehouse,
   type Warehouse,
@@ -54,7 +55,9 @@ interface EditorState {
   // Autosave tracking (not persisted — reset fresh each page load)
   lastSavedAt: number | null;
   isDirty: boolean;
-  _markSaved: () => void;
+  isSaving: boolean;
+  syncError: string | null;
+  _saveToCloud: () => Promise<void>;
 
   // Computed active warehouse
   readonly warehouse: Warehouse;
@@ -129,7 +132,30 @@ export const useEditorStore = create<EditorState>()(
         // Autosave UI state — starts clean on every page load
         lastSavedAt: null,
         isDirty: false,
-        _markSaved: () => rawSet({ lastSavedAt: Date.now(), isDirty: false }),
+        isSaving: false,
+        syncError: null,
+        _saveToCloud: async () => {
+          const { warehouses, activeId } = get();
+          rawSet({ isSaving: true, syncError: null });
+          try {
+            const { error } = await supabase
+              .from("warehouses")
+              .upsert(
+                warehouses.map((w) => ({
+                  name: w.name,
+                  active_id: activeId,
+                  data: w,
+                  updated_at: new Date().toISOString(),
+                })),
+                { onConflict: "name" },
+              );
+            if (error) throw error;
+            rawSet({ lastSavedAt: Date.now(), isDirty: false, isSaving: false });
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : "Unknown error";
+            rawSet({ syncError: msg, isSaving: false });
+          }
+        },
 
         get warehouse() {
           const { warehouses, activeId } = get();
