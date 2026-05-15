@@ -51,6 +51,11 @@ interface EditorState {
   warehouses: Warehouse[];
   activeId: string;
 
+  // Autosave tracking
+  lastSavedAt: number | null;
+  isDirty: boolean;
+  _markSaved: () => void;
+
   // Computed active warehouse
   readonly warehouse: Warehouse;
 
@@ -103,9 +108,25 @@ function updateActive(warehouses: Warehouse[], activeId: string, fn: (w: Warehou
 
 export const useEditorStore = create<EditorState>()(
   persist(
-    (set, get) => ({
+    (rawSet, get) => {
+      // Auto-mark isDirty whenever warehouses change
+      const set: typeof rawSet = (updater, replace?) => {
+        if (typeof updater === "function") {
+          rawSet((s) => {
+            const next = (updater as (s: EditorState) => Partial<EditorState>)(s);
+            const hasMutation = "warehouses" in next || "activeId" in next;
+            return hasMutation ? { isDirty: true, ...next } : next;
+          }, replace as never);
+        } else {
+          rawSet(updater, replace as never);
+        }
+      };
+      return ({
       warehouses: [defaultWarehouse],
       activeId: defaultWarehouse.name,
+      lastSavedAt: null,
+      isDirty: false,
+      _markSaved: () => set({ lastSavedAt: Date.now(), isDirty: false }),
 
       get warehouse() {
         const { warehouses, activeId } = get();
@@ -114,7 +135,7 @@ export const useEditorStore = create<EditorState>()(
 
       createWarehouse: (form) => set((s) => {
         const newW = makeBlankWarehouse(form);
-        return { warehouses: [...s.warehouses, newW], activeId: newW.name };
+        return { isDirty: true, warehouses: [...s.warehouses, newW], activeId: newW.name };
       }),
 
       switchWarehouse: (name) => set({ activeId: name }),
@@ -130,7 +151,7 @@ export const useEditorStore = create<EditorState>()(
         const src = s.warehouses.find((w) => w.name === name);
         if (!src) return s;
         const copy: Warehouse = { ...src, name: `${src.name} (Copy)` };
-        return { warehouses: [...s.warehouses, copy], activeId: copy.name };
+        return { isDirty: true, warehouses: [...s.warehouses, copy], activeId: copy.name };
       }),
 
       addZone: (form) => set((s) => {
@@ -283,7 +304,17 @@ export const useEditorStore = create<EditorState>()(
         );
         return { warehouses, activeId: name };
       }),
-    }),
-    { name: "trilowms-warehouse-editor" },
+    });
+    },
+    { 
+      name: "trilowms-warehouse-editor",
+      version: 1,
+      // Restore lastSavedAt from storage so indicator is accurate after reload
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.isDirty = false; // fresh load = clean
+        }
+      },
+    },
   ),
 );
