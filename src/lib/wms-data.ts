@@ -71,7 +71,7 @@ export interface Warehouse {
   forklifts: Forklift[];
 }
 
-const ZONE_COLORS: Record<ZoneType, string> = {
+export const ZONE_COLORS: Record<ZoneType, string> = {
   "Raw Material": "#d97706",
   "Finished Goods": "#0891b2",
   "Fast Moving": "#16a34a",
@@ -107,7 +107,7 @@ function makeBins(rackId: string, levels: number, perLevel: number): Bin[] {
   return bins;
 }
 
-function makeZone(
+export function makeZone(
   name: string,
   type: ZoneType,
   bounds: Zone["bounds"],
