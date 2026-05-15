@@ -669,6 +669,7 @@ export function DragDropWarehouseBuilder({
                 {sel.kind === "pallet" ? "Pallet placed on floor" : "Bin attached to nearest rack"} — position is saved for visual layout reference.
               </div>
             )}
+            {sel.kind === "dock" && (
               <div>
                 <div className="text-[10px] text-muted-foreground mb-1">DOCK KIND</div>
                 <select
@@ -694,7 +695,7 @@ export function DragDropWarehouseBuilder({
               ))}
             </div>
             <div className="text-[10px] text-muted-foreground pt-1 border-t border-border/40">
-              Size: {sel.w}×{sel.d} · Pos: ({sel.x},{sel.z})
+              Size: {sel.w}x{sel.d} · Pos: {sel.x},{sel.z}
             </div>
           </div>
         ) : (
