@@ -1,7 +1,7 @@
 import {
-  Eye, Flame, Activity, Truck, Forklift, Tag, Save, RotateCcw, Maximize, Layers3, PencilRuler,
+  Eye, Flame, Activity, Truck, Forklift, Tag, Save, RotateCcw, Maximize, Layers3, PencilRuler, Check, Clock,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useWMSStore, type ViewMode } from "@/lib/wms-store";
 import { useEditorStore } from "@/lib/wms-editor-store";
 import { EditLayoutModal } from "./WarehouseEditorModals";
@@ -16,16 +16,64 @@ const modes: { id: ViewMode; label: string; icon: typeof Flame; color: string }[
   { id: "movement", label: "Movement", icon: Truck, color: "#0ea5e9" },
 ];
 
+function useAutoSave() {
+  const isDirty = useEditorStore((s) => s.isDirty);
+  const lastSavedAt = useEditorStore((s) => s.lastSavedAt);
+  const _markSaved = useEditorStore((s) => s._markSaved);
+  const [justSaved, setJustSaved] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Autosave 2 seconds after last change (data already persisted to localStorage by zustand)
+  useEffect(() => {
+    if (!isDirty) return;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      _markSaved();
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2500);
+    }, 2000);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [isDirty, _markSaved]);
+
+  const saveNow = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    _markSaved();
+    setJustSaved(true);
+    setTimeout(() => setJustSaved(false), 2500);
+  };
+
+  return { isDirty, lastSavedAt, justSaved, saveNow };
+}
+
+function formatSavedAt(ts: number | null) {
+  if (!ts) return null;
+  const diff = Math.floor((Date.now() - ts) / 1000);
+  if (diff < 5) return "just now";
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
 export function BuilderToolbar() {
   const { viewMode, setViewMode, showForklifts, showDocks, showLabels, toggle } = useWMSStore();
   const { resetToDefault, warehouse } = useEditorStore();
   const [showEditLayout, setShowEditLayout] = useState(false);
+  const { isDirty, lastSavedAt, justSaved, saveNow } = useAutoSave();
+  const [, tick] = useState(0);
+
+  // Re-render every 15s so "Xs ago" label stays fresh
+  useEffect(() => {
+    const id = setInterval(() => tick((n) => n + 1), 15000);
+    return () => clearInterval(id);
+  }, []);
 
   const handleReset = () => {
     if (confirm("Reset warehouse to default layout? All your changes will be lost.")) {
       resetToDefault();
     }
   };
+
+  const savedLabel = formatSavedAt(lastSavedAt);
 
   return (
     <>
@@ -61,7 +109,29 @@ export function BuilderToolbar() {
         <ToggleBtn active={showLabels} onClick={() => toggle("showLabels")} icon={Tag} label="Labels" />
       </div>
 
-      <div className="ml-auto flex items-center gap-1">
+      <div className="ml-auto flex items-center gap-2">
+        {/* Autosave status pill */}
+        <div className={cn(
+          "flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-medium transition-all duration-500 border",
+          justSaved
+            ? "text-success bg-success/10 border-success/30"
+            : isDirty
+            ? "text-warning bg-warning/10 border-warning/30"
+            : savedLabel
+            ? "text-muted-foreground border-border/40"
+            : "text-muted-foreground border-border/20 opacity-40",
+        )}>
+          {justSaved ? (
+            <><Check className="h-3 w-3" /> Saved</>
+          ) : isDirty ? (
+            <><Clock className="h-3 w-3 animate-pulse" /> Saving&hellip;</>
+          ) : savedLabel ? (
+            <><Check className="h-3 w-3" /> Saved {savedLabel}</>
+          ) : (
+            <><Save className="h-3 w-3" /> No changes</>
+          )}
+        </div>
+
         <button
           onClick={handleReset}
           className="px-2.5 py-1.5 rounded border border-border hover:bg-secondary flex items-center gap-1.5 text-muted-foreground hover:text-destructive"
@@ -78,8 +148,14 @@ export function BuilderToolbar() {
           <PencilRuler className="h-3.5 w-3.5" /> Edit Layout
         </button>
         <button
-          onClick={() => alert("Layout auto-saved to browser storage.")}
-          className="px-3 py-1.5 rounded bg-primary text-primary-foreground font-medium hover:opacity-90 flex items-center gap-1.5 glow-amber"
+          onClick={saveNow}
+          disabled={!isDirty}
+          className={cn(
+            "px-3 py-1.5 rounded font-medium flex items-center gap-1.5 transition-all",
+            isDirty
+              ? "bg-primary text-primary-foreground hover:opacity-90 glow-amber cursor-pointer"
+              : "bg-primary/30 text-primary-foreground/50 cursor-default",
+          )}
         >
           <Save className="h-3.5 w-3.5" /> Save Layout
         </button>
