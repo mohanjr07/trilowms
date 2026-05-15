@@ -1,5 +1,5 @@
 import { ChevronRight, ChevronDown, Box, Layers, Building2, Filter, Plus, Trash2, Pencil, Truck, Warehouse } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useEditorStore } from "@/lib/wms-editor-store";
 import { useWMSStore } from "@/lib/wms-store";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,13 @@ export function BuilderTreePanel() {
   const { selectedId, select, zoneFilter, setZoneFilter, onWarehouseSwitch } = useWMSStore();
   const [open, setOpen] = useState<Record<string, boolean>>({ root: true });
   const toggle = (k: string) => setOpen((o) => ({ ...o, [k]: !o[k] }));
+
+  // Reset tree expansion + selection whenever the active warehouse changes
+  useEffect(() => {
+    setOpen({ root: true });
+    select(null, null);
+    setZoneFilter(null);
+  }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [showAddZone, setShowAddZone] = useState(false);
   const [showAddDock, setShowAddDock] = useState(false);
