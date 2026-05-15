@@ -2,8 +2,9 @@ import { useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Grid, Html, Environment, Stats } from "@react-three/drei";
 import * as THREE from "three";
-import { warehouse, type Bin, type Rack, type Zone, type Dock, type Forklift } from "@/lib/wms-data";
+import type { Bin, Rack, Zone, Dock, Forklift } from "@/lib/wms-data";
 import { useWMSStore } from "@/lib/wms-store";
+import { useEditorStore } from "@/lib/wms-editor-store";
 
 const STATUS_COLOR: Record<Bin["status"], string> = {
   Empty: "#3a4452",
@@ -15,8 +16,9 @@ const STATUS_COLOR: Record<Bin["status"], string> = {
 };
 
 function Floor() {
-  const w = warehouse.size.w;
-  const d = warehouse.size.d;
+  const { size } = useEditorStore((s) => s.warehouse);
+  const w = size.w;
+  const d = size.d;
   return (
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, -0.01, 0]}>
@@ -259,9 +261,10 @@ function ForkliftMesh({ fl }: { fl: Forklift }) {
 }
 
 function PathTrails() {
+  const forklifts = useEditorStore((s) => s.warehouse.forklifts);
   return (
     <>
-      {warehouse.forklifts.map((fl) => {
+      {forklifts.map((fl) => {
         const points = fl.path.map((p) => new THREE.Vector3(p[0], 0.05, p[1]));
         points.push(points[0]);
         const geo = new THREE.BufferGeometry().setFromPoints(points);
@@ -278,9 +281,10 @@ function PathTrails() {
 
 function Scene() {
   const { showForklifts, showDocks } = useWMSStore();
+  const warehouse = useEditorStore((s) => s.warehouse);
   const allRacks = useMemo(
     () => warehouse.zones.flatMap((z) => z.aisles.flatMap((a) => a.racks.map((r) => ({ rack: r, color: z.color, zoneId: z.id })))),
-    [],
+    [warehouse],
   );
   const filter = useWMSStore((s) => s.zoneFilter);
 
