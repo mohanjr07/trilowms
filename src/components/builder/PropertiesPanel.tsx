@@ -1,9 +1,10 @@
-import { warehouse } from "@/lib/wms-data";
+import { useEditorStore } from "@/lib/wms-editor-store";
 import { useWMSStore } from "@/lib/wms-store";
 import { Box, Activity, AlertTriangle, Package } from "lucide-react";
 
 export function PropertiesPanel() {
   const { selectedId, selectedKind } = useWMSStore();
+  const warehouse = useEditorStore((s) => s.warehouse);
 
   if (!selectedId || !selectedKind) {
     return (
