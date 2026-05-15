@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown, Plus, Copy, Trash2, Warehouse, Check } from "lucide-react";
 import { useEditorStore } from "@/lib/wms-editor-store";
+import { useWMSStore } from "@/lib/wms-store";
 import { NewWarehouseModal } from "./WarehouseEditorModals";
 import { cn } from "@/lib/utils";
 
 export function WarehouseSwitcher() {
   const { warehouses, activeId, switchWarehouse, deleteWarehouse, duplicateWarehouse } = useEditorStore();
+  const { onWarehouseSwitch } = useWMSStore();
   const active = warehouses.find((w) => w.name === activeId) ?? warehouses[0];
   const [open, setOpen] = useState(false);
   const [showNew, setShowNew] = useState(false);
@@ -50,7 +52,7 @@ export function WarehouseSwitcher() {
                       "group flex items-center gap-2 px-3 py-2 hover:bg-secondary/60 cursor-pointer text-xs",
                       isActive && "bg-primary/10",
                     )}
-                    onClick={() => { switchWarehouse(w.name); setOpen(false); }}
+                    onClick={() => { switchWarehouse(w.name); onWarehouseSwitch(w.name); setOpen(false); }}
                   >
                     {isActive
                       ? <Check className="h-3.5 w-3.5 text-primary shrink-0" />
@@ -61,7 +63,7 @@ export function WarehouseSwitcher() {
                     <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 ml-1">
                       <button
                         title="Duplicate"
-                        onClick={(e) => { e.stopPropagation(); duplicateWarehouse(w.name); setOpen(false); }}
+                        onClick={(e) => { e.stopPropagation(); duplicateWarehouse(w.name); onWarehouseSwitch(w.name + " (Copy)"); setOpen(false); }}
                         className="h-5 w-5 flex items-center justify-center rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
                       >
                         <Copy className="h-3 w-3" />
