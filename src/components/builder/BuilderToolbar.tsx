@@ -1,5 +1,5 @@
 import {
-  Eye, Flame, Activity, Truck, Forklift, Tag, Save, RotateCcw, Maximize, Layers3, PencilRuler, Check, Clock,
+  Eye, Flame, Activity, Truck, Forklift, Tag, Save, RotateCcw, Maximize, Layers3, PencilRuler, Check, Clock, AlertCircle,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useWMSStore, type ViewMode } from "@/lib/wms-store";
@@ -18,31 +18,33 @@ const modes: { id: ViewMode; label: string; icon: typeof Flame; color: string }[
 
 function useAutoSave() {
   const isDirty = useEditorStore((s) => s.isDirty);
+  const isSaving = useEditorStore((s) => s.isSaving);
   const lastSavedAt = useEditorStore((s) => s.lastSavedAt);
-  const _markSaved = useEditorStore((s) => s._markSaved);
+  const syncError = useEditorStore((s) => s.syncError);
+  const _saveToCloud = useEditorStore((s) => s._saveToCloud);
   const [justSaved, setJustSaved] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Autosave 2 seconds after last change (data already persisted to localStorage by zustand)
+  // Autosave 2 seconds after last change
   useEffect(() => {
     if (!isDirty) return;
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      _markSaved();
+    timerRef.current = setTimeout(async () => {
+      await _saveToCloud();
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 2500);
     }, 2000);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [isDirty, _markSaved]);
+  }, [isDirty, _saveToCloud]);
 
-  const saveNow = () => {
+  const saveNow = async () => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    _markSaved();
+    await _saveToCloud();
     setJustSaved(true);
     setTimeout(() => setJustSaved(false), 2500);
   };
 
-  return { isDirty, lastSavedAt, justSaved, saveNow };
+  return { isDirty, isSaving, lastSavedAt, justSaved, syncError, saveNow };
 }
 
 function formatSavedAt(ts: number | null) {
@@ -58,7 +60,7 @@ export function BuilderToolbar() {
   const { viewMode, setViewMode, showForklifts, showDocks, showLabels, toggle } = useWMSStore();
   const { resetToDefault, warehouse } = useEditorStore();
   const [showEditLayout, setShowEditLayout] = useState(false);
-  const { isDirty, lastSavedAt, justSaved, saveNow } = useAutoSave();
+  const { isDirty, isSaving, lastSavedAt, justSaved, syncError, saveNow } = useAutoSave();
   const [, tick] = useState(0);
 
   // Re-render every 15s so "Xs ago" label stays fresh
@@ -110,21 +112,27 @@ export function BuilderToolbar() {
       </div>
 
       <div className="ml-auto flex items-center gap-2">
-        {/* Autosave status pill */}
+        {/* Cloud save status pill */}
         <div className={cn(
           "flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-medium transition-all duration-500 border",
-          justSaved
+          syncError
+            ? "text-destructive bg-destructive/10 border-destructive/30"
+            : justSaved
             ? "text-success bg-success/10 border-success/30"
-            : isDirty
+            : isSaving || isDirty
             ? "text-warning bg-warning/10 border-warning/30"
             : savedLabel
             ? "text-muted-foreground border-border/40"
             : "text-muted-foreground border-border/20 opacity-40",
         )}>
-          {justSaved ? (
-            <><Check className="h-3 w-3" /> Saved</>
+          {syncError ? (
+            <><AlertCircle className="h-3 w-3" /> Save failed</>
+          ) : justSaved ? (
+            <><Check className="h-3 w-3" /> Saved to cloud</>
+          ) : isSaving ? (
+            <><Clock className="h-3 w-3 animate-spin" /> Saving…</>
           ) : isDirty ? (
-            <><Clock className="h-3 w-3 animate-pulse" /> Saving&hellip;</>
+            <><Clock className="h-3 w-3 animate-pulse" /> Saving…</>
           ) : savedLabel ? (
             <><Check className="h-3 w-3" /> Saved {savedLabel}</>
           ) : (
@@ -149,10 +157,10 @@ export function BuilderToolbar() {
         </button>
         <button
           onClick={saveNow}
-          disabled={!isDirty}
+          disabled={!isDirty || isSaving}
           className={cn(
             "px-3 py-1.5 rounded font-medium flex items-center gap-1.5 transition-all",
-            isDirty
+            isDirty && !isSaving
               ? "bg-primary text-primary-foreground hover:opacity-90 glow-amber cursor-pointer"
               : "bg-primary/30 text-primary-foreground/50 cursor-default",
           )}
