@@ -56,8 +56,10 @@ interface EditorState {
   lastSavedAt: number | null;
   isDirty: boolean;
   isSaving: boolean;
+  isHydrating: boolean;
   syncError: string | null;
   _saveToCloud: () => Promise<void>;
+  _loadFromCloud: () => Promise<void>;
 
   // Computed active warehouse
   readonly warehouse: Warehouse;
@@ -133,7 +135,29 @@ export const useEditorStore = create<EditorState>()(
         lastSavedAt: null,
         isDirty: false,
         isSaving: false,
+        isHydrating: false,
         syncError: null,
+        _loadFromCloud: async () => {
+          rawSet({ isHydrating: true, syncError: null });
+          try {
+            const { data, error } = await supabase
+              .from("warehouses")
+              .select("name, active_id, data")
+              .order("updated_at", { ascending: false });
+            if (error) throw error;
+            if (data && data.length > 0) {
+              const warehouses = data.map((row: { data: Warehouse }) => row.data as Warehouse);
+              // Use the active_id from the most recently updated row
+              const activeId = data[0].active_id ?? warehouses[0].name;
+              rawSet({ warehouses, activeId, isHydrating: false });
+            } else {
+              rawSet({ isHydrating: false });
+            }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : "Unknown error";
+            rawSet({ syncError: msg, isHydrating: false });
+          }
+        },
         _saveToCloud: async () => {
           const { warehouses, activeId } = get();
           rawSet({ isSaving: true, syncError: null });
