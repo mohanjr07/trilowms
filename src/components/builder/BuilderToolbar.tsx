@@ -2,6 +2,7 @@ import {
   Eye, Flame, Activity, Truck, Forklift, Tag, Save, RotateCcw, Maximize, Layers3,
 } from "lucide-react";
 import { useWMSStore, type ViewMode } from "@/lib/wms-store";
+import { useEditorStore } from "@/lib/wms-editor-store";
 import { cn } from "@/lib/utils";
 
 const modes: { id: ViewMode; label: string; icon: typeof Flame; color: string }[] = [
@@ -15,6 +16,13 @@ const modes: { id: ViewMode; label: string; icon: typeof Flame; color: string }[
 
 export function BuilderToolbar() {
   const { viewMode, setViewMode, showForklifts, showDocks, showLabels, toggle } = useWMSStore();
+  const { resetToDefault } = useEditorStore();
+
+  const handleReset = () => {
+    if (confirm("Reset warehouse to default layout? All your changes will be lost.")) {
+      resetToDefault();
+    }
+  };
 
   return (
     <div className="h-12 panel border-b flex items-center px-3 gap-2 text-xs">
@@ -50,13 +58,19 @@ export function BuilderToolbar() {
       </div>
 
       <div className="ml-auto flex items-center gap-1">
-        <button className="px-2.5 py-1.5 rounded border border-border hover:bg-secondary flex items-center gap-1.5">
-          <RotateCcw className="h-3.5 w-3.5" /> Reset View
+        <button
+          onClick={handleReset}
+          className="px-2.5 py-1.5 rounded border border-border hover:bg-secondary flex items-center gap-1.5 text-muted-foreground hover:text-destructive"
+        >
+          <RotateCcw className="h-3.5 w-3.5" /> Reset
         </button>
         <button className="px-2.5 py-1.5 rounded border border-border hover:bg-secondary flex items-center gap-1.5">
           <Maximize className="h-3.5 w-3.5" /> Fullscreen
         </button>
-        <button className="px-3 py-1.5 rounded bg-primary text-primary-foreground font-medium hover:opacity-90 flex items-center gap-1.5 glow-amber">
+        <button
+          onClick={() => alert("Layout auto-saved to browser storage.")}
+          className="px-3 py-1.5 rounded bg-primary text-primary-foreground font-medium hover:opacity-90 flex items-center gap-1.5 glow-amber"
+        >
           <Save className="h-3.5 w-3.5" /> Save Layout
         </button>
       </div>
