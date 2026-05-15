@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useRef } from "react";
 import { Warehouse3D } from "@/components/builder/Warehouse3D";
 import { BuilderTreePanel } from "@/components/builder/BuilderTreePanel";
 import { PropertiesPanel } from "@/components/builder/PropertiesPanel";
@@ -19,6 +20,18 @@ export const Route = createFileRoute("/builder")({
 function Builder() {
   const viewMode = useWMSStore((s) => s.viewMode);
   const warehouseName = useEditorStore((s) => s.warehouse.name);
+  const onWarehouseSwitch = useWMSStore((s) => s.onWarehouseSwitch);
+  const activeId = useEditorStore((s) => s.activeId);
+
+  // Keep wms-store in sync when editor store changes active warehouse
+  // (covers programmatic switches e.g. from DragDropBuilder)
+  const prevActiveId = useRef(activeId);
+  useEffect(() => {
+    if (activeId !== prevActiveId.current) {
+      prevActiveId.current = activeId;
+      onWarehouseSwitch(activeId);
+    }
+  }, [activeId, onWarehouseSwitch]);
   return (
     <div className="flex h-full">
       <BuilderTreePanel />
