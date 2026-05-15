@@ -128,7 +128,7 @@ interface DragDropWarehouseBuilderProps {
 }
 
 export function DragDropWarehouseBuilder({ warehouseName, warehouseW, warehouseD, onClose, initialPlaced, isEdit }: DragDropWarehouseBuilderProps) {
-  const { addRackToZone, addBinsToRack, commitEmptyLayout, deleteZone, deleteDock } = useEditorStore();
+  const { addRackToZone, addBinsToRack, commitEmptyLayout, deleteZone, deleteDock, _saveToCloud } = useEditorStore();
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -290,7 +290,7 @@ export function DragDropWarehouseBuilder({ warehouseName, warehouseW, warehouseD
     setPendingBinDrop(null);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const halfW = warehouseW / 2;
     const halfD = warehouseD / 2;
     const zones = placed.filter((e) => e.kind === "zone");
@@ -340,6 +340,7 @@ export function DragDropWarehouseBuilder({ warehouseName, warehouseW, warehouseD
     }
 
     setSaved(true);
+    await _saveToCloud();
     setTimeout(() => onClose(), 600);
   };
 
