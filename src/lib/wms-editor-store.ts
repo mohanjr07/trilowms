@@ -87,6 +87,13 @@ interface EditorState {
     zones: ZoneFormData[],
     docks: DockFormData[],
   ) => void;
+
+  // Atomically write empty zones + docks (from drag-drop builder) in one set() call
+  commitEmptyLayout: (
+    name: string,
+    zones: { name: string; type: ZoneType; bounds: { x: number; z: number; w: number; d: number } }[],
+    docks: { code: string; kind: "Inbound" | "Outbound"; position: [number, number] }[],
+  ) => void;
 }
 
 // Helper — update active warehouse in list
@@ -256,6 +263,21 @@ export const useEditorStore = create<EditorState>()(
           position: [form.x, form.z] as [number, number],
         }));
         // Write zones+docks into the named warehouse and switch to it atomically
+        const warehouses = s.warehouses.map((w) =>
+          w.name === name ? { ...w, zones, docks } : w,
+        );
+        return { warehouses, activeId: name };
+      }),
+
+      commitEmptyLayout: (name, zoneDefs, dockDefs) => set((s) => {
+        const zones = zoneDefs.map((z) => makeEmptyZone(z.name, z.type, z.bounds));
+        const docks: Dock[] = dockDefs.map((d, i) => ({
+          id: `dock-${Date.now()}-${i}`,
+          code: d.code,
+          kind: d.kind,
+          occupied: false,
+          position: d.position,
+        }));
         const warehouses = s.warehouses.map((w) =>
           w.name === name ? { ...w, zones, docks } : w,
         );
