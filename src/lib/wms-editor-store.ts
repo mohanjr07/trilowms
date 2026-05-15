@@ -70,6 +70,13 @@ interface EditorState {
 
   // Reset active to default
   resetToDefault: () => void;
+
+  // Atomically switch to a warehouse and bulk-add zones+docks in one set() call
+  commitLayout: (
+    name: string,
+    zones: ZoneFormData[],
+    docks: DockFormData[],
+  ) => void;
 }
 
 // Helper — update active warehouse in list
@@ -170,6 +177,26 @@ export const useEditorStore = create<EditorState>()(
         warehouses: updateActive(s.warehouses, s.activeId, () => defaultWarehouse),
         activeId: defaultWarehouse.name,
       })),
+
+      commitLayout: (name, zoneForms, dockForms) => set((s) => {
+        // Build zone objects
+        const zones = zoneForms.map((form) =>
+          makeZone(form.name, form.type, { x: form.x, z: form.z, w: form.w, d: form.d }, form.aisleCount, form.racksPerAisle),
+        );
+        // Build dock objects
+        const docks: Dock[] = dockForms.map((form, i) => ({
+          id: `dock-${Date.now()}-${i}`,
+          code: form.code,
+          kind: form.kind,
+          occupied: false,
+          position: [form.x, form.z] as [number, number],
+        }));
+        // Write zones+docks into the named warehouse and switch to it atomically
+        const warehouses = s.warehouses.map((w) =>
+          w.name === name ? { ...w, zones, docks } : w,
+        );
+        return { warehouses, activeId: name };
+      }),
     }),
     { name: "trilowms-warehouse-editor" },
   ),
