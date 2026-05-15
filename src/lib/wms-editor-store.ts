@@ -140,21 +140,26 @@ export const useEditorStore = create<EditorState>()(
         _loadFromCloud: async () => {
           rawSet({ isHydrating: true, syncError: null });
           try {
+            // Fetch the single snapshot row (we store everything in one row keyed by id=1)
             const { data, error } = await supabase
-              .from("warehouses")
-              .select("name, active_id, data")
-              .order("updated_at", { ascending: false });
+              .from("wms_snapshots")
+              .select("warehouses, active_id")
+              .eq("id", 1)
+              .maybeSingle();
             if (error) throw error;
-            if (data && data.length > 0) {
-              const warehouses = data.map((row: { data: Warehouse }) => row.data as Warehouse);
-              // Use the active_id from the most recently updated row
-              const activeId = data[0].active_id ?? warehouses[0].name;
-              rawSet({ warehouses, activeId, isHydrating: false });
+            if (data && Array.isArray(data.warehouses) && data.warehouses.length > 0) {
+              rawSet({
+                warehouses: data.warehouses as Warehouse[],
+                activeId: data.active_id as string,
+                isHydrating: false,
+              });
             } else {
+              // Nothing in Supabase yet — keep whatever is in localStorage
               rawSet({ isHydrating: false });
             }
           } catch (err) {
             const msg = err instanceof Error ? err.message : "Unknown error";
+            // On error, keep localStorage data and surface the error
             rawSet({ syncError: msg, isHydrating: false });
           }
         },
@@ -162,16 +167,13 @@ export const useEditorStore = create<EditorState>()(
           const { warehouses, activeId } = get();
           rawSet({ isSaving: true, syncError: null });
           try {
+            // Upsert a single row (id=1) that holds the entire warehouse list.
+            // This avoids per-warehouse rows and unique constraint issues.
             const { error } = await supabase
-              .from("warehouses")
+              .from("wms_snapshots")
               .upsert(
-                warehouses.map((w) => ({
-                  name: w.name,
-                  active_id: activeId,
-                  data: w,
-                  updated_at: new Date().toISOString(),
-                })),
-                { onConflict: "name" },
+                { id: 1, warehouses, active_id: activeId, updated_at: new Date().toISOString() },
+                { onConflict: "id" },
               );
             if (error) throw error;
             rawSet({ lastSavedAt: Date.now(), isDirty: false, isSaving: false });
