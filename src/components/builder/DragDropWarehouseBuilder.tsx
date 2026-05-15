@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type ElementKind = "zone" | "dock" | "rack";
+type ElementKind = "zone" | "dock" | "rack" | "aisle" | "pallet" | "bin";
 
 interface PlacedElement {
   id: string;
@@ -34,10 +34,13 @@ interface PlacedElement {
   dockKind?: "Inbound" | "Outbound";
   aisleCount?: number;
   racksPerAisle?: number;
+  rackLevels?: number;
+  binsPerLevel?: number;
 }
 
 // Palette chips definition
 const PALETTE: { kind: ElementKind; label: string; sub?: string; defaultW: number; defaultD: number; color: string }[] = [
+  // Zones
   { kind: "zone", label: "Inbound Staging", sub: "Raw Material", defaultW: 14, defaultD: 10, color: ZONE_COLORS["Raw Material"] },
   { kind: "zone", label: "Fast Pick Zone", sub: "Fast Moving", defaultW: 14, defaultD: 14, color: ZONE_COLORS["Fast Moving"] },
   { kind: "zone", label: "Bulk Storage", sub: "Finished Goods", defaultW: 14, defaultD: 16, color: ZONE_COLORS["Finished Goods"] },
@@ -46,8 +49,23 @@ const PALETTE: { kind: ElementKind; label: string; sub?: string; defaultW: numbe
   { kind: "zone", label: "Returns / QC", sub: "Returns", defaultW: 14, defaultD: 8, color: ZONE_COLORS["Returns"] },
   { kind: "zone", label: "Slow Movers", sub: "Slow Moving", defaultW: 12, defaultD: 10, color: ZONE_COLORS["Slow Moving"] },
   { kind: "zone", label: "Outbound Staging", sub: "Finished Goods", defaultW: 14, defaultD: 10, color: ZONE_COLORS["Finished Goods"] },
+  // Docks
   { kind: "dock", label: "Inbound Dock", sub: "Inbound", defaultW: 4, defaultD: 2, color: "#0891b2" },
   { kind: "dock", label: "Outbound Dock", sub: "Outbound", defaultW: 4, defaultD: 2, color: "#f97316" },
+  // Aisles
+  { kind: "aisle", label: "Storage Aisle", sub: "Aisle", defaultW: 6, defaultD: 12, color: "#8b5cf6" },
+  { kind: "aisle", label: "Pick Aisle", sub: "Aisle", defaultW: 4, defaultD: 10, color: "#a78bfa" },
+  // Racks
+  { kind: "rack", label: "Storage Rack", sub: "Rack", defaultW: 2, defaultD: 1, color: "#6366f1" },
+  { kind: "rack", label: "Heavy Duty Rack", sub: "Rack", defaultW: 3, defaultD: 1, color: "#818cf8" },
+  { kind: "rack", label: "Flow Rack", sub: "Rack", defaultW: 2, defaultD: 2, color: "#4f46e5" },
+  // Pallets
+  { kind: "pallet", label: "Standard Pallet", sub: "Pallet", defaultW: 1, defaultD: 1, color: "#b45309" },
+  { kind: "pallet", label: "Euro Pallet", sub: "Pallet", defaultW: 1, defaultD: 1, color: "#d97706" },
+  // Bins
+  { kind: "bin", label: "Pick Bin", sub: "Bin", defaultW: 1, defaultD: 1, color: "#16a34a" },
+  { kind: "bin", label: "Reserve Bin", sub: "Bin", defaultW: 1, defaultD: 1, color: "#0ea5e9" },
+  { kind: "bin", label: "Blocked Bin", sub: "Bin", defaultW: 1, defaultD: 1, color: "#dc2626" },
 ];
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -55,12 +73,18 @@ const PALETTE: { kind: ElementKind; label: string; sub?: string; defaultW: numbe
 function kindIcon(kind: ElementKind) {
   if (kind === "zone") return <LayoutGrid className="h-3 w-3" />;
   if (kind === "dock") return <Anchor className="h-3 w-3" />;
+  if (kind === "aisle") return <Layers className="h-3 w-3" />;
+  if (kind === "pallet") return <Box className="h-3 w-3" />;
+  if (kind === "bin") return <Box className="h-3 w-3" />;
   return <Box className="h-3 w-3" />;
 }
 
 function elementColor(el: PlacedElement) {
   if (el.kind === "zone" && el.zoneType) return ZONE_COLORS[el.zoneType];
   if (el.kind === "dock") return el.dockKind === "Inbound" ? "#0891b2" : "#f97316";
+  if (el.kind === "aisle") return "#8b5cf6";
+  if (el.kind === "pallet") return "#d97706";
+  if (el.kind === "bin") return "#16a34a";
   return "#6366f1";
 }
 
@@ -213,10 +237,12 @@ export function DragDropWarehouseBuilder({
             w: item.defaultW,
             d: item.defaultD,
             label: item.label,
-            zoneType: item.sub as ZoneType | undefined,
+            zoneType: item.kind === "zone" ? (item.sub as ZoneType | undefined) : undefined,
             dockKind: item.kind === "dock" ? (item.sub as "Inbound" | "Outbound") : undefined,
-            aisleCount: item.kind === "zone" ? 2 : undefined,
-            racksPerAisle: item.kind === "zone" ? 4 : undefined,
+            aisleCount: item.kind === "zone" ? 2 : item.kind === "aisle" ? 1 : undefined,
+            racksPerAisle: item.kind === "zone" ? 4 : item.kind === "aisle" ? 3 : undefined,
+            rackLevels: item.kind === "rack" ? 4 : undefined,
+            binsPerLevel: item.kind === "rack" ? 4 : undefined,
           };
           setPlaced((p) => [...p, newEl]);
           setSelected(newEl.id);
@@ -264,11 +290,16 @@ export function DragDropWarehouseBuilder({
     const halfW = warehouseW / 2;
     const halfD = warehouseD / 2;
 
-    for (const el of placed) {
-      // Convert 2D canvas coords (0,0 = top-left) → centered 3D coords
+    // Separate elements by kind
+    const zones = placed.filter((el) => el.kind === "zone");
+    const docks = placed.filter((el) => el.kind === "dock");
+    const aisles = placed.filter((el) => el.kind === "aisle");
+    const racks = placed.filter((el) => el.kind === "rack");
+
+    for (const el of zones) {
       const cx = el.x - halfW;
       const cz = el.z - halfD;
-      if (el.kind === "zone" && el.zoneType) {
+      if (el.zoneType) {
         addZone({
           name: el.label,
           type: el.zoneType,
@@ -279,7 +310,13 @@ export function DragDropWarehouseBuilder({
           aisleCount: el.aisleCount ?? 2,
           racksPerAisle: el.racksPerAisle ?? 4,
         });
-      } else if (el.kind === "dock" && el.dockKind) {
+      }
+    }
+
+    for (const el of docks) {
+      const cx = el.x - halfW;
+      const cz = el.z - halfD;
+      if (el.dockKind) {
         addDock({
           code: el.label.replace(" Dock", "").toUpperCase().slice(0, 6) + `-${Date.now() % 100}`,
           kind: el.dockKind,
@@ -287,6 +324,38 @@ export function DragDropWarehouseBuilder({
           z: cz + el.d / 2,
         });
       }
+    }
+
+    // Aisles placed independently get added as a zone wrapper with the rack config
+    for (const el of aisles) {
+      const cx = el.x - halfW;
+      const cz = el.z - halfD;
+      addZone({
+        name: el.label,
+        type: "Slow Moving",
+        x: cx,
+        z: cz,
+        w: el.w,
+        d: el.d,
+        aisleCount: el.aisleCount ?? 1,
+        racksPerAisle: el.racksPerAisle ?? 3,
+      });
+    }
+
+    // Individual racks placed get added as tiny single-rack zones
+    for (const el of racks) {
+      const cx = el.x - halfW;
+      const cz = el.z - halfD;
+      addZone({
+        name: el.label,
+        type: "Finished Goods",
+        x: cx,
+        z: cz,
+        w: Math.max(el.w, 3),
+        d: Math.max(el.d, 3),
+        aisleCount: 1,
+        racksPerAisle: 1,
+      });
     }
 
     setSaved(true);
@@ -307,28 +376,40 @@ export function DragDropWarehouseBuilder({
           <div className="text-[10px] text-muted-foreground">{warehouseW}×{warehouseD} grid units</div>
         </div>
 
-        <div className="px-3 py-2 border-b border-border/40">
+        <div className="px-3 py-2 border-b border-border/40 flex-1 overflow-y-auto">
           <div className="text-[10px] font-bold tracking-wider text-muted-foreground mb-2">DRAG TO PLACE</div>
-          <div className="space-y-1.5">
-            {PALETTE.map((item, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-2 px-2.5 py-2 rounded border border-border/40 cursor-grab active:cursor-grabbing hover:border-primary/50 hover:bg-primary/5 select-none text-xs"
-                style={{ borderLeftColor: item.color, borderLeftWidth: 3 }}
-                onMouseDown={onPaletteMouseDown(item)}
-              >
-                <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium truncate">{item.label}</div>
-                  {item.sub && <div className="text-[10px] text-muted-foreground truncate">{item.sub}</div>}
+
+          {(["zone", "dock", "aisle", "rack", "pallet", "bin"] as ElementKind[]).map((sectionKind) => {
+            const items = PALETTE.filter((p) => p.kind === sectionKind);
+            const sectionLabel: Record<ElementKind, string> = {
+              zone: "ZONES", dock: "DOCKS", aisle: "AISLES", rack: "RACKS", pallet: "PALLETS", bin: "BINS",
+            };
+            return (
+              <div key={sectionKind} className="mb-3">
+                <div className="text-[9px] font-bold tracking-wider text-muted-foreground/60 mb-1 mt-1">{sectionLabel[sectionKind]}</div>
+                <div className="space-y-1">
+                  {items.map((item, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-2 px-2.5 py-2 rounded border border-border/40 cursor-grab active:cursor-grabbing hover:border-primary/50 hover:bg-primary/5 select-none text-xs"
+                      style={{ borderLeftColor: item.color, borderLeftWidth: 3 }}
+                      onMouseDown={onPaletteMouseDown(item)}
+                    >
+                      <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{item.label}</div>
+                        {item.sub && <div className="text-[10px] text-muted-foreground truncate">{item.sub}</div>}
+                      </div>
+                      <span className="h-2.5 w-2.5 rounded-sm flex-shrink-0" style={{ background: item.color }} />
+                    </div>
+                  ))}
                 </div>
-                <span className="h-2.5 w-2.5 rounded-sm flex-shrink-0" style={{ background: item.color }} />
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
 
-        <div className="px-3 py-2 mt-auto border-t border-border/60 text-[10px] text-muted-foreground space-y-1">
+        <div className="px-3 py-2 mt-auto border-t border-border/60 text-[10px] text-muted-foreground space-y-1 flex-shrink-0">
           <div className="flex items-start gap-1"><Info className="h-3 w-3 mt-0.5 shrink-0" /><span>Drag items from the list above onto the floor grid</span></div>
           <div>• Click placed item to select</div>
           <div>• Drag to move, resize from corner</div>
@@ -543,7 +624,51 @@ export function DragDropWarehouseBuilder({
                 </div>
               </>
             )}
-            {sel.kind === "dock" && (
+            {sel.kind === "aisle" && (
+              <>
+                <div>
+                  <div className="text-[10px] text-muted-foreground mb-1">RACK ROWS</div>
+                  <input type="number" min={1} max={6}
+                    className="w-full bg-background/60 border border-border/60 rounded px-2 py-1 text-xs focus:outline-none focus:border-primary/50"
+                    value={sel.aisleCount ?? 1}
+                    onChange={(e) => setPlaced((p) => p.map((el) => el.id === sel.id ? { ...el, aisleCount: Math.max(1, +e.target.value) } : el))}
+                  />
+                </div>
+                <div>
+                  <div className="text-[10px] text-muted-foreground mb-1">RACKS PER ROW</div>
+                  <input type="number" min={1} max={10}
+                    className="w-full bg-background/60 border border-border/60 rounded px-2 py-1 text-xs focus:outline-none focus:border-primary/50"
+                    value={sel.racksPerAisle ?? 3}
+                    onChange={(e) => setPlaced((p) => p.map((el) => el.id === sel.id ? { ...el, racksPerAisle: Math.max(1, +e.target.value) } : el))}
+                  />
+                </div>
+              </>
+            )}
+            {sel.kind === "rack" && (
+              <>
+                <div>
+                  <div className="text-[10px] text-muted-foreground mb-1">LEVELS</div>
+                  <input type="number" min={1} max={10}
+                    className="w-full bg-background/60 border border-border/60 rounded px-2 py-1 text-xs focus:outline-none focus:border-primary/50"
+                    value={sel.rackLevels ?? 4}
+                    onChange={(e) => setPlaced((p) => p.map((el) => el.id === sel.id ? { ...el, rackLevels: Math.max(1, +e.target.value) } : el))}
+                  />
+                </div>
+                <div>
+                  <div className="text-[10px] text-muted-foreground mb-1">BINS PER LEVEL</div>
+                  <input type="number" min={1} max={8}
+                    className="w-full bg-background/60 border border-border/60 rounded px-2 py-1 text-xs focus:outline-none focus:border-primary/50"
+                    value={sel.binsPerLevel ?? 4}
+                    onChange={(e) => setPlaced((p) => p.map((el) => el.id === sel.id ? { ...el, binsPerLevel: Math.max(1, +e.target.value) } : el))}
+                  />
+                </div>
+              </>
+            )}
+            {(sel.kind === "pallet" || sel.kind === "bin") && (
+              <div className="text-[10px] text-muted-foreground pt-1 border-t border-border/40">
+                {sel.kind === "pallet" ? "Pallet placed on floor" : "Bin attached to nearest rack"} — position is saved for visual layout reference.
+              </div>
+            )}
               <div>
                 <div className="text-[10px] text-muted-foreground mb-1">DOCK KIND</div>
                 <select
@@ -587,6 +712,10 @@ export function DragDropWarehouseBuilder({
             { color: "#0891b2", label: "Dock (Inbound)" },
             { color: "#f97316", label: "Dock (Outbound)" },
             { color: "#dc2626", label: "Zone (Hazardous)" },
+            { color: "#8b5cf6", label: "Aisle" },
+            { color: "#6366f1", label: "Rack" },
+            { color: "#d97706", label: "Pallet" },
+            { color: "#16a34a", label: "Bin" },
           ].map((l) => (
             <div key={l.label} className="flex items-center gap-2 text-[10px]">
               <span className="h-2 w-2 rounded-sm flex-shrink-0" style={{ background: l.color }} />

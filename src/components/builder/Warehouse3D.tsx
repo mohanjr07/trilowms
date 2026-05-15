@@ -15,8 +15,12 @@ const STATUS_COLOR: Record<Bin["status"], string> = {
   Damaged: "#737373",
 };
 
+function useActiveWarehouse() {
+  return useEditorStore((s) => s.warehouses.find((w) => w.name === s.activeId) ?? s.warehouses[0]);
+}
+
 function Floor() {
-  const { size } = useEditorStore((s) => s.warehouse);
+  const { size } = useActiveWarehouse();
   const w = size.w;
   const d = size.d;
   return (
@@ -261,7 +265,7 @@ function ForkliftMesh({ fl }: { fl: Forklift }) {
 }
 
 function PathTrails() {
-  const forklifts = useEditorStore((s) => s.warehouse.forklifts);
+  const forklifts = useActiveWarehouse().forklifts;
   return (
     <>
       {forklifts.map((fl) => {
@@ -281,7 +285,7 @@ function PathTrails() {
 
 function Scene() {
   const { showForklifts, showDocks } = useWMSStore();
-  const warehouse = useEditorStore((s) => s.warehouse);
+  const warehouse = useActiveWarehouse();
   const allRacks = useMemo(
     () => warehouse.zones.flatMap((z) => z.aisles.flatMap((a) => a.racks.map((r) => ({ rack: r, color: z.color, zoneId: z.id })))),
     [warehouse],
