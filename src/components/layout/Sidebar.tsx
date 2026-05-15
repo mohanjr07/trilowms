@@ -6,7 +6,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
-const modules = [
+const modules: { to: string; label: string; icon: typeof LayoutDashboard; highlight?: boolean }[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/builder", label: "Warehouse Builder", icon: Warehouse, highlight: true },
   { to: "/inventory", label: "Inventory", icon: Boxes },
@@ -21,7 +21,7 @@ const modules = [
   { to: "/labor", label: "Labor", icon: Users },
   { to: "/reports", label: "Reports", icon: BarChart3 },
   { to: "/admin", label: "Admin", icon: Settings },
-] as const;
+];
 
 export function Sidebar() {
   const path = useRouterState({ select: (s) => s.location.pathname });
