@@ -107,6 +107,58 @@ function makeBins(rackId: string, levels: number, perLevel: number): Bin[] {
   return bins;
 }
 
+/** Creates a zone with NO aisles/racks — user adds racks manually via drag-and-drop */
+export function makeEmptyZone(
+  name: string,
+  type: ZoneType,
+  bounds: Zone["bounds"],
+): Zone {
+  return {
+    id: name.toLowerCase().replace(/\s+/g, "-"),
+    name,
+    type,
+    color: ZONE_COLORS[type],
+    bounds,
+    utilization: 0,
+    activity: Math.random() * 0.8 + 0.2,
+    aisles: [],
+  };
+}
+
+/** Creates a standalone rack (no bins) to be placed inside a zone */
+export function makeEmptyRack(
+  zoneId: string,
+  rackIndex: number,
+  position: [number, number],
+): Rack {
+  const rackId = `${zoneId.slice(0, 4).toUpperCase()}-R${rackIndex}`;
+  return {
+    id: rackId,
+    code: rackId,
+    position,
+    rotation: 0,
+    levels: 4,
+    binsPerLevel: 4,
+    bins: [],
+  };
+}
+
+/** Generates N bins and appends them to a rack (called after user confirms bin count) */
+export function generateBinsForRack(rack: Rack, count: number): Bin[] {
+  const bins: Bin[] = [];
+  for (let i = 0; i < count; i++) {
+    const binId = `${rack.id}-B${i + 1}`;
+    bins.push({
+      id: binId,
+      code: binId,
+      status: "Empty",
+      occupancy: 0,
+      pallets: 0,
+    });
+  }
+  return bins;
+}
+
 export function makeZone(
   name: string,
   type: ZoneType,

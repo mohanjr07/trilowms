@@ -5,7 +5,12 @@ import {
   type Warehouse,
   type ZoneType,
   type Dock,
+  type Rack,
+  type Bin,
   makeZone,
+  makeEmptyZone,
+  makeEmptyRack,
+  generateBinsForRack,
 } from "./wms-data";
 
 export interface ZoneFormData {
@@ -57,8 +62,13 @@ interface EditorState {
 
   // Zone CRUD (on active warehouse)
   addZone: (form: ZoneFormData) => void;
+  addEmptyZone: (name: string, type: ZoneType, bounds: { x: number; z: number; w: number; d: number }) => void;
   updateZone: (id: string, form: Partial<ZoneFormData>) => void;
   deleteZone: (id: string) => void;
+
+  // Rack CRUD — racks are placed inside a specific zone
+  addRackToZone: (zoneId: string, position: [number, number]) => void;
+  addBinsToRack: (zoneId: string, rackId: string, count: number) => void;
 
   // Dock CRUD (on active warehouse)
   addDock: (form: DockFormData) => void;
@@ -125,6 +135,11 @@ export const useEditorStore = create<EditorState>()(
         return { warehouses: updateActive(s.warehouses, s.activeId, (w) => ({ ...w, zones: [...w.zones, zone] })) };
       }),
 
+      addEmptyZone: (name, type, bounds) => set((s) => {
+        const zone = makeEmptyZone(name, type, bounds);
+        return { warehouses: updateActive(s.warehouses, s.activeId, (w) => ({ ...w, zones: [...w.zones, zone] })) };
+      }),
+
       updateZone: (id, form) => set((s) => ({
         warehouses: updateActive(s.warehouses, s.activeId, (w) => ({
           ...w,
@@ -163,6 +178,55 @@ export const useEditorStore = create<EditorState>()(
           ...w, docks: w.docks.filter((d) => d.id !== id),
         })),
       })),
+
+      addRackToZone: (zoneId, position) => set((s) => {
+        return {
+          warehouses: updateActive(s.warehouses, s.activeId, (w) => ({
+            ...w,
+            zones: w.zones.map((z) => {
+              if (z.id !== zoneId) return z;
+              // Count existing racks across all aisles for unique index
+              const existingCount = z.aisles.reduce((sum, a) => sum + a.racks.length, 0);
+              const rack = makeEmptyRack(zoneId, existingCount + 1, position);
+              // Place in a single default aisle or create one
+              if (z.aisles.length === 0) {
+                return {
+                  ...z,
+                  aisles: [{ id: `${zoneId}-A1`, code: "Aisle 1", racks: [rack] }],
+                };
+              }
+              // Add to first aisle
+              const [firstAisle, ...rest] = z.aisles;
+              return {
+                ...z,
+                aisles: [{ ...firstAisle, racks: [...firstAisle.racks, rack] }, ...rest],
+              };
+            }),
+          })),
+        };
+      }),
+
+      addBinsToRack: (zoneId, rackId, count) => set((s) => {
+        return {
+          warehouses: updateActive(s.warehouses, s.activeId, (w) => ({
+            ...w,
+            zones: w.zones.map((z) => {
+              if (z.id !== zoneId) return z;
+              return {
+                ...z,
+                aisles: z.aisles.map((a) => ({
+                  ...a,
+                  racks: a.racks.map((r) => {
+                    if (r.id !== rackId) return r;
+                    const newBins = generateBinsForRack(r, count);
+                    return { ...r, bins: [...r.bins, ...newBins] };
+                  }),
+                })),
+              };
+            }),
+          })),
+        };
+      }),
 
       renameWarehouse: (name) => set((s) => ({
         warehouses: updateActive(s.warehouses, s.activeId, (w) => ({ ...w, name })),
