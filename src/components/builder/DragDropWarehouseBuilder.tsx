@@ -128,7 +128,7 @@ interface DragDropWarehouseBuilderProps {
 }
 
 export function DragDropWarehouseBuilder({ warehouseName, warehouseW, warehouseD, onClose, initialPlaced, isEdit }: DragDropWarehouseBuilderProps) {
-  const { addEmptyZone, addDock, addRackToZone, addBinsToRack, switchWarehouse, deleteZone, deleteDock } = useEditorStore();
+  const { addRackToZone, addBinsToRack, commitEmptyLayout, deleteZone, deleteDock } = useEditorStore();
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -291,7 +291,6 @@ export function DragDropWarehouseBuilder({ warehouseName, warehouseW, warehouseD
   };
 
   const handleSave = () => {
-    switchWarehouse(warehouseName);
     const halfW = warehouseW / 2;
     const halfD = warehouseD / 2;
     const zones = placed.filter((e) => e.kind === "zone");
@@ -299,17 +298,27 @@ export function DragDropWarehouseBuilder({ warehouseName, warehouseW, warehouseD
     const racks = placed.filter((e) => e.kind === "rack");
     const bins = placed.filter((e) => e.kind === "bin");
 
-    // If editing, clear existing zones & docks first
-    if (isEdit) {
-      const store = useEditorStore.getState();
-      const wh = store.warehouse;
-      wh.zones.forEach((z) => store.deleteZone(z.id));
-      wh.docks.forEach((d) => store.deleteDock(d.id));
-    }
+    // Build zone + dock definitions
+    const zoneDefs = zones
+      .filter((el) => el.zoneType)
+      .map((el) => ({
+        name: el.label,
+        type: el.zoneType!,
+        bounds: { x: el.x - halfW, z: el.z - halfD, w: el.w, d: el.d },
+      }));
 
-    for (const el of zones) {
-      if (el.zoneType) addEmptyZone(el.label, el.zoneType, { x: el.x - halfW, z: el.z - halfD, w: el.w, d: el.d });
-    }
+    const dockDefs = docks
+      .filter((el) => el.dockKind)
+      .map((el) => ({
+        code: el.label.replace(" Dock", "").toUpperCase().slice(0, 6) + `-${Date.now() % 100}`,
+        kind: el.dockKind!,
+        position: [(el.x - halfW) + el.w / 2, (el.z - halfD) + el.d / 2] as [number, number],
+      }));
+
+    // Single atomic write — switches warehouse AND saves zones+docks in one set() call
+    commitEmptyLayout(warehouseName, zoneDefs, dockDefs);
+
+    // Racks and bins are added after (they depend on zone IDs existing first)
     for (const el of racks) {
       if (el.parentZoneId) {
         const zoneEl = zones.find((z) => z.id === el.parentZoneId);
@@ -329,9 +338,7 @@ export function DragDropWarehouseBuilder({ warehouseName, warehouseW, warehouseD
         }
       }
     }
-    for (const el of docks) {
-      if (el.dockKind) addDock({ code: el.label.replace(" Dock","").toUpperCase().slice(0,6)+`-${Date.now()%100}`, kind: el.dockKind, x: (el.x - halfW) + el.w/2, z: (el.z - halfD) + el.d/2 });
-    }
+
     setSaved(true);
     setTimeout(() => onClose(), 600);
   };
