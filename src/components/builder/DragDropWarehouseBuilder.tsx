@@ -298,13 +298,17 @@ export function DragDropWarehouseBuilder({ warehouseName, warehouseW, warehouseD
     const racks = placed.filter((e) => e.kind === "rack");
     const bins = placed.filter((e) => e.kind === "bin");
 
-    // Build zone + dock definitions
+    // Build zone defs, tracking both the canvas ID and the store ID.
+    // storeId mirrors makeEmptyZone: name.toLowerCase().replace(/\s+/g, "-")
+    // so addRackToZone can find the zone in the store after commitEmptyLayout runs.
     const zoneDefs = zones
       .filter((el) => el.zoneType)
       .map((el) => ({
         name: el.label,
         type: el.zoneType!,
         bounds: { x: el.x - halfW, z: el.z - halfD, w: el.w, d: el.d },
+        storeId: el.label.toLowerCase().replace(/\s+/g, "-"),
+        canvasId: el.id,
       }));
 
     const dockDefs = docks
@@ -315,31 +319,44 @@ export function DragDropWarehouseBuilder({ warehouseName, warehouseW, warehouseD
         position: [(el.x - halfW) + el.w / 2, (el.z - halfD) + el.d / 2] as [number, number],
       }));
 
-    // Single atomic write — switches warehouse AND saves zones+docks in one set() call
-    commitEmptyLayout(warehouseName, zoneDefs, dockDefs);
+    // Step 1 — commit zones + docks atomically into the store
+    commitEmptyLayout(
+      warehouseName,
+      zoneDefs.map(({ name, type, bounds }) => ({ name, type, bounds })),
+      dockDefs,
+    );
 
-    // Racks and bins are added after (they depend on zone IDs existing first)
+    // Step 2 — add racks using the correct store zone IDs (matched by canvasId)
     for (const el of racks) {
       if (el.parentZoneId) {
-        const zoneEl = zones.find((z) => z.id === el.parentZoneId);
-        const storeZoneId = zoneEl ? zoneEl.label.toLowerCase().replace(/\s+/g, "-") : el.parentZoneId;
-        addRackToZone(storeZoneId, [(el.x - halfW) + el.w / 2, (el.z - halfD) + el.d / 2]);
+        const zoneDef = zoneDefs.find((z) => z.canvasId === el.parentZoneId);
+        if (zoneDef) {
+          addRackToZone(zoneDef.storeId, [(el.x - halfW) + el.w / 2, (el.z - halfD) + el.d / 2]);
+        }
       }
     }
+
+    // Step 3 — add bins using the correct store zone + rack IDs
     for (const el of bins) {
       if (el.parentRackId && el.parentZoneId && el.binCount) {
-        const zoneEl = zones.find((z) => z.id === el.parentZoneId);
+        const zoneDef = zoneDefs.find((z) => z.canvasId === el.parentZoneId);
         const rackEl = racks.find((r) => r.id === el.parentRackId);
-        if (zoneEl && rackEl) {
-          const storeZoneId = zoneEl.label.toLowerCase().replace(/\s+/g, "-");
-          const rackIdx = racks.filter((r) => r.parentZoneId === el.parentZoneId).findIndex((r) => r.id === el.parentRackId) + 1;
-          const storeRackId = `${storeZoneId.slice(0, 4).toUpperCase()}-R${rackIdx}`;
-          addBinsToRack(storeZoneId, storeRackId, el.binCount);
+        if (zoneDef && rackEl) {
+          const rackIdx =
+            racks
+              .filter((r) => r.parentZoneId === el.parentZoneId)
+              .findIndex((r) => r.id === el.parentRackId) + 1;
+          const storeRackId = `${zoneDef.storeId.slice(0, 4).toUpperCase()}-R${rackIdx}`;
+          addBinsToRack(zoneDef.storeId, storeRackId, el.binCount);
         }
       }
     }
 
     setSaved(true);
+
+    // Step 4 — wait one tick so Zustand batches all the above set() calls,
+    // then flush the complete final state to Supabase.
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
     await _saveToCloud();
     setTimeout(() => onClose(), 600);
   };
