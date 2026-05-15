@@ -1,4 +1,4 @@
-import { ChevronRight, ChevronDown, Box, Layers, Building2, Filter, Plus, Trash2, Pencil, Truck } from "lucide-react";
+import { ChevronRight, ChevronDown, Box, Layers, Building2, Filter, Plus, Trash2, Pencil, Truck, Warehouse } from "lucide-react";
 import { useState } from "react";
 import { useEditorStore } from "@/lib/wms-editor-store";
 import { useWMSStore } from "@/lib/wms-store";
@@ -7,8 +7,8 @@ import { ZoneModal, DockModal, RenameWarehouseModal } from "./WarehouseEditorMod
 import type { ZoneType } from "@/lib/wms-data";
 
 export function BuilderTreePanel() {
-  const { warehouse, deleteZone, deleteDock } = useEditorStore();
-  const { selectedId, select, zoneFilter, setZoneFilter } = useWMSStore();
+  const { warehouse, warehouses, activeId, switchWarehouse, deleteZone, deleteDock } = useEditorStore();
+  const { selectedId, select, zoneFilter, setZoneFilter, onWarehouseSwitch } = useWMSStore();
   const [open, setOpen] = useState<Record<string, boolean>>({ root: true });
   const toggle = (k: string) => setOpen((o) => ({ ...o, [k]: !o[k] }));
 
@@ -55,6 +55,24 @@ export function BuilderTreePanel() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-2 text-sm">
+          {/* Warehouse list — all warehouses, click to switch */}
+          <div className="mb-2 pb-2 border-b border-border/40">
+            <div className="text-[9px] font-bold tracking-wider text-muted-foreground/60 px-1.5 mb-1">WAREHOUSES</div>
+            {warehouses.map((w) => (
+              <div
+                key={w.name}
+                className={cn(
+                  "flex items-center gap-1.5 px-1.5 py-1 rounded hover:bg-secondary/60 cursor-pointer text-xs",
+                  w.name === activeId && "bg-primary/15 text-primary",
+                )}
+                onClick={() => { switchWarehouse(w.name); onWarehouseSwitch(w.name); }}
+              >
+                <Warehouse className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate flex-1">{w.name}</span>
+                <span className="text-[10px] text-mono text-muted-foreground">{w.zones.length}z</span>
+              </div>
+            ))}
+          </div>
           {/* Root */}
           <div className="flex items-center group">
             <div
