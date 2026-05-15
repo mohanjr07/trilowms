@@ -2,6 +2,7 @@ import { useState } from "react";
 import { X, Plus, Warehouse } from "lucide-react";
 import { ZONE_COLORS, type ZoneType } from "@/lib/wms-data";
 import { useEditorStore, type ZoneFormData, type DockFormData } from "@/lib/wms-editor-store";
+import { DragDropWarehouseBuilder } from "./DragDropWarehouseBuilder";
 import { cn } from "@/lib/utils";
 
 const ZONE_TYPES: ZoneType[] = [
@@ -259,14 +260,26 @@ export function NewWarehouseModal({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState({ name: "", w: 60, d: 40 });
   const set = <K extends keyof typeof form>(k: K, v: typeof form[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
+  const [showBuilder, setShowBuilder] = useState(false);
 
   const nameExists = warehouses.some((w) => w.name === form.name.trim());
 
-  const handleSubmit = () => {
+  const handleNext = () => {
     if (!form.name.trim() || nameExists) return;
     createWarehouse({ name: form.name.trim(), w: form.w, d: form.d });
-    onClose();
+    setShowBuilder(true);
   };
+
+  if (showBuilder) {
+    return (
+      <DragDropWarehouseBuilder
+        warehouseName={form.name.trim()}
+        warehouseW={form.w}
+        warehouseD={form.d}
+        onClose={onClose}
+      />
+    );
+  }
 
   return (
     <Modal title="Create New Warehouse" onClose={onClose}>
@@ -284,7 +297,10 @@ export function NewWarehouseModal({ onClose }: { onClose: () => void }) {
             <NumField label="Depth (D)" value={form.d} onChange={(v) => set("d", Math.max(20, v))} min={20} max={200} />
           </div>
           <div className="mt-2 text-[10px] text-muted-foreground">
-            Floor area: {form.w} × {form.d} = {form.w * form.d} sq units · Starts empty, add zones after.
+            Floor area: {form.w} × {form.d} = {form.w * form.d} sq units
+          </div>
+          <div className="mt-1 text-[10px] text-primary/80">
+            → Next step: drag &amp; drop zones, docks, and racks onto the floor plan
           </div>
         </div>
         <div className="flex gap-2 pt-2 border-t border-border/40">
@@ -292,11 +308,11 @@ export function NewWarehouseModal({ onClose }: { onClose: () => void }) {
             Cancel
           </button>
           <button
-            onClick={handleSubmit}
+            onClick={handleNext}
             disabled={!form.name.trim() || nameExists}
             className="flex-1 px-3 py-2 rounded bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Create Warehouse
+            Next → Design Layout
           </button>
         </div>
       </div>
