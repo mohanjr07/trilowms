@@ -3,7 +3,7 @@ import { Warehouse3D } from "@/components/builder/Warehouse3D";
 import { BuilderTreePanel } from "@/components/builder/BuilderTreePanel";
 import { PropertiesPanel } from "@/components/builder/PropertiesPanel";
 import { BuilderToolbar } from "@/components/builder/BuilderToolbar";
-import { warehouse } from "@/lib/wms-data";
+import { useEditorStore } from "@/lib/wms-editor-store";
 import { useWMSStore } from "@/lib/wms-store";
 
 export const Route = createFileRoute("/builder")({
@@ -18,6 +18,7 @@ export const Route = createFileRoute("/builder")({
 
 function Builder() {
   const viewMode = useWMSStore((s) => s.viewMode);
+  const warehouseName = useEditorStore((s) => s.warehouse.name);
   return (
     <div className="flex h-full">
       <BuilderTreePanel />
@@ -28,7 +29,7 @@ function Builder() {
           {/* Overlay HUD */}
           <div className="absolute top-3 left-3 panel rounded px-3 py-2 text-xs flex items-center gap-3 pointer-events-none">
             <span className="h-2 w-2 rounded-full bg-success pulse-dot text-success" />
-            <span className="text-mono font-bold">{warehouse.name}</span>
+            <span className="text-mono font-bold">{warehouseName}</span>
             <span className="text-muted-foreground">·</span>
             <span className="text-muted-foreground uppercase tracking-wider">Mode: {viewMode}</span>
           </div>
