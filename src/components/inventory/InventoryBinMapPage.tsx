@@ -19,8 +19,9 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGri
 // ─── KPI Strip ────────────────────────────────────────────────────────────────
 function KPIStrip() {
   const bins = useInvBinStore((s) => s.bins);
+  const activeWarehouseName = useInvBinStore((s) => s.activeWarehouseName);
   const kpisFn = useInvBinStore((s) => s.kpis);
-  const kpis = useMemo(() => kpisFn(), [bins]); // eslint-disable-line react-hooks/exhaustive-deps
+  const kpis = useMemo(() => kpisFn(), [bins, activeWarehouseName]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3 px-5 pt-4 pb-2">
       <KPICard label="TOTAL BINS"     value={kpis.totalBins.toLocaleString()}                             delta={`${kpis.occupiedBins} occupied`}                                   tone="primary"     icon={Package}        sub={`${kpis.emptyBins} empty`} />
@@ -36,8 +37,9 @@ function KPIStrip() {
 // ─── Zone Occupancy Chart ─────────────────────────────────────────────────────
 function ZoneOccupancyChart() {
   const bins = useInvBinStore((s) => s.bins);
+  const activeWarehouseName = useInvBinStore((s) => s.activeWarehouseName);
   const zoneOccupancyFn = useInvBinStore((s) => s.zoneOccupancy);
-  const zoneOccupancy = useMemo(() => zoneOccupancyFn(), [bins]); // eslint-disable-line react-hooks/exhaustive-deps
+  const zoneOccupancy = useMemo(() => zoneOccupancyFn(), [bins, activeWarehouseName]); // eslint-disable-line react-hooks/exhaustive-deps
   const data = zoneOccupancy.map((z) => ({
     name: z.zoneName.split(" ")[0],
     fullName: z.zoneName,
@@ -82,10 +84,11 @@ function ZoneOccupancyChart() {
 function StatusSummary() {
   // All hook calls at top level — no hooks inside arrays or conditionals
   const bins    = useInvBinStore((s) => s.bins);
+  const activeWarehouseName = useInvBinStore((s) => s.activeWarehouseName);
   const kpisFn  = useInvBinStore((s) => s.kpis);
-  const kpis    = useMemo(() => kpisFn(), [bins]); // eslint-disable-line react-hooks/exhaustive-deps
-  const fullCnt = useMemo(() => bins.filter((b) => b.status === "Full").length, [bins]);
-  const partCnt = useMemo(() => bins.filter((b) => b.status === "Partial").length, [bins]);
+  const kpis    = useMemo(() => kpisFn(), [bins, activeWarehouseName]); // eslint-disable-line react-hooks/exhaustive-deps
+  const fullCnt = useMemo(() => bins.filter((b) => b.status === "Full").length, [bins, activeWarehouseName]); // eslint-disable-line react-hooks/exhaustive-deps
+  const partCnt = useMemo(() => bins.filter((b) => b.status === "Partial").length, [bins, activeWarehouseName]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const entries: { label: BinStatus; count: number; color: string }[] = [
     { label: "Full",     count: fullCnt,           color: "#22c55e" },
@@ -130,8 +133,9 @@ const STATUS_OPTS: BinStatus[] = ["Empty", "Partial", "Full", "Reserved", "Block
 function BinListView() {
   const bins = useInvBinStore((s) => s.bins);
   const filters = useInvBinStore((s) => s.filters);
+  const activeWarehouseName = useInvBinStore((s) => s.activeWarehouseName);
   const filteredBinsFn = useInvBinStore((s) => s.filteredBins);
-  const filteredBins = useMemo(() => filteredBinsFn(), [bins, filters]); // eslint-disable-line react-hooks/exhaustive-deps
+  const filteredBins = useMemo(() => filteredBinsFn(), [bins, filters, activeWarehouseName]); // eslint-disable-line react-hooks/exhaustive-deps
   const selectedBinId = useInvBinStore((s) => s.selectedBinId);
   const selectBin = useInvBinStore((s) => s.selectBin);
   const setFilters = useInvBinStore((s) => s.setFilters);
