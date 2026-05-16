@@ -1,15 +1,10 @@
-import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { SkuMasterPage } from "@/components/sku/SkuMasterPage";
 import { InventoryBinMapPage } from "@/components/inventory/InventoryBinMapPage";
 import { Boxes, Map } from "lucide-react";
-import { z } from "zod";
-
-const searchSchema = z.object({
-  tab: z.enum(["sku", "binmap"]).optional().default("sku"),
-});
 
 export const Route = createFileRoute("/inventory")({
-  validateSearch: searchSchema,
   head: () => ({
     meta: [
       { title: "Inventory — TriloWMS" },
@@ -20,17 +15,12 @@ export const Route = createFileRoute("/inventory")({
 });
 
 function InventoryPage() {
-  const { tab } = useSearch({ from: "/inventory" });
-  const navigate = useNavigate({ from: "/inventory" });
-
-  const setTab = (t: "sku" | "binmap") => {
-    navigate({ search: { tab: t }, replace: true });
-  };
+  const [tab, setTab] = useState<"sku" | "binmap">("sku");
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Tab bar */}
-      <div className="flex items-center gap-0 border-b border-border bg-sidebar shrink-0">
+      <div className="flex items-center gap-0 border-b border-border bg-sidebar shrink-0 px-2">
         <button
           onClick={() => setTab("sku")}
           className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
@@ -52,7 +42,9 @@ function InventoryPage() {
         >
           <Map className="h-4 w-4" />
           Bin Map
-          <span className="ml-1 px-1.5 py-0.5 text-[9px] font-bold bg-primary/10 text-primary rounded uppercase tracking-wider">Live</span>
+          <span className="ml-1 px-1.5 py-0.5 text-[9px] font-bold bg-primary/10 text-primary rounded uppercase tracking-wider">
+            Live
+          </span>
         </button>
       </div>
 
