@@ -353,27 +353,6 @@ export function DragDropWarehouseBuilder({ warehouseName, warehouseW, warehouseD
       }
     }
 
-    // Step 3b — if editing an existing warehouse, restore racks and bins
-    // from zones that still exist (matched by name) to preserve existing data
-    if (isEdit && existingWarehouse) {
-      await new Promise<void>((resolve) => setTimeout(resolve, 0)); // let commitEmptyLayout settle
-      for (const zoneDef of zoneDefs) {
-        const existingZone = existingWarehouse.zones.find((z) => z.name === zoneDef.name);
-        if (!existingZone) continue;
-        // Re-add all racks and their bins from the existing zone
-        for (const aisle of existingZone.aisles) {
-          for (const rack of aisle.racks) {
-            addRackToZone(zoneDef.storeId, rack.position ?? [0, 0]);
-            if (rack.bins.length > 0) {
-              // We need a small delay for each rack to be registered before adding bins
-              await new Promise<void>((resolve) => setTimeout(resolve, 0));
-              addBinsToRack(zoneDef.storeId, rack.id, rack.bins.length);
-            }
-          }
-        }
-      }
-    }
-
     setSaved(true);
 
     // Step 4 — wait one tick so Zustand batches all the above set() calls,
