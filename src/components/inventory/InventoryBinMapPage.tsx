@@ -139,7 +139,7 @@ function BinListView() {
   const selectedBinId = useInvBinStore((s) => s.selectedBinId);
   const selectBin = useInvBinStore((s) => s.selectBin);
   const setFilters = useInvBinStore((s) => s.setFilters);
-  const zones = useEditorStore((s) => s.warehouse.zones);
+  const zones = useEditorStore((s) => (s.warehouses.find((w) => w.name === s.activeId) ?? s.warehouses[0]).zones);
 
   const today = new Date();
 
@@ -256,25 +256,22 @@ function BinListView() {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export function InventoryBinMapPage() {
-  const init       = useInvBinStore((s) => s.init);
-  const viewMode   = useInvBinStore((s) => s.viewMode);
-  const setViewMode= useInvBinStore((s) => s.setViewMode);
+  const init        = useInvBinStore((s) => s.init);
+  const viewMode    = useInvBinStore((s) => s.viewMode);
+  const setViewMode = useInvBinStore((s) => s.setViewMode);
   const selectedBinId = useInvBinStore((s) => s.selectedBinId);
-  const selectBin  = useInvBinStore((s) => s.selectBin);
-  const getBinById = useInvBinStore((s) => s.getBinById);
-  const warehouse  = useEditorStore((s) => s.warehouse);
+  const selectBin   = useInvBinStore((s) => s.selectBin);
+  const getBinById  = useInvBinStore((s) => s.getBinById);
 
-  // Run init every time the active warehouse changes — this seeds bins if needed
-  // and always updates activeWarehouseName in the bin store to match the editor store
+  // Use stable primitives from editor store — avoid selecting the whole warehouse object
+  const activeId    = useEditorStore((s) => s.activeId);
+  const warehouse   = useEditorStore((s) => s.warehouses.find((w) => w.name === s.activeId) ?? s.warehouses[0]);
+
+  // Re-run init every time the active warehouse changes
   useEffect(() => {
     init(warehouse);
     selectBin(null);
-  }, [warehouse.name]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Also call init immediately on mount in case persisted activeWarehouseName is stale
-  useEffect(() => {
-    init(warehouse);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedBin = selectedBinId ? getBinById(selectedBinId) : null;
 
