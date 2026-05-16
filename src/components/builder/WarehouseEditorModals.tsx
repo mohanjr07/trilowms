@@ -361,6 +361,7 @@ export function EditLayoutModal({ onClose, warehouse }: { onClose: () => void; w
       onClose={onClose}
       initialPlaced={initialPlaced}
       isEdit
+      existingWarehouse={warehouse}
     />
   );
 }
