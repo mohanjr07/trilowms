@@ -18,8 +18,8 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGri
 
 // ─── KPI Strip ────────────────────────────────────────────────────────────────
 function KPIStrip() {
-  const bins = useInvBinStore((s) => s.bins);
   const activeWarehouseName = useInvBinStore((s) => s.activeWarehouseName);
+  const bins = useInvBinStore((s) => activeWarehouseName ? (s.warehouseBins[activeWarehouseName] ?? []) : []);
   const kpisFn = useInvBinStore((s) => s.kpis);
   const kpis = useMemo(() => kpisFn(), [bins, activeWarehouseName]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
@@ -36,8 +36,8 @@ function KPIStrip() {
 
 // ─── Zone Occupancy Chart ─────────────────────────────────────────────────────
 function ZoneOccupancyChart() {
-  const bins = useInvBinStore((s) => s.bins);
   const activeWarehouseName = useInvBinStore((s) => s.activeWarehouseName);
+  const bins = useInvBinStore((s) => activeWarehouseName ? (s.warehouseBins[activeWarehouseName] ?? []) : []);
   const zoneOccupancyFn = useInvBinStore((s) => s.zoneOccupancy);
   const zoneOccupancy = useMemo(() => zoneOccupancyFn(), [bins, activeWarehouseName]); // eslint-disable-line react-hooks/exhaustive-deps
   const data = zoneOccupancy.map((z) => ({
@@ -83,8 +83,8 @@ function ZoneOccupancyChart() {
 // ─── Bin Status Summary ───────────────────────────────────────────────────────
 function StatusSummary() {
   // All hook calls at top level — no hooks inside arrays or conditionals
-  const bins    = useInvBinStore((s) => s.bins);
   const activeWarehouseName = useInvBinStore((s) => s.activeWarehouseName);
+  const bins    = useInvBinStore((s) => activeWarehouseName ? (s.warehouseBins[activeWarehouseName] ?? []) : []);
   const kpisFn  = useInvBinStore((s) => s.kpis);
   const kpis    = useMemo(() => kpisFn(), [bins, activeWarehouseName]); // eslint-disable-line react-hooks/exhaustive-deps
   const fullCnt = useMemo(() => bins.filter((b) => b.status === "Full").length, [bins, activeWarehouseName]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -131,9 +131,9 @@ const STATUS_COLORS: Record<BinStatus, string> = {
 const STATUS_OPTS: BinStatus[] = ["Empty", "Partial", "Full", "Reserved", "Blocked", "Damaged"];
 
 function BinListView() {
-  const bins = useInvBinStore((s) => s.bins);
-  const filters = useInvBinStore((s) => s.filters);
   const activeWarehouseName = useInvBinStore((s) => s.activeWarehouseName);
+  const bins = useInvBinStore((s) => activeWarehouseName ? (s.warehouseBins[activeWarehouseName] ?? []) : []);
+  const filters = useInvBinStore((s) => s.filters);
   const filteredBinsFn = useInvBinStore((s) => s.filteredBins);
   const filteredBins = useMemo(() => filteredBinsFn(), [bins, filters, activeWarehouseName]); // eslint-disable-line react-hooks/exhaustive-deps
   const selectedBinId = useInvBinStore((s) => s.selectedBinId);
