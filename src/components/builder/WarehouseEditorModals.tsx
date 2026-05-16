@@ -326,11 +326,12 @@ export function NewWarehouseModal({ onClose }: { onClose: () => void }) {
 export type { PlacedElement } from "./DragDropWarehouseBuilder";
 
 export function EditLayoutModal({ onClose, warehouse }: { onClose: () => void; warehouse: WarehouseType }) {
-  // Convert existing Warehouse zones + docks → PlacedElement[]
+  // Convert existing Warehouse zones + docks + racks + bins → PlacedElement[]
   const halfW = warehouse.size.w / 2;
   const halfD = warehouse.size.d / 2;
 
   const initialPlaced = [
+    // Zones
     ...warehouse.zones.map((z) => ({
       id: z.id,
       kind: "zone" as const,
@@ -341,6 +342,7 @@ export function EditLayoutModal({ onClose, warehouse }: { onClose: () => void; w
       label: z.name,
       zoneType: z.type,
     })),
+    // Docks
     ...warehouse.docks.map((d) => ({
       id: d.id,
       kind: "dock" as const,
@@ -351,6 +353,40 @@ export function EditLayoutModal({ onClose, warehouse }: { onClose: () => void; w
       label: d.code,
       dockKind: d.kind,
     })),
+    // Racks (from all aisles in all zones)
+    ...warehouse.zones.flatMap((z) =>
+      z.aisles.flatMap((a) =>
+        a.racks.map((r) => ({
+          id: r.id,
+          kind: "rack" as const,
+          x: r.position[0] + halfW - 1,
+          z: r.position[1] + halfD - 0.5,
+          w: 2,
+          d: 1,
+          label: r.id,
+          parentZoneId: z.id,
+        }))
+      )
+    ),
+    // Bins (one PlacedElement per rack that has bins, representing the bin set)
+    ...warehouse.zones.flatMap((z) =>
+      z.aisles.flatMap((a) =>
+        a.racks
+          .filter((r) => r.bins.length > 0)
+          .map((r) => ({
+            id: `bin-set-${r.id}`,
+            kind: "bin" as const,
+            x: r.position[0] + halfW - 1,
+            z: r.position[1] + halfD - 0.5,
+            w: 2,
+            d: 1,
+            label: `${r.bins.length} bins`,
+            parentRackId: r.id,
+            parentZoneId: z.id,
+            binCount: r.bins.length,
+          }))
+      )
+    ),
   ];
 
   return (
