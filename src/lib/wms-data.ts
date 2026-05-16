@@ -18,6 +18,11 @@ export interface Bin {
   occupancy: number; // 0-1
   sku?: string;
   pallets: number;
+  // Extended inventory tracking (Sprint 1B)
+  batchNumber?: string;
+  expiryDate?: string;
+  quantity?: number;
+  capacity?: number;
 }
 
 export interface Rack {
