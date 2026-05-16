@@ -171,7 +171,7 @@ interface InvBinState {
   selectedBinId: string | null;
   filters: BinInventoryFilters;
   viewMode: "heatmap" | "list" | "rack";
-  initialized: boolean;
+  initializedWarehouseId: string | null;
 
   // Actions
   init: (warehouse: import("./wms-data").Warehouse) => void;
@@ -201,13 +201,13 @@ export const useInvBinStore = create<InvBinState>()(
       selectedBinId: null,
       filters: DEFAULT_FILTERS,
       viewMode: "heatmap",
-      initialized: false,
+      initializedWarehouseId: null,
 
       init: (warehouse) => {
-        const { initialized } = get();
-        if (initialized) return; // Only seed once
+        const { initializedWarehouseId } = get();
+        if (initializedWarehouseId === warehouse.name) return; // Already seeded for this warehouse
         const bins = buildInitialBinInventory(warehouse);
-        set({ bins, initialized: true });
+        set({ bins, initializedWarehouseId: warehouse.name });
       },
 
       selectBin: (id) => set({ selectedBinId: id }),
@@ -386,7 +386,7 @@ export const useInvBinStore = create<InvBinState>()(
     }),
     {
       name: "trilowms-inv-bin-map",
-      partialize: (s) => ({ bins: s.bins, initialized: s.initialized }),
+      partialize: (s) => ({ bins: s.bins, initializedWarehouseId: s.initializedWarehouseId }),
     }
   )
 );
