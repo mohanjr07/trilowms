@@ -125,9 +125,10 @@ interface DragDropWarehouseBuilderProps {
   onClose: () => void;
   initialPlaced?: PlacedElement[];
   isEdit?: boolean;
+  existingWarehouse?: import("@/lib/wms-data").Warehouse; // passed on edit to preserve racks/bins
 }
 
-export function DragDropWarehouseBuilder({ warehouseName, warehouseW, warehouseD, onClose, initialPlaced, isEdit }: DragDropWarehouseBuilderProps) {
+export function DragDropWarehouseBuilder({ warehouseName, warehouseW, warehouseD, onClose, initialPlaced, isEdit, existingWarehouse }: DragDropWarehouseBuilderProps) {
   const { addRackToZone, addBinsToRack, commitEmptyLayout, deleteZone, deleteDock, _saveToCloud } = useEditorStore();
 
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -348,6 +349,27 @@ export function DragDropWarehouseBuilder({ warehouseName, warehouseW, warehouseD
               .findIndex((r) => r.id === el.parentRackId) + 1;
           const storeRackId = `${zoneDef.storeId.slice(0, 4).toUpperCase()}-R${rackIdx}`;
           addBinsToRack(zoneDef.storeId, storeRackId, el.binCount);
+        }
+      }
+    }
+
+    // Step 3b — if editing an existing warehouse, restore racks and bins
+    // from zones that still exist (matched by name) to preserve existing data
+    if (isEdit && existingWarehouse) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0)); // let commitEmptyLayout settle
+      for (const zoneDef of zoneDefs) {
+        const existingZone = existingWarehouse.zones.find((z) => z.name === zoneDef.name);
+        if (!existingZone) continue;
+        // Re-add all racks and their bins from the existing zone
+        for (const aisle of existingZone.aisles) {
+          for (const rack of aisle.racks) {
+            addRackToZone(zoneDef.storeId, rack.position ?? [0, 0]);
+            if (rack.bins.length > 0) {
+              // We need a small delay for each rack to be registered before adding bins
+              await new Promise<void>((resolve) => setTimeout(resolve, 0));
+              addBinsToRack(zoneDef.storeId, rack.id, rack.bins.length);
+            }
+          }
         }
       }
     }
