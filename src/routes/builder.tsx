@@ -19,7 +19,7 @@ export const Route = createFileRoute("/builder")({
 
 function Builder() {
   const viewMode = useWMSStore((s) => s.viewMode);
-  const warehouseName = useEditorStore((s) => s.warehouse.name);
+  const warehouseName = useEditorStore((s) => (s.warehouses.find((w) => w.name === s.activeId) ?? s.warehouses[0]).name);
   const onWarehouseSwitch = useWMSStore((s) => s.onWarehouseSwitch);
   const activeId = useEditorStore((s) => s.activeId);
 
