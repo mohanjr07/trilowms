@@ -262,7 +262,8 @@ export function InventoryBinMapPage() {
 
   useEffect(() => {
     init(warehouse);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    selectBin(null); // clear any selected bin from previous warehouse
+  }, [warehouse.name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedBin = selectedBinId ? getBinById(selectedBinId) : null;
 
