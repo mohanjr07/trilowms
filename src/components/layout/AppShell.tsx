@@ -3,14 +3,13 @@ import { Outlet } from "@tanstack/react-router";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { useEditorStore } from "@/lib/wms-editor-store";
+import { AuthGuard } from "@/components/auth/AuthGuard";
 
 export function AppShell() {
   const _loadFromCloud = useEditorStore((s) => s._loadFromCloud);
-  // Start as true so we never flash stale localStorage data before Supabase responds
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Load from Supabase first, then show the UI regardless of outcome
     _loadFromCloud().finally(() => setReady(true));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -27,14 +26,16 @@ export function AppShell() {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background">
-      <Sidebar />
-      <div className="flex flex-1 flex-col min-w-0">
-        <TopBar />
-        <main className="flex-1 overflow-hidden">
-          <Outlet />
-        </main>
+    <AuthGuard>
+      <div className="flex h-screen w-full overflow-hidden bg-background">
+        <Sidebar />
+        <div className="flex flex-1 flex-col min-w-0">
+          <TopBar />
+          <main className="flex-1 overflow-hidden">
+            <Outlet />
+          </main>
+        </div>
       </div>
-    </div>
+    </AuthGuard>
   );
 }
