@@ -185,7 +185,6 @@ interface InvBinState {
   setViewMode: (m: InvBinState["viewMode"]) => void;
 
   // Derived — operate on the active warehouse's bins only
-  readonly bins: BinInventory[];
   filteredBins: () => BinInventory[];
   getBinById: (id: string) => BinInventory | undefined;
   searchSkuLocations: (skuCode: string) => BinSearchResult[];
@@ -222,12 +221,6 @@ export const useInvBinStore = create<InvBinState>()(
       },
 
       selectBin: (id) => set({ selectedBinId: id }),
-
-      // Helper to get active bins array (used internally by actions)
-      get bins() {
-        const { warehouseBins, activeWarehouseName } = get();
-        return activeWarehouseName ? (warehouseBins[activeWarehouseName] ?? []) : [];
-      },
 
       assignSkuToBin: (binId, skuCode, skuName, quantity, batchNumber, expiryDate) => {
         const { activeWarehouseName, warehouseBins } = get();
