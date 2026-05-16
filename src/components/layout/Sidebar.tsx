@@ -12,7 +12,7 @@ import { useAuthStore, ROLE_DEFINITIONS } from "@/lib/auth-store";
 const ALL_MODULES: { to: string; label: string; icon: typeof LayoutDashboard; highlight?: boolean }[] = [
   { to: "/",         label: "Dashboard",        icon: LayoutDashboard },
   { to: "/builder",  label: "Warehouse Builder", icon: Warehouse, highlight: true },
-  { to: "/inventory",label: "SKU Master",         icon: Boxes },
+  { to: "/inventory",label: "Inventory & Bins",    icon: Boxes },
   { to: "/inbound",  label: "Inbound",           icon: ArrowDownToLine },
   { to: "/putaway",  label: "Putaway",           icon: PackageOpen },
   { to: "/picking",  label: "Picking",           icon: PackageSearch },
