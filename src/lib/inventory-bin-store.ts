@@ -215,7 +215,7 @@ export const useInvBinStore = create<InvBinState>()(
       assignSkuToBin: (binId, skuCode, skuName, quantity, batchNumber, expiryDate) => {
         set((s) => ({
           bins: s.bins.map((b) => {
-            if (b.id !== binId) return b;
+            if (b.binId !== binId) return b;
             const occupancyPct = Math.min(100, Math.round((quantity / b.capacity) * 100));
             const status: BinStatus =
               quantity === 0 ? "Empty" :
@@ -239,7 +239,7 @@ export const useInvBinStore = create<InvBinState>()(
       updateBinQuantity: (binId, quantity) => {
         set((s) => ({
           bins: s.bins.map((b) => {
-            if (b.id !== binId) return b;
+            if (b.binId !== binId) return b;
             const occupancyPct = Math.min(100, Math.round((quantity / b.capacity) * 100));
             const status: BinStatus =
               quantity === 0 ? "Empty" :
@@ -257,7 +257,7 @@ export const useInvBinStore = create<InvBinState>()(
       updateBinStatus: (binId, status) => {
         set((s) => ({
           bins: s.bins.map((b) =>
-            b.id === binId
+            b.binId === binId
               ? { ...b, status, lastMovement: new Date().toISOString() }
               : b
           ),
@@ -267,7 +267,7 @@ export const useInvBinStore = create<InvBinState>()(
       clearBin: (binId) => {
         set((s) => ({
           bins: s.bins.map((b) =>
-            b.id === binId
+            b.binId === binId
               ? {
                   ...b, skuCode: null, skuName: null, quantity: 0,
                   occupancyPct: 0, palletCount: 0, status: "Empty",
@@ -309,7 +309,7 @@ export const useInvBinStore = create<InvBinState>()(
         });
       },
 
-      getBinById: (id) => get().bins.find((b) => b.id === id),
+      getBinById: (id) => get().bins.find((b) => b.binId === id),
 
       searchSkuLocations: (skuCode) => {
         const { bins } = get();
@@ -377,7 +377,7 @@ export const useInvBinStore = create<InvBinState>()(
 
       heatmapData: () => {
         return get().bins.map((b) => ({
-          binId: b.id,
+          binId: b.binId,
           occupancyPct: b.occupancyPct,
           status: b.status,
           zoneId: b.zoneId,
