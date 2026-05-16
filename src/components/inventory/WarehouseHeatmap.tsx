@@ -132,7 +132,8 @@ function BinTooltip({ state }: BinTooltipProps) {
 }
 
 export function WarehouseHeatmap() {
-  const { bins, selectedBinId, selectBin, activeWarehouseName } = useInvBinStore();
+  const { selectedBinId, selectBin, activeWarehouseName, warehouseBins } = useInvBinStore();
+  const bins = activeWarehouseName ? (warehouseBins[activeWarehouseName] ?? []) : [];
   const { warehouse } = useEditorStore();
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
 
