@@ -4,7 +4,7 @@ import { Box, Activity, AlertTriangle, Package } from "lucide-react";
 
 export function PropertiesPanel() {
   const { selectedId, selectedKind } = useWMSStore();
-  const warehouse = useEditorStore((s) => s.warehouse);
+  const warehouse = useEditorStore((s) => s.warehouses.find((w) => w.name === s.activeId) ?? s.warehouses[0]);
 
   if (!selectedId || !selectedKind) {
     return (
