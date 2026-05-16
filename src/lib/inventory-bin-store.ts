@@ -416,7 +416,8 @@ export const useInvBinStore = create<InvBinState>()(
       name: "trilowms-inv-bin-map",
       partialize: (s) => ({
         warehouseBins: s.warehouseBins,
-        activeWarehouseName: s.activeWarehouseName,
+        // Do NOT persist activeWarehouseName — it is always set by init() on mount
+        // from the editor store's active warehouse, preventing stale data mismatches
       }),
     }
   )
