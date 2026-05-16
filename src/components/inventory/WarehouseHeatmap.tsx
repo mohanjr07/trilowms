@@ -132,7 +132,7 @@ function BinTooltip({ state }: BinTooltipProps) {
 }
 
 export function WarehouseHeatmap() {
-  const { bins, selectedBinId, selectBin } = useInvBinStore();
+  const { bins, selectedBinId, selectBin, activeWarehouseName } = useInvBinStore();
   const { warehouse } = useEditorStore();
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
 
@@ -143,7 +143,7 @@ export function WarehouseHeatmap() {
     const m = new Map<string, BinInventory>();
     for (const b of bins) m.set(b.binId, b);
     return m;
-  }, [bins]);
+  }, [bins, activeWarehouseName]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Zone occupancy summary
   const zoneOccupancy = useMemo(() => {
@@ -153,7 +153,7 @@ export function WarehouseHeatmap() {
       map.set(b.zoneId, { total: e.total + 1, sum: e.sum + b.occupancyPct });
     }
     return map;
-  }, [bins]);
+  }, [bins, activeWarehouseName]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (zones.length === 0) {
     return (
