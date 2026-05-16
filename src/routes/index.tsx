@@ -1,15 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { LayoutDashboard, Package, Truck, AlertTriangle, TrendingUp, Forklift, Warehouse, Users, ShieldCheck, BarChart3, ArrowDownToLine, ArrowUpFromLine, PackageSearch, CheckCircle2, Clock, Activity } from "lucide-react";
+import { LayoutDashboard, Package, Truck, AlertTriangle, TrendingUp, Forklift, Warehouse, Users, ShieldCheck, BarChart3, ArrowDownToLine, ArrowUpFromLine, PackageSearch, CheckCircle2, Clock, Activity, ArrowLeftRight } from "lucide-react";
 import { PageHeader, KPICard, Panel } from "@/components/wms/Primitives";
 import { warehouse, totalKPIs } from "@/lib/wms-data";
 import { useAuthStore } from "@/lib/auth-store";
 import { Link } from "@tanstack/react-router";
+import { useMemo } from "react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, ResponsiveContainer,
-  Tooltip, CartesianGrid, RadialBarChart, RadialBar, PolarAngleAxis,
+  Tooltip, CartesianGrid, RadialBarChart, RadialBar, PolarAngleAxis, Cell,
 } from "recharts";
+import { useTransactionStore, TXN_TYPE_META, TXN_STATUS_META, type InventoryTransaction } from "@/lib/transaction-store";
+import { useInvBinStore } from "@/lib/inventory-bin-store";
 
-export const Route = createFileRoute("/")(({
+export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Dashboard — TriloWMS" },
@@ -17,7 +20,7 @@ export const Route = createFileRoute("/")(({
     ],
   }),
   component: RoleDashboard,
-}));
+});
 
 const throughput = Array.from({ length: 24 }, (_, i) => ({
   h: `${i}:00`,
@@ -29,6 +32,19 @@ const zoneUtil = warehouse.zones.map((z) => ({
   util: Math.round(z.utilization * 100),
   fill: z.color,
 }));
+
+function cn_inline(...classes: (string | undefined | null | false)[]) {
+  return classes.filter(Boolean).join(" ");
+}
+
+function DR({ label, value, accent }: { label: string; value: string | number; accent?: string }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={cn_inline("font-mono font-bold", accent === "destructive" ? "text-destructive" : "")}>{value}</span>
+    </div>
+  );
+}
 
 function RoleDashboard() {
   const { session, role } = useAuthStore();
@@ -64,6 +80,68 @@ function RoleDashboard() {
     default:
       return <EnterpriseDashboard k={k} />;
   }
+}
+
+// ─── Transaction Live Feed (shared widget) ────────────────────────────────────
+
+function TransactionLiveFeed({ limit = 6 }: { limit?: number }) {
+  const recentFn = useTransactionStore((s) => s.recentTransactions);
+  const txns = useMemo(() => recentFn(limit), [recentFn, limit]);
+
+  return (
+    <div className="p-3 space-y-1.5 text-xs overflow-y-auto h-full">
+      {txns.map((txn: InventoryTransaction) => {
+        const meta = TXN_TYPE_META[txn.type];
+        const statusMeta = TXN_STATUS_META[txn.status];
+        const ts = new Date(txn.timestamp);
+        const timeStr = ts.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+        return (
+          <div key={txn.id} className="flex items-center gap-2 border-b border-border/30 pb-1.5">
+            <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${meta.dot}`} />
+            <span className="text-mono text-muted-foreground">{timeStr}</span>
+            <span className={`font-medium ${meta.color}`}>{meta.label}</span>
+            <span className="font-mono text-muted-foreground truncate flex-1">{txn.skuCode}</span>
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${statusMeta.color} ${statusMeta.bg}`}>
+              {statusMeta.label}
+            </span>
+          </div>
+        );
+      })}
+      {txns.length === 0 && (
+        <div className="text-center text-muted-foreground py-4">No transactions yet</div>
+      )}
+    </div>
+  );
+}
+
+// ─── Transaction KPI mini-strip ────────────────────────────────────────────────
+
+function TxnMiniKPIs() {
+  const activeWarehouseName = useInvBinStore((s) => s.activeWarehouseName);
+  const kpisFn = useTransactionStore((s) => s.kpis);
+  const transactions = useTransactionStore((s) => s.transactions);
+  const kpis = useMemo(() => kpisFn(activeWarehouseName ?? undefined), [transactions, activeWarehouseName]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const typeData = (Object.entries(kpis.byType) as [string, number][])
+    .filter(([, v]) => v > 0)
+    .slice(0, 5)
+    .map(([type, count]) => ({ name: type.split("_")[0], count }));
+
+  return (
+    <div className="grid grid-cols-4 gap-2 text-center">
+      {[
+        { label: "Total",     value: kpis.total,     color: "text-foreground" },
+        { label: "Today",     value: kpis.today,     color: "text-primary" },
+        { label: "Pending",   value: kpis.pending,   color: kpis.pending > 0 ? "text-amber-400" : "text-muted-foreground" },
+        { label: "24h Thru",  value: kpis.throughput24h, color: "text-sky-400" },
+      ].map(({ label, value, color }) => (
+        <div key={label} className="bg-secondary/60 rounded-lg px-2 py-2">
+          <div className={`text-lg font-black font-mono ${color}`}>{value}</div>
+          <div className="text-[9px] text-muted-foreground uppercase tracking-wide mt-0.5">{label}</div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // ─── Enterprise / Super Admin ─────────────────────────────────────────────────
@@ -114,7 +192,7 @@ function EnterpriseDashboard({ k }: { k: ReturnType<typeof totalKPIs> }) {
                 <ResponsiveContainer width="100%" height={130}>
                   <RadialBarChart innerRadius="70%" outerRadius="100%" data={[{ value: Math.round(k.utilization * 100), fill: "var(--color-primary)" }]} startAngle={90} endAngle={-270}>
                     <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
-                    <RadialBar background={{ fill: "var(--color-secondary)" } as any} dataKey="value" cornerRadius={10} />
+                    <RadialBar background={{ fill: "var(--color-secondary)" } as never} dataKey="value" cornerRadius={10} />
                   </RadialBarChart>
                 </ResponsiveContainer>
                 <div className="text-2xl font-bold text-mono text-primary -mt-10">{(k.utilization * 100).toFixed(0)}%</div>
@@ -131,6 +209,8 @@ function EnterpriseDashboard({ k }: { k: ReturnType<typeof totalKPIs> }) {
             </div>
           </Panel>
         </div>
+
+        {/* NEW: Transaction section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <Panel title="ZONE UTILIZATION" className="lg:col-span-2 h-[240px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -139,25 +219,39 @@ function EnterpriseDashboard({ k }: { k: ReturnType<typeof totalKPIs> }) {
                 <XAxis dataKey="name" stroke="var(--color-muted-foreground)" tick={{ fontSize: 10 }} />
                 <YAxis stroke="var(--color-muted-foreground)" tick={{ fontSize: 10 }} />
                 <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 12 }} />
-                <Bar dataKey="util" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="util" radius={[4, 4, 0, 0]}>
+                  {zoneUtil.map((d, i) => <Cell key={i} fill={d.fill} />)}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </Panel>
-          <Panel title="LIVE OPERATIONS FEED" className="h-[240px]">
-            <div className="p-3 space-y-2 text-xs overflow-y-auto h-full">
+          <Panel title="LIVE TRANSACTION FEED" className="h-[240px]">
+            <TransactionLiveFeed limit={6} />
+          </Panel>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <Panel title="TRANSACTION THROUGHPUT" className="lg:col-span-2 h-[160px]">
+            <div className="px-4 py-3 space-y-2">
+              <TxnMiniKPIs />
+              <div className="flex justify-end">
+                <Link to="/inventory" className="text-[10px] text-primary hover:underline font-medium">
+                  View full transaction log →
+                </Link>
+              </div>
+            </div>
+          </Panel>
+          <Panel title="QUICK ACTIONS" className="h-[160px]">
+            <div className="p-3 grid grid-cols-1 gap-2">
               {[
-                { t: "12:42:08", e: "PUTAWAY confirmed",     d: "FL-02 → BU-A2-R3-L", c: "text-success" },
-                { t: "12:41:51", e: "PICK shorted",          d: "WAVE 219 / line 4",   c: "text-warning" },
-                { t: "12:41:23", e: "TRK-1004 docked",       d: "IN-3",                c: "text-info" },
-                { t: "12:40:55", e: "QC HOLD released",      d: "PO-78211",            c: "text-success" },
-                { t: "12:40:12", e: "Cycle count variance",  d: "FA-A1-R2-A2 (-3 EA)", c: "text-destructive" },
-                { t: "12:39:48", e: "Outbound dispatched",   d: "TRK-2003 / 24 pals",  c: "text-success" },
-              ].map((i, idx) => (
-                <div key={idx} className="flex gap-2 border-b border-border/40 pb-1.5">
-                  <span className="text-mono text-muted-foreground">{i.t}</span>
-                  <span className={`font-medium ${i.c}`}>{i.e}</span>
-                  <span className="ml-auto text-muted-foreground truncate">{i.d}</span>
-                </div>
+                { to: "/inventory", label: "New Transaction", icon: ArrowLeftRight, color: "text-primary" },
+                { to: "/inbound",   label: "Receive Inbound", icon: ArrowDownToLine, color: "text-emerald-400" },
+                { to: "/builder",   label: "3D Warehouse",    icon: Warehouse,       color: "text-amber-400" },
+              ].map(({ to, label, icon: Icon, color }) => (
+                <Link key={to} to={to} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary hover:bg-sidebar-accent border border-border/40 text-xs font-medium transition-colors">
+                  <Icon className={`h-3.5 w-3.5 ${color}`} />
+                  {label}
+                </Link>
               ))}
             </div>
           </Panel>
@@ -201,21 +295,8 @@ function OperationsDashboard() {
               ))}
             </div>
           </Panel>
-          <Panel title="DOCK ACTIVITY" className="h-[260px]">
-            <div className="p-4 space-y-2 text-xs">
-              {Array.from({ length: 7 }, (_, i) => ({
-                dock: `IN-${i + 1}`,
-                status: i < 4 ? "Occupied" : i === 4 ? "Loading" : "Available",
-                truck: i < 4 ? `TRK-${1000 + i}` : i === 4 ? "TRK-1008" : "—",
-                c: i < 4 ? "text-success" : i === 4 ? "text-warning" : "text-muted-foreground",
-              })).map((d) => (
-                <div key={d.dock} className="flex items-center gap-3 border-b border-border/40 pb-2">
-                  <div className="w-12 font-mono font-bold">{d.dock}</div>
-                  <div className={cn_inline(d.c, "flex-1 font-medium")}>{d.status}</div>
-                  <div className="text-muted-foreground">{d.truck}</div>
-                </div>
-              ))}
-            </div>
+          <Panel title="LIVE TRANSACTION FEED" className="h-[260px]">
+            <TransactionLiveFeed limit={7} />
           </Panel>
         </div>
       </div>
@@ -230,40 +311,22 @@ function InventoryDashboard({ k }: { k: ReturnType<typeof totalKPIs> }) {
       <PageHeader icon={Package} title="Inventory Control" subtitle="Stock visibility & replenishment alerts" />
       <div className="p-6 space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KPICard label="TOTAL BINS"    value={k.totalBins.toLocaleString()} delta="Across all zones"   tone="primary"     icon={Package} />
-          <KPICard label="UTILIZATION"   value={`${(k.utilization * 100).toFixed(0)}%`} delta="▲ 1.2% this week" tone="info" icon={TrendingUp} />
-          <KPICard label="REPLEN ALERTS" value="14" delta="3 critical"   tone="destructive" icon={AlertTriangle} />
-          <KPICard label="CYCLE COUNTS"  value="8"  delta="Due today"    tone="warning"     icon={CheckCircle2} />
+          <KPICard label="TOTAL SKUS"    value={k.totalBins}   delta="Active items"  tone="primary" icon={Package} />
+          <KPICard label="UTILIZATION"   value={`${(k.utilization * 100).toFixed(0)}%`} delta="Warehouse fill" tone={k.utilization > 0.85 ? "destructive" : "success"} />
+          <KPICard label="BLOCKED BINS"  value={k.blocked}     delta="Need review"   tone="destructive" icon={AlertTriangle} />
+          <KPICard label="LOW STOCK"     value="34"            delta="Below reorder" tone="warning" icon={TrendingUp} />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Panel title="ZONE STOCK LEVELS" className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={zoneUtil} margin={{ top: 12, right: 16, left: 0, bottom: 0 }}>
-                <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
-                <XAxis dataKey="name" stroke="var(--color-muted-foreground)" tick={{ fontSize: 10 }} />
-                <YAxis stroke="var(--color-muted-foreground)" tick={{ fontSize: 10 }} />
-                <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 12 }} />
-                <Bar dataKey="util" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </Panel>
-          <Panel title="REPLENISHMENT QUEUE" className="h-[280px]">
-            <div className="p-4 space-y-2 text-xs overflow-y-auto h-full">
-              {[
-                { sku: "SKU-10442", zone: "Fast Pick", qty: 24, priority: "Critical", c: "text-destructive" },
-                { sku: "SKU-20881", zone: "Fast Pick", qty: 12, priority: "High",     c: "text-warning" },
-                { sku: "SKU-33021", zone: "Bulk",      qty: 48, priority: "Normal",   c: "text-info" },
-                { sku: "SKU-41190", zone: "Cold Chain",qty: 6,  priority: "Normal",   c: "text-info" },
-                { sku: "SKU-55302", zone: "Fast Pick", qty: 18, priority: "High",     c: "text-warning" },
-              ].map((r, i) => (
-                <div key={i} className="flex items-center gap-3 border-b border-border/40 pb-2">
-                  <div className="font-mono text-[11px] flex-1">{r.sku}</div>
-                  <div className="text-muted-foreground">{r.zone}</div>
-                  <div className="w-8 text-right">{r.qty}</div>
-                  <div className={cn_inline("w-14 text-right font-medium", r.c)}>{r.priority}</div>
-                </div>
-              ))}
+          <Panel title="TRANSACTION SUMMARY" className="h-[220px]">
+            <div className="px-4 py-3 space-y-3">
+              <TxnMiniKPIs />
+              <Link to="/inventory" className="block text-[10px] text-primary hover:underline font-medium text-right">
+                Open Transaction Log →
+              </Link>
             </div>
+          </Panel>
+          <Panel title="RECENT MOVEMENTS" className="h-[220px]">
+            <TransactionLiveFeed limit={5} />
           </Panel>
         </div>
       </div>
@@ -275,32 +338,16 @@ function InventoryDashboard({ k }: { k: ReturnType<typeof totalKPIs> }) {
 function InboundDashboard() {
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      <PageHeader icon={ArrowDownToLine} title="Inbound Operations" subtitle="Receiving & putaway management" />
+      <PageHeader icon={ArrowDownToLine} title="Inbound Operations" subtitle="ASN tracking · Dock scheduling · Receiving" />
       <div className="p-6 space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KPICard label="EXPECTED TODAY" value="18"  delta="4 overdue"     tone="warning"   icon={Truck} />
-          <KPICard label="RECEIVED"       value="11"  delta="▲ 61% of plan" tone="success"   icon={CheckCircle2} />
-          <KPICard label="PENDING PUTAWAY"value="284" delta="↑ 42 pallets"  tone="info"      icon={PackageSearch} />
-          <KPICard label="DOCK OCCUPANCY" value="70%" delta="7 of 10 busy"  tone="primary"   icon={Activity} />
+          <KPICard label="EXPECTED TODAY" value="14"    delta="8 arrived"    tone="info"      icon={Truck} />
+          <KPICard label="LINES RECEIVED" value="2,847" delta="▲ 12.3%"     tone="success"   icon={CheckCircle2} />
+          <KPICard label="DOCKS ACTIVE"   value="4/6"   delta="2 available"  tone="primary"   icon={Warehouse} />
+          <KPICard label="PENDING PUTAWAY" value="142"  delta="3 hrs old"   tone="warning"   icon={Clock} />
         </div>
-        <Panel title="INCOMING SHIPMENTS" className="h-[320px]">
-          <div className="p-4 space-y-2 text-xs overflow-y-auto h-full">
-            {[
-              { asn: "ASN-78211", carrier: "FedEx Freight", eta: "13:30", pallets: 24, status: "Docked",   dock: "IN-3", c: "text-success" },
-              { asn: "ASN-78209", carrier: "UPS Freight",   eta: "14:00", pallets: 18, status: "En Route", dock: "IN-5", c: "text-info" },
-              { asn: "ASN-78214", carrier: "USPS",          eta: "14:45", pallets: 6,  status: "En Route", dock: "—",    c: "text-info" },
-              { asn: "ASN-78215", carrier: "DHL Supply",    eta: "15:20", pallets: 32, status: "Scheduled",dock: "—",    c: "text-muted-foreground" },
-              { asn: "ASN-78201", carrier: "Coyote Lgx",   eta: "LATE",  pallets: 12, status: "Delayed",  dock: "—",    c: "text-destructive" },
-            ].map((s, i) => (
-              <div key={i} className="grid grid-cols-5 gap-2 border-b border-border/40 pb-2 items-center">
-                <div className="font-mono font-bold text-[11px]">{s.asn}</div>
-                <div className="text-muted-foreground truncate">{s.carrier}</div>
-                <div className="font-mono">{s.eta}</div>
-                <div className="text-muted-foreground">{s.pallets} pals</div>
-                <div className={cn_inline("font-medium text-right", s.c)}>{s.status}</div>
-              </div>
-            ))}
-          </div>
+        <Panel title="RECEIVED TRANSACTIONS" className="h-[280px]">
+          <TransactionLiveFeed limit={7} />
         </Panel>
       </div>
     </div>
@@ -311,32 +358,16 @@ function InboundDashboard() {
 function OutboundDashboard() {
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      <PageHeader icon={ArrowUpFromLine} title="Outbound Operations" subtitle="Picking, packing & dispatch" />
+      <PageHeader icon={ArrowUpFromLine} title="Outbound Operations" subtitle="Wave management · Shipping · Dock assignments" />
       <div className="p-6 space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KPICard label="SHIPMENTS DUE"  value="47"   delta="12 before 15:00"   tone="warning"   icon={Truck} />
-          <KPICard label="PACKED READY"   value="31"   delta="66% complete"       tone="success"   icon={Package} />
-          <KPICard label="ACTIVE PICKS"   value="217"  delta="12 pickers on wave" tone="info"      icon={PackageSearch} />
-          <KPICard label="EXCEPTIONS"     value="8"    delta="3 urgent"           tone="destructive" icon={AlertTriangle} />
+          <KPICard label="ORDERS SHIPPED" value="847"  delta="Today"        tone="success"   icon={CheckCircle2} />
+          <KPICard label="WAVES ACTIVE"   value="4"    delta="2 priority"   tone="warning"   icon={Activity} />
+          <KPICard label="UNITS SHIPPED"  value="14,280" delta="▲ 8.4%"    tone="primary"   icon={Package} />
+          <KPICard label="DOCK DEPARTURES" value="11"  delta="3 pending"    tone="info"      icon={Truck} />
         </div>
-        <Panel title="DISPATCH QUEUE" className="h-[320px]">
-          <div className="p-4 space-y-2 text-xs overflow-y-auto h-full">
-            {[
-              { so: "SO-44102", carrier: "FedEx", cut: "14:30", pallets: 8,  status: "Packed",   c: "text-success" },
-              { so: "SO-44098", carrier: "UPS",   cut: "15:00", pallets: 12, status: "Picking",  c: "text-warning" },
-              { so: "SO-44099", carrier: "DHL",   cut: "15:00", pallets: 4,  status: "Picking",  c: "text-warning" },
-              { so: "SO-44103", carrier: "USPS",  cut: "16:00", pallets: 2,  status: "Staged",   c: "text-info" },
-              { so: "SO-44088", carrier: "FedEx", cut: "LATE",  pallets: 6,  status: "Exception",c: "text-destructive" },
-            ].map((s, i) => (
-              <div key={i} className="grid grid-cols-5 gap-2 border-b border-border/40 pb-2 items-center">
-                <div className="font-mono font-bold">{s.so}</div>
-                <div className="text-muted-foreground">{s.carrier}</div>
-                <div className="font-mono">{s.cut}</div>
-                <div className="text-muted-foreground">{s.pallets} pals</div>
-                <div className={cn_inline("font-medium text-right", s.c)}>{s.status}</div>
-              </div>
-            ))}
-          </div>
+        <Panel title="OUTBOUND MOVEMENTS" className="h-[280px]">
+          <TransactionLiveFeed limit={7} />
         </Panel>
       </div>
     </div>
@@ -347,30 +378,25 @@ function OutboundDashboard() {
 function PickerDashboard({ name }: { name: string }) {
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      <PageHeader icon={PackageSearch} title={`Pick Queue — ${name.split(" ")[0]}`} subtitle="Your assigned picking tasks" />
-      <div className="p-6 space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KPICard label="ASSIGNED TASKS" value="24"    delta="In your queue"  tone="primary"   icon={PackageSearch} />
-          <KPICard label="COMPLETED TODAY"value="87"    delta="▲ 94% accuracy" tone="success"   icon={CheckCircle2} />
-          <KPICard label="CURRENT WAVE"   value="W-219" delta="87% complete"   tone="info"      icon={Activity} />
-          <KPICard label="PICKS/HR"       value="124"   delta="Target: 110"    tone="success"   icon={TrendingUp} />
+      <PageHeader icon={PackageSearch} title={`Picker — ${name}`} subtitle="Your active pick tasks" />
+      <div className="p-6 space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <KPICard label="PICKS TODAY"  value="184" delta="Goal: 200"   tone="primary"  icon={PackageSearch} />
+          <KPICard label="ACCURACY"     value="99.2%" delta="Excellent" tone="success"  icon={CheckCircle2} />
         </div>
-        <Panel title="PICK QUEUE" className="h-[360px]">
-          <div className="p-4 space-y-2 text-xs overflow-y-auto h-full">
-            {Array.from({ length: 8 }, (_, i) => ({
-              id: `TASK-${2190 + i}`,
-              bin: `FA-A${i % 3 + 1}-R${i % 5 + 1}-L${i % 4 + 1}`,
-              sku: `SKU-${10000 + i * 1337}`,
-              qty: Math.floor(Math.random() * 12) + 1,
-              status: i === 0 ? "In Progress" : i < 3 ? "Pending" : "Queued",
-              c: i === 0 ? "text-warning" : i < 3 ? "text-info" : "text-muted-foreground",
+        <Panel title="ACTIVE WAVE TASKS" className="h-[240px]">
+          <div className="p-4 space-y-3 text-xs">
+            {Array.from({ length: 5 }, (_, i) => ({
+              bin: `A-0${i + 1}-0${i + 1}-0${i + 1}`,
+              sku: `SKU-1000${i}`,
+              qty: 10 + i * 3,
+              done: i < 3,
             })).map((t, i) => (
-              <div key={i} className="grid grid-cols-5 gap-2 border-b border-border/40 pb-2 items-center">
-                <div className="font-mono font-bold text-[11px]">{t.id}</div>
-                <div className="font-mono text-[10px]">{t.bin}</div>
-                <div className="text-muted-foreground text-[10px]">{t.sku}</div>
-                <div className="text-center">×{t.qty}</div>
-                <div className={cn_inline("text-right font-medium", t.c)}>{t.status}</div>
+              <div key={i} className={cn_inline("flex items-center gap-3 border-b border-border/40 pb-2", t.done ? "opacity-50 line-through" : "")}>
+                <span className={cn_inline("h-2 w-2 rounded-full shrink-0", t.done ? "bg-emerald-400" : "bg-amber-400")} />
+                <span className="font-mono">{t.bin}</span>
+                <span className="text-muted-foreground flex-1">{t.sku}</span>
+                <span className="font-bold">{t.qty} EA</span>
               </div>
             ))}
           </div>
@@ -380,34 +406,18 @@ function PickerDashboard({ name }: { name: string }) {
   );
 }
 
-// ─── Forklift Operator ────────────────────────────────────────────────────────
+// ─── Forklift ─────────────────────────────────────────────────────────────────
 function ForkliftDashboard({ name }: { name: string }) {
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      <PageHeader icon={Forklift} title={`Forklift Tasks — ${name.split(" ")[0]}`} subtitle="Putaway & movement assignments" />
-      <div className="p-6 space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KPICard label="TASKS TODAY"   value="18" delta="6 remaining"    tone="primary"   icon={Forklift} />
-          <KPICard label="COMPLETED"     value="12" delta="67% done"       tone="success"   icon={CheckCircle2} />
-          <KPICard label="PALLETS MOVED" value="48" delta="Target: 60"     tone="info"      icon={Package} />
-          <KPICard label="IDLE TIME"     value="4m" delta="Below 10m avg"  tone="success"   icon={Clock} />
+      <PageHeader icon={Forklift} title={`Forklift — ${name}`} subtitle="Putaway & transfer tasks" />
+      <div className="p-6 space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <KPICard label="PUTAWAYS TODAY" value="47" delta="On target" tone="primary" icon={Forklift} />
+          <KPICard label="TRANSFERS"      value="12" delta="3 pending" tone="info"    />
         </div>
-        <Panel title="MOVEMENT QUEUE" className="h-[320px]">
-          <div className="p-4 space-y-2 text-xs overflow-y-auto h-full">
-            {[
-              { task: "PUTAWAY-1204", from: "IN-3",       to: "BU-A2-R4",    pals: 4, status: "In Progress", c: "text-warning" },
-              { task: "PUTAWAY-1205", from: "IN-5",       to: "FA-A1-R2",    pals: 2, status: "Pending",     c: "text-info" },
-              { task: "REPLEN-0881",  from: "BU-A3-R1",   to: "FA-A2-R3",    pals: 6, status: "Pending",     c: "text-info" },
-              { task: "PUTAWAY-1206", from: "IN-3",       to: "CC-A1-R1",    pals: 1, status: "Queued",      c: "text-muted-foreground" },
-            ].map((t, i) => (
-              <div key={i} className="grid grid-cols-5 gap-2 border-b border-border/40 pb-2 items-center">
-                <div className="font-mono font-bold text-[11px] col-span-2">{t.task}</div>
-                <div className="text-muted-foreground text-[10px] truncate">{t.from} → {t.to}</div>
-                <div className="text-center">{t.pals} pals</div>
-                <div className={cn_inline("text-right font-medium", t.c)}>{t.status}</div>
-              </div>
-            ))}
-          </div>
+        <Panel title="RECENT MOVEMENTS" className="h-[260px]">
+          <TransactionLiveFeed limit={6} />
         </Panel>
       </div>
     </div>
@@ -418,32 +428,16 @@ function ForkliftDashboard({ name }: { name: string }) {
 function QCDashboard() {
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      <PageHeader icon={ShieldCheck} title="QC Inspection" subtitle="Quality control & quarantine management" />
+      <PageHeader icon={ShieldCheck} title="Quality Control" subtitle="Inspection queue · Holds management" />
       <div className="p-6 space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KPICard label="PENDING INSP."  value="14" delta="3 critical"     tone="warning"     icon={ShieldCheck} />
-          <KPICard label="COMPLETED"      value="31" delta="Today"          tone="success"     icon={CheckCircle2} />
-          <KPICard label="ON HOLD"        value="8"  delta="Awaiting approval" tone="destructive" icon={AlertTriangle} />
-          <KPICard label="PASS RATE"      value="94%" delta="▲ 2% this week" tone="success"    icon={TrendingUp} />
+          <KPICard label="IN QC HOLD"    value="23"   delta="6 critical"  tone="warning"     icon={AlertTriangle} />
+          <KPICard label="INSPECTED"     value="184"  delta="Today"       tone="success"     icon={CheckCircle2} />
+          <KPICard label="FAILED"        value="8"    delta="2 destroyed" tone="destructive" icon={AlertTriangle} />
+          <KPICard label="PENDING"       value="15"   delta="Queued"      tone="info"        icon={Clock} />
         </div>
-        <Panel title="QC QUEUE" className="h-[320px]">
-          <div className="p-4 space-y-2 text-xs overflow-y-auto h-full">
-            {[
-              { id: "QC-3301", po: "PO-78211", item: "SKU-10442", qty: 48, result: "Pending",  c: "text-warning" },
-              { id: "QC-3302", po: "PO-78209", item: "SKU-20881", qty: 24, result: "Pass",     c: "text-success" },
-              { id: "QC-3303", po: "PO-78201", item: "SKU-33021", qty: 12, result: "Fail",     c: "text-destructive" },
-              { id: "QC-3304", po: "PO-78215", item: "SKU-41190", qty: 6,  result: "Pending",  c: "text-warning" },
-              { id: "QC-3305", po: "PO-78208", item: "SKU-55302", qty: 36, result: "Pass",     c: "text-success" },
-            ].map((q, i) => (
-              <div key={i} className="grid grid-cols-5 gap-2 border-b border-border/40 pb-2 items-center">
-                <div className="font-mono font-bold text-[11px]">{q.id}</div>
-                <div className="font-mono text-muted-foreground text-[10px]">{q.po}</div>
-                <div className="text-muted-foreground text-[10px]">{q.item}</div>
-                <div className="text-center">×{q.qty}</div>
-                <div className={cn_inline("text-right font-bold", q.c)}>{q.result}</div>
-              </div>
-            ))}
-          </div>
+        <Panel title="BLOCKED / DAMAGED TRANSACTIONS" className="h-[260px]">
+          <TransactionLiveFeed limit={6} />
         </Panel>
       </div>
     </div>
@@ -454,30 +448,28 @@ function QCDashboard() {
 function PackingDashboard({ name }: { name: string }) {
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      <PageHeader icon={Package} title={`Packing Station — ${name.split(" ")[0]}`} subtitle="Packing queue & completed shipments" />
-      <div className="p-6 space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KPICard label="TO PACK"       value="18"  delta="In queue"        tone="primary"   icon={Package} />
-          <KPICard label="PACKED TODAY"  value="64"  delta="▲ 12% target"   tone="success"   icon={CheckCircle2} />
-          <KPICard label="CARTONS USED"  value="128" delta="Avg 2/order"     tone="info"      icon={Package} />
-          <KPICard label="LABELS PRINTED"value="64"  delta="All compliant"   tone="success"   icon={Activity} />
+      <PageHeader icon={Package} title={`Packing — ${name}`} subtitle="Pack station tasks" />
+      <div className="p-6 space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <KPICard label="PACKED TODAY"  value="312" delta="Goal: 350"  tone="primary" icon={Package} />
+          <KPICard label="EXCEPTIONS"    value="3"   delta="Needs fix"  tone="warning" icon={AlertTriangle} />
         </div>
-        <Panel title="PACKING QUEUE" className="h-[320px]">
-          <div className="p-4 space-y-2 text-xs overflow-y-auto h-full">
-            {Array.from({ length: 7 }, (_, i) => ({
-              id: `PACK-${8801 + i}`,
-              so: `SO-441${10 + i}`,
-              items: Math.floor(Math.random() * 8) + 1,
-              cartons: Math.floor(Math.random() * 3) + 1,
-              status: i === 0 ? "Packing" : i < 3 ? "Ready" : "Queued",
-              c: i === 0 ? "text-warning" : i < 3 ? "text-info" : "text-muted-foreground",
-            })).map((p, i) => (
-              <div key={i} className="grid grid-cols-5 gap-2 border-b border-border/40 pb-2 items-center">
-                <div className="font-mono font-bold text-[11px]">{p.id}</div>
-                <div className="font-mono text-muted-foreground">{p.so}</div>
-                <div className="text-center">{p.items} items</div>
-                <div className="text-center">{p.cartons} ctns</div>
-                <div className={cn_inline("text-right font-medium", p.c)}>{p.status}</div>
+        <Panel title="PACK QUEUE" className="h-[240px]">
+          <div className="p-4 space-y-2 text-xs">
+            {Array.from({ length: 5 }, (_, i) => ({
+              order: `ORD-${88200 + i}`,
+              lines: 2 + i,
+              weight: `${(5 + i * 1.3).toFixed(1)} kg`,
+              priority: i === 0 ? "HIGH" : i === 1 ? "MEDIUM" : "NORMAL",
+            })).map((o, i) => (
+              <div key={i} className="flex items-center gap-3 border-b border-border/40 pb-2">
+                <span className="font-mono font-bold">{o.order}</span>
+                <span className="text-muted-foreground flex-1">{o.lines} lines · {o.weight}</span>
+                <span className={cn_inline("text-[9px] font-bold px-1.5 py-0.5 rounded",
+                  o.priority === "HIGH" ? "bg-red-500/15 text-red-400" :
+                  o.priority === "MEDIUM" ? "bg-amber-500/15 text-amber-400" :
+                  "bg-secondary text-muted-foreground"
+                )}>{o.priority}</span>
               </div>
             ))}
           </div>
@@ -491,36 +483,32 @@ function PackingDashboard({ name }: { name: string }) {
 function YardDashboard() {
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      <PageHeader icon={Truck} title="Yard & Dock Management" subtitle="Truck scheduling & dock occupancy" />
+      <PageHeader icon={Truck} title="Yard Management" subtitle="Truck scheduling · Dock assignments · Yard inventory" />
       <div className="p-6 space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KPICard label="TRUCKS IN YARD"  value="8"   delta="3 loading"      tone="info"      icon={Truck} />
-          <KPICard label="DOCKS OCCUPIED"  value="7"   delta="of 10 total"    tone="primary"   icon={Activity} />
-          <KPICard label="EXPECTED TODAY"  value="22"  delta="9 remaining"    tone="warning"   icon={Clock} />
-          <KPICard label="AVG DWELL TIME"  value="1h 24m" delta="▲ 12min vs target" tone="destructive" icon={AlertTriangle} />
+          <KPICard label="TRUCKS IN YARD" value="8"   delta="3 inbound"   tone="primary" icon={Truck} />
+          <KPICard label="DEPARTURES"     value="11"  delta="Today"       tone="success" icon={ArrowUpFromLine} />
+          <KPICard label="ARRIVALS"       value="14"  delta="Today"       tone="info"    icon={ArrowDownToLine} />
+          <KPICard label="DOCK WAIT"      value="22m" delta="Avg wait"    tone="warning" icon={Clock} />
         </div>
-        <Panel title="DOCK STATUS" className="h-[340px]">
-          <div className="p-4 grid grid-cols-2 gap-3 overflow-y-auto h-full">
-            {Array.from({ length: 10 }, (_, i) => {
-              const occupied = i < 7;
-              const kind = i < 5 ? "IN" : "OUT";
-              return (
-                <div key={i} className={cn_inline(
-                  "border rounded-lg p-3 text-xs",
-                  occupied ? (i < 5 ? "border-blue-500/30 bg-blue-500/5" : "border-orange-500/30 bg-orange-500/5") : "border-border/40 bg-secondary/20",
-                )}>
-                  <div className="flex justify-between mb-1">
-                    <span className="font-mono font-bold">{kind}-{i + 1}</span>
-                    <span className={occupied ? (i < 5 ? "text-blue-400" : "text-orange-400") : "text-muted-foreground"}>
-                      {occupied ? "Occupied" : "Free"}
-                    </span>
-                  </div>
-                  {occupied && (
-                    <div className="text-muted-foreground">TRK-{1000 + i} · {i < 5 ? "Receiving" : "Loading"}</div>
-                  )}
-                </div>
-              );
-            })}
+        <Panel title="DOCK STATUS" className="h-[260px]">
+          <div className="p-4 space-y-2 text-xs">
+            {Array.from({ length: 8 }, (_, i) => ({
+              dock: i < 6 ? `IN-${i + 1}` : `OUT-${i - 5}`,
+              status: i < 4 ? "Occupied" : i === 4 ? "Loading" : i < 7 ? "Available" : "Maintenance",
+              truck: i < 4 ? `TRK-${1000 + i}` : i === 4 ? "TRK-1008" : "—",
+            })).map((d, i) => (
+              <div key={i} className="flex items-center gap-3 border-b border-border/40 pb-2">
+                <span className="font-mono w-12 font-bold">{d.dock}</span>
+                <span className={cn_inline("flex-1 font-medium",
+                  d.status === "Occupied" ? "text-success" :
+                  d.status === "Loading" ? "text-warning" :
+                  d.status === "Maintenance" ? "text-destructive" :
+                  "text-muted-foreground"
+                )}>{d.status}</span>
+                <span className="text-muted-foreground">{d.truck}</span>
+              </div>
+            ))}
           </div>
         </Panel>
       </div>
@@ -532,46 +520,30 @@ function YardDashboard() {
 function AuditorDashboard() {
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      <PageHeader icon={BarChart3} title="Audit & Analytics" subtitle="Read-only operational reports" />
+      <PageHeader icon={ShieldCheck} title="Audit & Compliance" subtitle="Full transaction audit trail" />
       <div className="p-6 space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KPICard label="ORDERS (MTD)"    value="18,402" delta="▲ 12.3% vs LM"  tone="primary"   icon={Package} />
-          <KPICard label="ACCURACY (MTD)"  value="98.7%"  delta="▲ 0.4% vs LM"  tone="success"   icon={CheckCircle2} />
-          <KPICard label="EXCEPTIONS (MTD)"value="312"    delta="▼ 8.1% vs LM"  tone="info"      icon={AlertTriangle} />
-          <KPICard label="LABOR HOURS (MTD)"value="4,208" delta="▼ 2.8% vs LM"  tone="warning"   icon={Users} />
+          <KPICard label="AUDIT EVENTS"   value="1,847" delta="Last 30 days" tone="primary"   icon={Activity} />
+          <KPICard label="DISCREPANCIES"  value="12"    delta="Under review"  tone="warning"   icon={AlertTriangle} />
+          <KPICard label="USERS AUDITED"  value="24"    delta="All active"    tone="info"      icon={Users} />
+          <KPICard label="COMPLIANCE"     value="97.8%" delta="SOX compliant" tone="success"   icon={CheckCircle2} />
         </div>
-        <Panel title="MONTHLY THROUGHPUT" className="h-[280px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={throughput} margin={{ top: 12, right: 16, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="ga" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.4} />
-                  <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" />
-              <XAxis dataKey="h" stroke="var(--color-muted-foreground)" tick={{ fontSize: 10 }} />
-              <YAxis stroke="var(--color-muted-foreground)" tick={{ fontSize: 10 }} />
-              <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 12 }} />
-              <Area type="monotone" dataKey="in" stroke="var(--color-primary)" fill="url(#ga)" strokeWidth={2} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </Panel>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Panel title="TRANSACTION AUDIT TRAIL" className="h-[300px]">
+            <TransactionLiveFeed limit={8} />
+          </Panel>
+          <Panel title="TRANSACTION STATS" className="h-[300px]">
+            <div className="px-4 py-3 space-y-3">
+              <TxnMiniKPIs />
+              <div className="mt-3 pt-3 border-t border-border/30">
+                <Link to="/inventory" className="block text-center py-2 px-4 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary text-xs font-bold rounded-lg transition-colors">
+                  Open Full Transaction Log →
+                </Link>
+              </div>
+            </div>
+          </Panel>
+        </div>
       </div>
     </div>
   );
-}
-
-// ─── Shared helpers ───────────────────────────────────────────────────────────
-function DR({ label, value, accent }: { label: string; value: React.ReactNode; accent?: "destructive" }) {
-  return (
-    <div className="flex justify-between border-b border-border/40 pb-1">
-      <span className="text-muted-foreground">{label}</span>
-      <span className={`text-mono font-medium ${accent === "destructive" ? "text-destructive" : ""}`}>{value}</span>
-    </div>
-  );
-}
-
-function cn_inline(...classes: (string | false | undefined)[]) {
-  return classes.filter(Boolean).join(" ");
 }
