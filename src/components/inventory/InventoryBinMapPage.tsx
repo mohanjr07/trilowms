@@ -264,10 +264,17 @@ export function InventoryBinMapPage() {
   const getBinById = useInvBinStore((s) => s.getBinById);
   const warehouse  = useEditorStore((s) => s.warehouse);
 
+  // Run init every time the active warehouse changes — this seeds bins if needed
+  // and always updates activeWarehouseName in the bin store to match the editor store
   useEffect(() => {
     init(warehouse);
-    selectBin(null); // clear any selected bin from previous warehouse
+    selectBin(null);
   }, [warehouse.name]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Also call init immediately on mount in case persisted activeWarehouseName is stale
+  useEffect(() => {
+    init(warehouse);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedBin = selectedBinId ? getBinById(selectedBinId) : null;
 
