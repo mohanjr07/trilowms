@@ -90,7 +90,8 @@ function BinRow({ bin, onSelect, isSelected }: { bin: BinInventory; onSelect: ()
 }
 
 export function BinSearchPanel() {
-  const { bins, selectedBinId, selectBin, filters, setFilters } = useInvBinStore();
+  const { activeWarehouseName, warehouseBins, selectedBinId, selectBin, filters, setFilters } = useInvBinStore();
+  const bins = activeWarehouseName ? (warehouseBins[activeWarehouseName] ?? []) : [];
   const [localSearch, setLocalSearch] = useState("");
   const [searchType, setSearchType] = useState<"sku" | "bin">("sku");
 
