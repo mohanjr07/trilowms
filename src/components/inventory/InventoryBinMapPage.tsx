@@ -1,10 +1,10 @@
 /**
  * InventoryBinMapPage — Live Inventory Bin Mapping
- * Integrates warehouse heatmap, KPI dashboard, bin search, and bin detail panel
+ * All hooks called at top level only — no conditional/inline hook calls
  */
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import {
-  Map, Search, List, Package, AlertTriangle, CheckCircle2,
+  Map, Search, List, Package, AlertTriangle,
   TrendingUp, Layers, Weight, Calendar, BarChart3, Archive, Filter,
 } from "lucide-react";
 import { useInvBinStore } from "@/lib/inventory-bin-store";
@@ -16,56 +16,17 @@ import { BinSearchPanel } from "./BinSearchPanel";
 import type { BinStatus } from "@/lib/wms-data";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, Cell } from "recharts";
 
-// ─── KPI strip ────────────────────────────────────────────────────────────────
+// ─── KPI Strip ────────────────────────────────────────────────────────────────
 function KPIStrip() {
   const kpis = useInvBinStore((s) => s.kpis());
-
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3 px-5 pt-4 pb-2">
-      <KPICard
-        label="TOTAL BINS"
-        value={kpis.totalBins.toLocaleString()}
-        delta={`${kpis.occupiedBins} occupied`}
-        tone="primary"
-        icon={Package}
-        sub={`${kpis.emptyBins} empty`}
-      />
-      <KPICard
-        label="AVG OCCUPANCY"
-        value={`${kpis.avgOccupancyPct}%`}
-        delta={kpis.avgOccupancyPct >= 85 ? "⚠ High utilization" : "Normal range"}
-        tone={kpis.avgOccupancyPct >= 85 ? "destructive" : "success"}
-        icon={TrendingUp}
-      />
-      <KPICard
-        label="TOTAL PALLETS"
-        value={kpis.totalPallets.toLocaleString()}
-        delta="Across all zones"
-        tone="info"
-        icon={Layers}
-      />
-      <KPICard
-        label="TOTAL WEIGHT"
-        value={`${(kpis.totalWeight / 1000).toFixed(1)}t`}
-        delta="Warehouse load"
-        tone="primary"
-        icon={Weight}
-      />
-      <KPICard
-        label="EXPIRING SOON"
-        value={kpis.expiringWithin30Days}
-        delta="Within 30 days"
-        tone={kpis.expiringWithin30Days > 0 ? "warning" : "success"}
-        icon={Calendar}
-        sub={kpis.expiringWithin30Days > 0 ? "Needs attention" : "All clear"}
-      />
-      <KPICard
-        label="CRITICAL BINS"
-        value={kpis.criticalBins}
-        delta="≥90% full"
-        tone={kpis.criticalBins > 10 ? "destructive" : "warning"}
-        icon={AlertTriangle}
-      />
+      <KPICard label="TOTAL BINS"     value={kpis.totalBins.toLocaleString()}                             delta={`${kpis.occupiedBins} occupied`}                                   tone="primary"     icon={Package}        sub={`${kpis.emptyBins} empty`} />
+      <KPICard label="AVG OCCUPANCY"  value={`${kpis.avgOccupancyPct}%`}                                 delta={kpis.avgOccupancyPct >= 85 ? "⚠ High utilization" : "Normal range"} tone={kpis.avgOccupancyPct >= 85 ? "destructive" : "success"} icon={TrendingUp} />
+      <KPICard label="TOTAL PALLETS"  value={kpis.totalPallets.toLocaleString()}                         delta="Across all zones"                                                   tone="info"        icon={Layers} />
+      <KPICard label="TOTAL WEIGHT"   value={`${(kpis.totalWeight / 1000).toFixed(1)}t`}                 delta="Warehouse load"                                                     tone="primary"     icon={Weight} />
+      <KPICard label="EXPIRING SOON"  value={kpis.expiringWithin30Days}                                  delta="Within 30 days"                                                     tone={kpis.expiringWithin30Days > 0 ? "warning" : "success"}  icon={Calendar}   sub={kpis.expiringWithin30Days > 0 ? "Needs attention" : "All clear"} />
+      <KPICard label="CRITICAL BINS"  value={kpis.criticalBins}                                          delta="≥90% full"                                                          tone={kpis.criticalBins > 10 ? "destructive" : "warning"}     icon={AlertTriangle} />
     </div>
   );
 }
@@ -81,9 +42,7 @@ function ZoneOccupancyChart() {
     occupied: z.occupiedCount,
     color: z.color,
   }));
-
   if (data.length === 0) return null;
-
   return (
     <div className="border border-border/60 rounded-xl bg-card overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/40">
@@ -98,7 +57,10 @@ function ZoneOccupancyChart() {
             <YAxis tick={{ fontSize: 9 }} stroke="var(--color-muted-foreground)" domain={[0, 100]} />
             <Tooltip
               contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11 }}
-              formatter={(v: number, _: string, p: { payload: typeof data[0] }) => [`${v}% (${p.payload.occupied}/${p.payload.bins} bins)`, p.payload.fullName]}
+              formatter={(v: number, _name: string, props: { payload: { fullName: string; occupied: number; bins: number } }) => [
+                `${v}% (${props.payload.occupied}/${props.payload.bins} bins)`,
+                props.payload.fullName,
+              ]}
             />
             <Bar dataKey="pct" radius={[3, 3, 0, 0]}>
               {data.map((d, i) => (
@@ -114,10 +76,14 @@ function ZoneOccupancyChart() {
 
 // ─── Bin Status Summary ───────────────────────────────────────────────────────
 function StatusSummary() {
-  const kpis = useInvBinStore((s) => s.kpis());
+  // All hook calls at top level — no hooks inside arrays or conditionals
+  const kpis    = useInvBinStore((s) => s.kpis());
+  const fullCnt = useInvBinStore((s) => s.bins.filter((b) => b.status === "Full").length);
+  const partCnt = useInvBinStore((s) => s.bins.filter((b) => b.status === "Partial").length);
+
   const entries: { label: BinStatus; count: number; color: string }[] = [
-    { label: "Full",     count: useInvBinStore((s) => s.bins.filter((b) => b.status === "Full").length),     color: "#22c55e" },
-    { label: "Partial",  count: useInvBinStore((s) => s.bins.filter((b) => b.status === "Partial").length),  color: "#f59e0b" },
+    { label: "Full",     count: fullCnt,           color: "#22c55e" },
+    { label: "Partial",  count: partCnt,           color: "#f59e0b" },
     { label: "Empty",    count: kpis.emptyBins,    color: "#334155" },
     { label: "Reserved", count: kpis.reservedBins, color: "#3b82f6" },
     { label: "Blocked",  count: kpis.blockedBins,  color: "#f97316" },
@@ -149,17 +115,21 @@ function StatusSummary() {
 }
 
 // ─── Bin List View ─────────────────────────────────────────────────────────────
-function BinListView() {
-  const { filteredBins, selectedBinId, selectBin, filters, setFilters } = useInvBinStore();
-  const { warehouse } = useEditorStore();
-  const bins = filteredBins();
-  const zones = warehouse.zones;
-  const STATUS_OPTS: BinStatus[] = ["Empty", "Partial", "Full", "Reserved", "Blocked", "Damaged"];
+const STATUS_COLORS: Record<BinStatus, string> = {
+  Empty: "text-slate-400", Partial: "text-amber-400", Full: "text-emerald-400",
+  Reserved: "text-blue-400", Blocked: "text-orange-400", Damaged: "text-red-400",
+};
+const STATUS_OPTS: BinStatus[] = ["Empty", "Partial", "Full", "Reserved", "Blocked", "Damaged"];
 
-  const STATUS_COLORS: Record<BinStatus, string> = {
-    Empty: "text-slate-400", Partial: "text-amber-400", Full: "text-emerald-400",
-    Reserved: "text-blue-400", Blocked: "text-orange-400", Damaged: "text-red-400",
-  };
+function BinListView() {
+  const filteredBins = useInvBinStore((s) => s.filteredBins());
+  const selectedBinId = useInvBinStore((s) => s.selectedBinId);
+  const selectBin = useInvBinStore((s) => s.selectBin);
+  const filters = useInvBinStore((s) => s.filters);
+  const setFilters = useInvBinStore((s) => s.setFilters);
+  const zones = useEditorStore((s) => s.warehouse.zones);
+
+  const today = new Date();
 
   return (
     <div className="flex flex-col h-full">
@@ -202,7 +172,7 @@ function BinListView() {
           <input type="checkbox" checked={filters.criticalOnly} onChange={(e) => setFilters({ criticalOnly: e.target.checked })} className="h-3 w-3" />
           <span className="text-muted-foreground">Critical</span>
         </label>
-        <span className="ml-auto text-[10px] text-muted-foreground">{bins.length} bins</span>
+        <span className="ml-auto text-[10px] text-muted-foreground">{filteredBins.length} bins</span>
       </div>
 
       {/* Table */}
@@ -210,7 +180,7 @@ function BinListView() {
         <table className="w-full text-xs">
           <thead className="sticky top-0 bg-secondary/80 backdrop-blur-sm">
             <tr>
-              {["Bin Code", "Zone", "Rack", "SKU", "Item", "Qty", "Occ%", "Pallets", "Status", "Batch", "Expiry", "Last Move"].map((h) => (
+              {["Bin Code","Zone","Rack","SKU","Item","Qty","Occ%","Pallets","Status","Batch","Expiry","Last Move"].map((h) => (
                 <th key={h} className="px-3 py-2 text-left font-bold text-[10px] uppercase tracking-wider text-muted-foreground whitespace-nowrap border-b border-border/40">
                   {h}
                 </th>
@@ -218,13 +188,10 @@ function BinListView() {
             </tr>
           </thead>
           <tbody>
-            {bins.map((b) => {
-              const today = new Date();
-              const isExpiring = b.expiryDate && (() => {
-                const exp = new Date(b.expiryDate!);
-                return (exp.getTime() - today.getTime()) / (1000 * 86400) <= 30;
-              })();
-
+            {filteredBins.map((b) => {
+              const isExpiring = b.expiryDate
+                ? (new Date(b.expiryDate).getTime() - today.getTime()) / (1000 * 86400) <= 30
+                : false;
               return (
                 <tr
                   key={b.binId}
@@ -253,21 +220,21 @@ function BinListView() {
                   </td>
                   <td className="px-3 py-2 font-mono text-[9px] text-muted-foreground">{b.batchNumber ?? "—"}</td>
                   <td className="px-3 py-2">
-                    {b.expiryDate ? (
-                      <span className={isExpiring ? "text-amber-400 font-bold" : "text-muted-foreground"}>
-                        {b.expiryDate}
-                      </span>
-                    ) : "—"}
+                    {b.expiryDate
+                      ? <span className={isExpiring ? "text-amber-400 font-bold" : "text-muted-foreground"}>{b.expiryDate}</span>
+                      : "—"}
                   </td>
                   <td className="px-3 py-2 text-[10px] text-muted-foreground whitespace-nowrap">
-                    {b.lastMovement ? new Date(b.lastMovement).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" }) : "—"}
+                    {b.lastMovement
+                      ? new Date(b.lastMovement).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })
+                      : "—"}
                   </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
-        {bins.length === 0 && (
+        {filteredBins.length === 0 && (
           <div className="p-8 text-center text-muted-foreground text-sm">No bins match current filters</div>
         )}
       </div>
@@ -277,10 +244,14 @@ function BinListView() {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export function InventoryBinMapPage() {
-  const { init, viewMode, setViewMode, selectedBinId, selectBin, getBinById } = useInvBinStore();
-  const { warehouse } = useEditorStore();
+  const init       = useInvBinStore((s) => s.init);
+  const viewMode   = useInvBinStore((s) => s.viewMode);
+  const setViewMode= useInvBinStore((s) => s.setViewMode);
+  const selectedBinId = useInvBinStore((s) => s.selectedBinId);
+  const selectBin  = useInvBinStore((s) => s.selectBin);
+  const getBinById = useInvBinStore((s) => s.getBinById);
+  const warehouse  = useEditorStore((s) => s.warehouse);
 
-  // Initialize bin inventory from warehouse on mount
   useEffect(() => {
     init(warehouse);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -297,13 +268,17 @@ export function InventoryBinMapPage() {
           <div className="flex items-center gap-1 bg-secondary/50 rounded-lg p-0.5">
             {([
               { mode: "heatmap" as const, icon: Map,    label: "Heatmap" },
-              { mode: "list"    as const, icon: List,   label: "List" },
-              { mode: "rack"    as const, icon: Search, label: "Search" },
+              { mode: "list"    as const, icon: List,   label: "List"    },
+              { mode: "rack"    as const, icon: Search, label: "Search"  },
             ] as const).map(({ mode, icon: Icon, label }) => (
               <button
                 key={mode}
                 onClick={() => setViewMode(mode)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${viewMode === mode ? "bg-background shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  viewMode === mode
+                    ? "bg-background shadow text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
               >
                 <Icon className="h-3.5 w-3.5" />
                 {label}
@@ -313,13 +288,10 @@ export function InventoryBinMapPage() {
         }
       />
 
-      {/* KPI strip */}
       <KPIStrip />
 
-      {/* Main content area */}
-      <div className="flex-1 flex overflow-hidden min-h-0 gap-0">
-
-        {/* Left sidebar: Charts (heatmap/list mode only) */}
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        {/* Left sidebar charts */}
         {viewMode !== "rack" && (
           <div className="w-64 shrink-0 border-r border-border/60 overflow-y-auto p-3 space-y-3 bg-card/30">
             <ZoneOccupancyChart />
@@ -327,11 +299,11 @@ export function InventoryBinMapPage() {
           </div>
         )}
 
-        {/* Center: main view */}
+        {/* Center view */}
         <div className="flex-1 overflow-hidden">
           {viewMode === "heatmap" && <WarehouseHeatmap />}
-          {viewMode === "list" && <BinListView />}
-          {viewMode === "rack" && (
+          {viewMode === "list"    && <BinListView />}
+          {viewMode === "rack"    && (
             <div className="flex h-full">
               <div className="w-80 border-r border-border/60 overflow-hidden flex flex-col">
                 <BinSearchPanel />
@@ -343,13 +315,10 @@ export function InventoryBinMapPage() {
           )}
         </div>
 
-        {/* Right: Bin detail panel (shown when a bin is selected) */}
+        {/* Right: bin detail panel */}
         {selectedBin && (
           <div className="w-72 shrink-0 overflow-hidden">
-            <BinDetailPanel
-              bin={selectedBin}
-              onClose={() => selectBin(null)}
-            />
+            <BinDetailPanel bin={selectedBin} onClose={() => selectBin(null)} />
           </div>
         )}
       </div>
