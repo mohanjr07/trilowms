@@ -1,6 +1,7 @@
 /**
  * TriloWMS — Inventory Bin Mapping Store
- * Links SKU master to warehouse bins with live occupancy, heatmaps & search
+ * Bins are stored per-warehouse keyed by warehouse name.
+ * Switching warehouses loads that warehouse's own bins.
  */
 
 import { create } from "zustand";
@@ -50,7 +51,7 @@ export interface WarehouseOccupancyKPIs {
   totalPallets: number;
   totalWeight: number;
   expiringWithin30Days: number;
-  criticalBins: number; // >95% full
+  criticalBins: number; // ≥90% full
 }
 
 // ─── Seed helpers ─────────────────────────────────────────────────────────────
@@ -79,7 +80,7 @@ function randomBatch(seed: number): string {
 }
 
 function randomExpiry(seed: number): string | null {
-  if (seed % 4 !== 0) return null; // only 25% have expiry
+  if (seed % 4 !== 0) return null;
   const now = new Date();
   const daysOffset = (seed % 5 === 0) ? 15 : (seed % 3 === 0) ? 25 : 60 + (seed * 11 % 300);
   now.setDate(now.getDate() + daysOffset);
@@ -92,10 +93,6 @@ function randomLastMovement(seed: number): string {
   return now.toISOString();
 }
 
-/**
- * Builds a flat list of BinInventory records from the current warehouse structure.
- * Called once at initialization; subsequent changes go through store actions.
- */
 export function buildInitialBinInventory(warehouse: import("./wms-data").Warehouse): BinInventory[] {
   const records: BinInventory[] = [];
   let idx = 0;
@@ -105,7 +102,7 @@ export function buildInitialBinInventory(warehouse: import("./wms-data").Warehou
       for (const rack of aisle.racks) {
         for (const bin of rack.bins) {
           const hasInventory = bin.status !== "Empty";
-          const capacity = 100; // units
+          const capacity = 100;
           const quantity = hasInventory
             ? bin.status === "Full" ? capacity
             : bin.status === "Partial" ? Math.floor(capacity * 0.3 + (idx % 5) * 10)
@@ -167,11 +164,14 @@ const DEFAULT_FILTERS: BinInventoryFilters = {
 };
 
 interface InvBinState {
-  bins: BinInventory[];
+  // Per-warehouse bin data: warehouseName → BinInventory[]
+  warehouseBins: Record<string, BinInventory[]>;
+  // Name of the currently active warehouse
+  activeWarehouseName: string | null;
+
   selectedBinId: string | null;
   filters: BinInventoryFilters;
   viewMode: "heatmap" | "list" | "rack";
-  initializedWarehouseId: string | null;
 
   // Actions
   init: (warehouse: import("./wms-data").Warehouse) => void;
@@ -184,99 +184,125 @@ interface InvBinState {
   resetFilters: () => void;
   setViewMode: (m: InvBinState["viewMode"]) => void;
 
-  // Derived / computed
+  // Derived — operate on the active warehouse's bins only
+  readonly bins: BinInventory[];
   filteredBins: () => BinInventory[];
   getBinById: (id: string) => BinInventory | undefined;
   searchSkuLocations: (skuCode: string) => BinSearchResult[];
   kpis: () => WarehouseOccupancyKPIs;
   zoneOccupancy: () => { zoneId: string; zoneName: string; color: string; occupancyPct: number; binCount: number; occupiedCount: number }[];
-  rackUtilization: (rackId: string) => number; // 0–100
+  rackUtilization: (rackId: string) => number;
   heatmapData: () => { binId: string; occupancyPct: number; status: BinStatus; zoneId: string }[];
 }
 
 export const useInvBinStore = create<InvBinState>()(
   persist(
     (set, get) => ({
-      bins: [],
+      warehouseBins: {},
+      activeWarehouseName: null,
       selectedBinId: null,
       filters: DEFAULT_FILTERS,
       viewMode: "heatmap",
-      initializedWarehouseId: null,
 
       init: (warehouse) => {
-        const { initializedWarehouseId } = get();
-        if (initializedWarehouseId === warehouse.name) return; // Already seeded for this warehouse
+        const { warehouseBins } = get();
+        const alreadySeeded = !!warehouseBins[warehouse.name];
+        // Always update the active warehouse name
+        // Only seed bins if this warehouse hasn't been seeded yet
+        if (alreadySeeded) {
+          set({ activeWarehouseName: warehouse.name, selectedBinId: null });
+          return;
+        }
         const bins = buildInitialBinInventory(warehouse);
-        set({ bins, initializedWarehouseId: warehouse.name });
+        set({
+          activeWarehouseName: warehouse.name,
+          selectedBinId: null,
+          warehouseBins: { ...warehouseBins, [warehouse.name]: bins },
+        });
       },
 
       selectBin: (id) => set({ selectedBinId: id }),
 
+      // Helper to get active bins array (used internally by actions)
+      get bins() {
+        const { warehouseBins, activeWarehouseName } = get();
+        return activeWarehouseName ? (warehouseBins[activeWarehouseName] ?? []) : [];
+      },
+
       assignSkuToBin: (binId, skuCode, skuName, quantity, batchNumber, expiryDate) => {
-        set((s) => ({
-          bins: s.bins.map((b) => {
-            if (b.binId !== binId) return b;
-            const occupancyPct = Math.min(100, Math.round((quantity / b.capacity) * 100));
-            const status: BinStatus =
-              quantity === 0 ? "Empty" :
-              occupancyPct >= 100 ? "Full" : "Partial";
-            return {
-              ...b,
-              skuCode,
-              skuName,
-              quantity,
-              occupancyPct,
-              status,
-              batchNumber: batchNumber ?? b.batchNumber,
-              expiryDate: expiryDate ?? b.expiryDate,
-              lastMovement: new Date().toISOString(),
-              palletCount: Math.ceil(quantity / 50),
-            };
-          }),
-        }));
+        const { activeWarehouseName, warehouseBins } = get();
+        if (!activeWarehouseName) return;
+        set({
+          warehouseBins: {
+            ...warehouseBins,
+            [activeWarehouseName]: (warehouseBins[activeWarehouseName] ?? []).map((b) => {
+              if (b.binId !== binId) return b;
+              const occupancyPct = Math.min(100, Math.round((quantity / b.capacity) * 100));
+              const status: BinStatus = quantity === 0 ? "Empty" : occupancyPct >= 100 ? "Full" : "Partial";
+              return {
+                ...b, skuCode, skuName, quantity, occupancyPct, status,
+                batchNumber: batchNumber ?? b.batchNumber,
+                expiryDate: expiryDate ?? b.expiryDate,
+                lastMovement: new Date().toISOString(),
+                palletCount: Math.ceil(quantity / 50),
+              };
+            }),
+          },
+        });
       },
 
       updateBinQuantity: (binId, quantity) => {
-        set((s) => ({
-          bins: s.bins.map((b) => {
-            if (b.binId !== binId) return b;
-            const occupancyPct = Math.min(100, Math.round((quantity / b.capacity) * 100));
-            const status: BinStatus =
-              quantity === 0 ? "Empty" :
-              occupancyPct >= 100 ? "Full" : "Partial";
-            return {
-              ...b, quantity, occupancyPct, status,
-              lastMovement: new Date().toISOString(),
-              palletCount: Math.ceil(quantity / 50),
-              weight: Math.round(quantity * 2.5 * 10) / 10,
-            };
-          }),
-        }));
+        const { activeWarehouseName, warehouseBins } = get();
+        if (!activeWarehouseName) return;
+        set({
+          warehouseBins: {
+            ...warehouseBins,
+            [activeWarehouseName]: (warehouseBins[activeWarehouseName] ?? []).map((b) => {
+              if (b.binId !== binId) return b;
+              const occupancyPct = Math.min(100, Math.round((quantity / b.capacity) * 100));
+              const status: BinStatus = quantity === 0 ? "Empty" : occupancyPct >= 100 ? "Full" : "Partial";
+              return {
+                ...b, quantity, occupancyPct, status,
+                lastMovement: new Date().toISOString(),
+                palletCount: Math.ceil(quantity / 50),
+                weight: Math.round(quantity * 2.5 * 10) / 10,
+              };
+            }),
+          },
+        });
       },
 
       updateBinStatus: (binId, status) => {
-        set((s) => ({
-          bins: s.bins.map((b) =>
-            b.binId === binId
-              ? { ...b, status, lastMovement: new Date().toISOString() }
-              : b
-          ),
-        }));
+        const { activeWarehouseName, warehouseBins } = get();
+        if (!activeWarehouseName) return;
+        set({
+          warehouseBins: {
+            ...warehouseBins,
+            [activeWarehouseName]: (warehouseBins[activeWarehouseName] ?? []).map((b) =>
+              b.binId === binId ? { ...b, status, lastMovement: new Date().toISOString() } : b
+            ),
+          },
+        });
       },
 
       clearBin: (binId) => {
-        set((s) => ({
-          bins: s.bins.map((b) =>
-            b.binId === binId
-              ? {
-                  ...b, skuCode: null, skuName: null, quantity: 0,
-                  occupancyPct: 0, palletCount: 0, status: "Empty",
-                  batchNumber: null, expiryDate: null, reservedFor: null,
-                  lastMovement: new Date().toISOString(), weight: 0,
-                }
-              : b
-          ),
-        }));
+        const { activeWarehouseName, warehouseBins } = get();
+        if (!activeWarehouseName) return;
+        set({
+          warehouseBins: {
+            ...warehouseBins,
+            [activeWarehouseName]: (warehouseBins[activeWarehouseName] ?? []).map((b) =>
+              b.binId === binId
+                ? {
+                    ...b, skuCode: null, skuName: null, quantity: 0,
+                    occupancyPct: 0, palletCount: 0, status: "Empty",
+                    batchNumber: null, expiryDate: null, reservedFor: null,
+                    lastMovement: new Date().toISOString(), weight: 0,
+                  }
+                : b
+            ),
+          },
+        });
       },
 
       setFilters: (f) => set((s) => ({ filters: { ...s.filters, ...f } })),
@@ -284,7 +310,8 @@ export const useInvBinStore = create<InvBinState>()(
       setViewMode: (m) => set({ viewMode: m }),
 
       filteredBins: () => {
-        const { bins, filters } = get();
+        const { warehouseBins, activeWarehouseName, filters } = get();
+        const bins = activeWarehouseName ? (warehouseBins[activeWarehouseName] ?? []) : [];
         const today = new Date();
         const in30 = new Date(); in30.setDate(today.getDate() + 30);
 
@@ -301,18 +328,22 @@ export const useInvBinStore = create<InvBinState>()(
           if (filters.status && b.status !== filters.status) return false;
           if (filters.expiringOnly) {
             if (!b.expiryDate) return false;
-            const exp = new Date(b.expiryDate);
-            if (exp > in30) return false;
+            if (new Date(b.expiryDate) > in30) return false;
           }
           if (filters.criticalOnly && b.occupancyPct < 90) return false;
           return true;
         });
       },
 
-      getBinById: (id) => get().bins.find((b) => b.binId === id),
+      getBinById: (id) => {
+        const { warehouseBins, activeWarehouseName } = get();
+        const bins = activeWarehouseName ? (warehouseBins[activeWarehouseName] ?? []) : [];
+        return bins.find((b) => b.binId === id);
+      },
 
       searchSkuLocations: (skuCode) => {
-        const { bins } = get();
+        const { warehouseBins, activeWarehouseName } = get();
+        const bins = activeWarehouseName ? (warehouseBins[activeWarehouseName] ?? []) : [];
         return bins
           .filter((b) => b.skuCode === skuCode)
           .map((b) => ({
@@ -322,7 +353,8 @@ export const useInvBinStore = create<InvBinState>()(
       },
 
       kpis: () => {
-        const { bins } = get();
+        const { warehouseBins, activeWarehouseName } = get();
+        const bins = activeWarehouseName ? (warehouseBins[activeWarehouseName] ?? []) : [];
         if (bins.length === 0) return {
           totalBins: 0, occupiedBins: 0, emptyBins: 0, reservedBins: 0,
           blockedBins: 0, damagedBins: 0, avgOccupancyPct: 0,
@@ -330,7 +362,6 @@ export const useInvBinStore = create<InvBinState>()(
         };
         const today = new Date();
         const in30 = new Date(); in30.setDate(today.getDate() + 30);
-
         return {
           totalBins: bins.length,
           occupiedBins: bins.filter((b) => b.status !== "Empty").length,
@@ -347,7 +378,8 @@ export const useInvBinStore = create<InvBinState>()(
       },
 
       zoneOccupancy: () => {
-        const { bins } = get();
+        const { warehouseBins, activeWarehouseName } = get();
+        const bins = activeWarehouseName ? (warehouseBins[activeWarehouseName] ?? []) : [];
         const map = new Map<string, { zoneName: string; color: string; total: number; occupied: number; totalPct: number }>();
         for (const b of bins) {
           const existing = map.get(b.zoneId) ?? { zoneName: b.zoneName, color: b.zoneColor, total: 0, occupied: 0, totalPct: 0 };
@@ -369,14 +401,17 @@ export const useInvBinStore = create<InvBinState>()(
       },
 
       rackUtilization: (rackId) => {
-        const { bins } = get();
+        const { warehouseBins, activeWarehouseName } = get();
+        const bins = activeWarehouseName ? (warehouseBins[activeWarehouseName] ?? []) : [];
         const rackBins = bins.filter((b) => b.rackId === rackId);
         if (rackBins.length === 0) return 0;
         return Math.round(rackBins.reduce((s, b) => s + b.occupancyPct, 0) / rackBins.length);
       },
 
       heatmapData: () => {
-        return get().bins.map((b) => ({
+        const { warehouseBins, activeWarehouseName } = get();
+        const bins = activeWarehouseName ? (warehouseBins[activeWarehouseName] ?? []) : [];
+        return bins.map((b) => ({
           binId: b.binId,
           occupancyPct: b.occupancyPct,
           status: b.status,
@@ -386,7 +421,10 @@ export const useInvBinStore = create<InvBinState>()(
     }),
     {
       name: "trilowms-inv-bin-map",
-      partialize: (s) => ({ bins: s.bins, initializedWarehouseId: s.initializedWarehouseId }),
+      partialize: (s) => ({
+        warehouseBins: s.warehouseBins,
+        activeWarehouseName: s.activeWarehouseName,
+      }),
     }
   )
 );
