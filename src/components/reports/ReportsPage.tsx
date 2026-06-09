@@ -18,7 +18,7 @@ const TOOLTIP_STYLE = {
 };
 
 function ThroughputKPIs() {
-  const kpis = useReportsStore((s) => s.kpis());
+  const kpis = useReportsStore((s) => s.kpis)();
   return (
     <div className="space-y-4">
       <div>
@@ -63,7 +63,7 @@ function ThroughputKPIs() {
 }
 
 function WeeklyTrendChart() {
-  const data = useReportsStore((s) => s.weeklyTrend());
+  const data = useReportsStore((s) => s.weeklyTrend)();
   return (
     <Panel title="WEEKLY THROUGHPUT TREND">
       <ResponsiveContainer width="100%" height={260}>
@@ -84,7 +84,7 @@ function WeeklyTrendChart() {
 }
 
 function MonthlyVolumeChart() {
-  const data = useReportsStore((s) => s.monthlyTrend());
+  const data = useReportsStore((s) => s.monthlyTrend)();
   return (
     <Panel title="12-MONTH VOLUME TREND">
       <ResponsiveContainer width="100%" height={260}>
@@ -103,7 +103,7 @@ function MonthlyVolumeChart() {
 }
 
 function TopSkuTable() {
-  const skus = useReportsStore((s) => s.topSkus());
+  const skus = useReportsStore((s) => s.topSkus)();
   return (
     <Panel title="TOP MOVING SKUs (THIS WEEK)">
       <table className="w-full text-sm">
@@ -135,7 +135,7 @@ function TopSkuTable() {
 }
 
 function CarrierPerformance() {
-  const data = useReportsStore((s) => s.carrierPerformance());
+  const data = useReportsStore((s) => s.carrierPerformance)();
   const chartData = data.map((c) => ({
     ...c,
     onTimePct: parseFloat(((c.onTime / c.total) * 100).toFixed(1)),
@@ -185,7 +185,7 @@ function CarrierPerformance() {
 }
 
 function FinancialKPIs() {
-  const kpis = useReportsStore((s) => s.kpis());
+  const kpis = useReportsStore((s) => s.kpis)();
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
       <KPICard label="LABOR COST/UNIT" value={kpis.laborCostPerUnit} tone="info" />
