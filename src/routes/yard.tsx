@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ModulePage, MODULE_CONFIGS } from "@/components/wms/ModulePage";
+import { YardPage } from "@/components/yard/YardPage";
 
 export const Route = createFileRoute("/yard")({
-  head: () => ({ meta: [{ title: `${MODULE_CONFIGS.yard.title} — TriloWMS` }, { name: "description", content: MODULE_CONFIGS.yard.subtitle }] }),
-  component: () => <ModulePage cfg={MODULE_CONFIGS.yard} />,
+  head: () => ({ meta: [{ title: "Yard & Dock — TriloWMS" }, { name: "description", content: "Yard truck management, dock board & appointments" }] }),
+  component: YardPage,
 });

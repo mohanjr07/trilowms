@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ModulePage, MODULE_CONFIGS } from "@/components/wms/ModulePage";
+import { InboundPage } from "@/components/inbound/InboundPage";
 
 export const Route = createFileRoute("/inbound")({
-  head: () => ({ meta: [{ title: `${MODULE_CONFIGS.inbound.title} — TriloWMS` }, { name: "description", content: MODULE_CONFIGS.inbound.subtitle }] }),
-  component: () => <ModulePage cfg={MODULE_CONFIGS.inbound} />,
+  head: () => ({ meta: [{ title: "Inbound — TriloWMS" }, { name: "description", content: "ASN management, dock scheduling & receiving" }] }),
+  component: InboundPage,
 });

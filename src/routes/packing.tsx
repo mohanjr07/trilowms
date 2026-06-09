@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ModulePage, MODULE_CONFIGS } from "@/components/wms/ModulePage";
+import { PackingPage } from "@/components/packing/PackingPage";
 
 export const Route = createFileRoute("/packing")({
-  head: () => ({ meta: [{ title: `${MODULE_CONFIGS.packing.title} — TriloWMS` }, { name: "description", content: MODULE_CONFIGS.packing.subtitle }] }),
-  component: () => <ModulePage cfg={MODULE_CONFIGS.packing} />,
+  head: () => ({ meta: [{ title: "Packing — TriloWMS" }, { name: "description", content: "Pack stations, carton management & order fulfilment" }] }),
+  component: PackingPage,
 });

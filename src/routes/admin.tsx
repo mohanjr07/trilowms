@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ModulePage, MODULE_CONFIGS } from "@/components/wms/ModulePage";
+import { AdminPage } from "@/components/admin/AdminPage";
 
 export const Route = createFileRoute("/admin")({
-  head: () => ({ meta: [{ title: `${MODULE_CONFIGS.admin.title} — TriloWMS` }, { name: "description", content: MODULE_CONFIGS.admin.subtitle }] }),
-  component: () => <ModulePage cfg={MODULE_CONFIGS.admin} />,
+  head: () => ({ meta: [{ title: "Admin — TriloWMS" }, { name: "description", content: "User management, roles, warehouse config & system health" }] }),
+  component: AdminPage,
 });
