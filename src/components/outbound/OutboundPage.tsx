@@ -14,7 +14,7 @@ import { PageHeader, KPICard, Panel } from "@/components/wms/Primitives";
 import { cn } from "@/lib/utils";
 
 function OutboundKPIs() {
-  const kpis = useOutboundStore((s) => s.kpis());
+  const kpis = useOutboundStore((s) => s.kpis)();
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
       <KPICard label="DISPATCHED TODAY" value={String(kpis.dispatched)} tone="success" />
