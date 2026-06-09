@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 // ─── KPIs ─────────────────────────────────────────────────────────────────────
 
 function PutawayKPIs() {
-  const kpis = usePutawayStore((s) => s.kpis());
+  const kpis = usePutawayStore((s) => s.kpis)();
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
       <KPICard label="OPEN TASKS" value={String(kpis.open)} tone="primary" />
@@ -35,7 +35,7 @@ function PutawayKPIs() {
 // ─── Operator Workload Board ──────────────────────────────────────────────────
 
 function OperatorBoard() {
-  const workloads = usePutawayStore((s) => s.operatorWorkloads());
+  const workloads = usePutawayStore((s) => s.operatorWorkloads)();
   return (
     <Panel title="OPERATOR WORKLOAD">
       <div className="space-y-2">
