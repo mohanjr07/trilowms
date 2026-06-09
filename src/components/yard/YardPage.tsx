@@ -14,7 +14,7 @@ import { PageHeader, KPICard, Panel } from "@/components/wms/Primitives";
 import { cn } from "@/lib/utils";
 
 function YardKPIs() {
-  const kpis = useYardStore((s) => s.kpis());
+  const kpis = useYardStore((s) => s.kpis)();
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
       <KPICard label="IN YARD" value={String(kpis.inYard)} tone="primary" />
