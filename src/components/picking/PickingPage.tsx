@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 // ─── KPIs ─────────────────────────────────────────────────────────────────────
 
 function PickingKPIs() {
-  const kpis = usePickingStore((s) => s.kpis());
+  const kpis = usePickingStore((s) => s.kpis)();
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
       <KPICard label="ACTIVE WAVES" value={String(kpis.activeWaves)} tone="primary" />
@@ -238,7 +238,7 @@ function ShortagePanel() {
 // ─── Picker Productivity ──────────────────────────────────────────────────────
 
 function PickerProductivity() {
-  const data = usePickingStore((s) => s.pickerProductivity());
+  const data = usePickingStore((s) => s.pickerProductivity)();
   return (
     <Panel title="PICKER PRODUCTIVITY">
       <div className="space-y-2">
