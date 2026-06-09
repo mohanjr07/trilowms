@@ -31,7 +31,7 @@ import { cn } from "@/lib/utils";
 // ─── KPI Strip ────────────────────────────────────────────────────────────────
 
 function InboundKPIs() {
-  const kpis = useInboundStore((s) => s.kpis());
+  const kpis = useInboundStore((s) => s.kpis)();
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
       <KPICard label="OPEN ASNs" value={String(kpis.openAsns)} tone="primary" />
