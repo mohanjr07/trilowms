@@ -16,7 +16,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, RadarChart, 
 import { cn } from "@/lib/utils";
 
 function LaborKPIs() {
-  const kpis = useLaborStore((s) => s.kpis());
+  const kpis = useLaborStore((s) => s.kpis)();
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
       <KPICard label="ON SHIFT" value={String(kpis.onShift)} tone="success" />
@@ -257,7 +257,7 @@ function EmployeeTable({ onSelect }: { onSelect: (e: LaborEmployee) => void }) {
 }
 
 function ShiftBoard() {
-  const shiftData = useLaborStore((s) => s.shiftBreakdown());
+  const shiftData = useLaborStore((s) => s.shiftBreakdown)();
   const employees = useLaborStore((s) => s.employees);
 
   return (
