@@ -15,7 +15,7 @@ import { PageHeader, KPICard, Panel } from "@/components/wms/Primitives";
 import { cn } from "@/lib/utils";
 
 function PackingKPIs() {
-  const kpis = usePackingStore((s) => s.kpis());
+  const kpis = usePackingStore((s) => s.kpis)();
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
       <KPICard label="STATIONS ACTIVE" value={String(kpis.activeStations)} sub="/10" tone="info" />
