@@ -16,7 +16,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, L
 import { cn } from "@/lib/utils";
 
 function QCKPIs() {
-  const kpis = useQCStore((s) => s.kpis());
+  const kpis = useQCStore((s) => s.kpis)();
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
       <KPICard label="OPEN HOLDS" value={String(kpis.openHolds)} tone="destructive" />
