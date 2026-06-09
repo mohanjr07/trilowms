@@ -16,7 +16,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recha
 import { cn } from "@/lib/utils";
 
 function ReturnsKPIs() {
-  const kpis = useReturnsStore((s) => s.kpis());
+  const kpis = useReturnsStore((s) => s.kpis)();
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
       <KPICard label="OPEN RMAs" value={String(kpis.openRmas)} tone="primary" />
