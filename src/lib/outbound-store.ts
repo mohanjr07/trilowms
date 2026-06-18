@@ -141,6 +141,11 @@ interface OutboundState {
   pagedShipments: () => Shipment[];
   totalPages: () => number;
   kpis: () => { dispatched: number; staged: number; loading: number; delayed: number; slaCompliance: string; trucksLoading: number; exceptionsOpen: number };
+  carrierList: () => string[];
+  carrierMix: () => { carrier: string; count: number }[];
+  statusFunnel: () => { status: ShipmentStatus; count: number }[];
+  carrierPerformance: () => { carrier: string; shipments: number; weight: number; delivered: number; slaPct: number }[];
+  dispatchSchedule: () => Shipment[];
 }
 
 export const useOutboundStore = create<OutboundState>()(
@@ -201,6 +206,40 @@ export const useOutboundStore = create<OutboundState>()(
           exceptionsOpen: shipments.reduce((s, sh) => s + sh.exceptions.length, 0),
         };
       },
+
+      carrierList: () => Array.from(new Set(get().shipments.map((s) => s.carrier))).sort(),
+
+      carrierMix: () => {
+        const map = new Map<string, number>();
+        for (const s of get().shipments) map.set(s.carrier, (map.get(s.carrier) ?? 0) + 1);
+        return Array.from(map.entries()).map(([carrier, count]) => ({ carrier, count })).sort((a, b) => b.count - a.count);
+      },
+
+      statusFunnel: () => {
+        const order: ShipmentStatus[] = ["PLANNED", "STAGED", "LOADING", "LOADED", "DISPATCHED", "IN_TRANSIT", "DELIVERED", "EXCEPTION", "RETURNED"];
+        const map = new Map<ShipmentStatus, number>();
+        for (const s of get().shipments) map.set(s.status, (map.get(s.status) ?? 0) + 1);
+        return order.map((status) => ({ status, count: map.get(status) ?? 0 })).filter((x) => x.count > 0);
+      },
+
+      carrierPerformance: () => {
+        const map = new Map<string, { carrier: string; shipments: number; weight: number; delivered: number; slaMet: number }>();
+        for (const s of get().shipments) {
+          const e = map.get(s.carrier) ?? { carrier: s.carrier, shipments: 0, weight: 0, delivered: 0, slaMet: 0 };
+          e.shipments++;
+          e.weight += s.totalWeight;
+          if (s.status === "DELIVERED") { e.delivered++; if (s.slaMet) e.slaMet++; }
+          map.set(s.carrier, e);
+        }
+        return Array.from(map.values())
+          .map((v) => ({ carrier: v.carrier, shipments: v.shipments, weight: Math.round(v.weight), delivered: v.delivered, slaPct: v.delivered ? Math.round((v.slaMet / v.delivered) * 100) : 100 }))
+          .sort((a, b) => b.shipments - a.shipments);
+      },
+
+      dispatchSchedule: () =>
+        get()
+          .shipments.filter((s) => ["PLANNED", "STAGED", "LOADING", "LOADED"].includes(s.status))
+          .sort((a, b) => a.scheduledDispatch.localeCompare(b.scheduledDispatch)),
     }),
     {
       name: "trilowms-outbound-v1",
@@ -209,14 +248,14 @@ export const useOutboundStore = create<OutboundState>()(
   )
 );
 
-export const SHIPMENT_STATUS_META: Record<ShipmentStatus, { label: string; color: string; bg: string }> = {
-  PLANNED:    { label: "Planned",    color: "text-slate-400",   bg: "bg-slate-500/10"   },
-  STAGED:     { label: "Staged",     color: "text-blue-400",    bg: "bg-blue-500/10"    },
-  LOADING:    { label: "Loading",    color: "text-amber-400",   bg: "bg-amber-500/10"   },
-  LOADED:     { label: "Loaded",     color: "text-cyan-400",    bg: "bg-cyan-500/10"    },
-  DISPATCHED: { label: "Dispatched", color: "text-indigo-400",  bg: "bg-indigo-500/10"  },
-  IN_TRANSIT: { label: "In Transit", color: "text-violet-400",  bg: "bg-violet-500/10"  },
-  DELIVERED:  { label: "Delivered",  color: "text-emerald-400", bg: "bg-emerald-500/10" },
-  EXCEPTION:  { label: "Exception",  color: "text-red-400",     bg: "bg-red-500/10"     },
-  RETURNED:   { label: "Returned",   color: "text-orange-400",  bg: "bg-orange-500/10"  },
+export const SHIPMENT_STATUS_META: Record<ShipmentStatus, { label: string; color: string; bg: string; border: string }> = {
+  PLANNED:    { label: "Planned",    color: "text-slate-400",   bg: "bg-slate-500/10",   border: "border-slate-500/30"   },
+  STAGED:     { label: "Staged",     color: "text-blue-400",    bg: "bg-blue-500/10",    border: "border-blue-500/30"    },
+  LOADING:    { label: "Loading",    color: "text-amber-400",   bg: "bg-amber-500/10",   border: "border-amber-500/30"   },
+  LOADED:     { label: "Loaded",     color: "text-cyan-400",    bg: "bg-cyan-500/10",    border: "border-cyan-500/30"    },
+  DISPATCHED: { label: "Dispatched", color: "text-indigo-400",  bg: "bg-indigo-500/10",  border: "border-indigo-500/30"  },
+  IN_TRANSIT: { label: "In Transit", color: "text-violet-400",  bg: "bg-violet-500/10",  border: "border-violet-500/30"  },
+  DELIVERED:  { label: "Delivered",  color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30" },
+  EXCEPTION:  { label: "Exception",  color: "text-red-400",     bg: "bg-red-500/10",     border: "border-red-500/30"     },
+  RETURNED:   { label: "Returned",   color: "text-orange-400",  bg: "bg-orange-500/10",  border: "border-orange-500/30"  },
 };
