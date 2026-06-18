@@ -179,6 +179,11 @@ interface ReturnsState {
   pagedRmas: () => RMA[];
   totalPages: () => number;
   kpis: () => { openRmas: number; received: number; restocked: number; scrapped: number; creditPending: string; avgProcessingDays: string; pendingInspection: number };
+  reasonMix: () => { reason: ReturnReason; count: number }[];
+  dispositionMix: () => { disposition: DispositionType; count: number; qty: number }[];
+  statusFunnel: () => { status: RmaStatus; count: number }[];
+  inspectionWorklist: () => RMA[];
+  customerList: () => string[];
 }
 
 export const useReturnsStore = create<ReturnsState>()(
@@ -290,6 +295,39 @@ export const useReturnsStore = create<ReturnsState>()(
           pendingInspection: rmas.filter((r) => r.status === "RECEIVED").length,
         };
       },
+
+      reasonMix: () => {
+        const map = new Map<ReturnReason, number>();
+        for (const r of get().rmas) for (const l of r.lines) map.set(l.reason, (map.get(l.reason) ?? 0) + 1);
+        return Array.from(map.entries()).map(([reason, count]) => ({ reason, count })).sort((a, b) => b.count - a.count);
+      },
+
+      dispositionMix: () => {
+        const map = new Map<DispositionType, { count: number; qty: number }>();
+        for (const r of get().rmas) for (const l of r.lines) {
+          if (!l.disposition) continue;
+          const e = map.get(l.disposition) ?? { count: 0, qty: 0 };
+          e.count++; e.qty += l.receivedQty;
+          map.set(l.disposition, e);
+        }
+        return Array.from(map.entries()).map(([disposition, v]) => ({ disposition, ...v })).sort((a, b) => b.count - a.count);
+      },
+
+      statusFunnel: () => {
+        const order: RmaStatus[] = ["REQUESTED", "APPROVED", "IN_TRANSIT", "RECEIVED", "INSPECTING", "INSPECTED", "PROCESSING", "COMPLETED", "REJECTED"];
+        const map = new Map<RmaStatus, number>();
+        for (const r of get().rmas) map.set(r.status, (map.get(r.status) ?? 0) + 1);
+        return order.map((status) => ({ status, count: map.get(status) ?? 0 })).filter((x) => x.count > 0);
+      },
+
+      inspectionWorklist: () =>
+        get().rmas.filter((r) => ["RECEIVED", "INSPECTING"].includes(r.status)).sort((a, b) => {
+          const pr = { URGENT: 0, HIGH: 1, NORMAL: 2 } as const;
+          if (pr[a.priority] !== pr[b.priority]) return pr[a.priority] - pr[b.priority];
+          return (a.receivedAt ?? "").localeCompare(b.receivedAt ?? "");
+        }),
+
+      customerList: () => Array.from(new Set(get().rmas.map((r) => r.customer))).sort(),
     }),
     {
       name: "trilowms-returns-v1",
@@ -298,15 +336,15 @@ export const useReturnsStore = create<ReturnsState>()(
   )
 );
 
-export const RMA_STATUS_META: Record<RmaStatus, { label: string; color: string; bg: string }> = {
-  REQUESTED:  { label: "Requested",  color: "text-slate-400",   bg: "bg-slate-500/10"   },
-  APPROVED:   { label: "Approved",   color: "text-blue-400",    bg: "bg-blue-500/10"    },
-  IN_TRANSIT: { label: "In Transit", color: "text-cyan-400",    bg: "bg-cyan-500/10"    },
-  RECEIVED:   { label: "Received",   color: "text-indigo-400",  bg: "bg-indigo-500/10"  },
-  INSPECTING: { label: "Inspecting", color: "text-amber-400",   bg: "bg-amber-500/10"   },
-  INSPECTED:  { label: "Inspected",  color: "text-yellow-400",  bg: "bg-yellow-500/10"  },
-  PROCESSING: { label: "Processing", color: "text-orange-400",  bg: "bg-orange-500/10"  },
-  COMPLETED:  { label: "Completed",  color: "text-emerald-400", bg: "bg-emerald-500/10" },
-  REJECTED:   { label: "Rejected",   color: "text-red-400",     bg: "bg-red-500/10"     },
-  CANCELLED:  { label: "Cancelled",  color: "text-slate-400",   bg: "bg-slate-500/10"   },
+export const RMA_STATUS_META: Record<RmaStatus, { label: string; color: string; bg: string; border: string }> = {
+  REQUESTED:  { label: "Requested",  color: "text-slate-400",   bg: "bg-slate-500/10",   border: "border-slate-500/30"   },
+  APPROVED:   { label: "Approved",   color: "text-blue-400",    bg: "bg-blue-500/10",    border: "border-blue-500/30"    },
+  IN_TRANSIT: { label: "In Transit", color: "text-cyan-400",    bg: "bg-cyan-500/10",    border: "border-cyan-500/30"    },
+  RECEIVED:   { label: "Received",   color: "text-indigo-400",  bg: "bg-indigo-500/10",  border: "border-indigo-500/30"  },
+  INSPECTING: { label: "Inspecting", color: "text-amber-400",   bg: "bg-amber-500/10",   border: "border-amber-500/30"   },
+  INSPECTED:  { label: "Inspected",  color: "text-yellow-400",  bg: "bg-yellow-500/10",  border: "border-yellow-500/30"  },
+  PROCESSING: { label: "Processing", color: "text-orange-400",  bg: "bg-orange-500/10",  border: "border-orange-500/30"  },
+  COMPLETED:  { label: "Completed",  color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30" },
+  REJECTED:   { label: "Rejected",   color: "text-red-400",     bg: "bg-red-500/10",     border: "border-red-500/30"     },
+  CANCELLED:  { label: "Cancelled",  color: "text-slate-400",   bg: "bg-slate-500/10",   border: "border-slate-500/30"   },
 };
