@@ -311,7 +311,12 @@ interface InboundState {
   createAsn: (data: Omit<ASN, "id" | "asnNumber" | "createdAt" | "lines" | "discrepancies">) => ASN;
   updateAsnStatus: (id: string, status: AsnStatus) => void;
   assignDock: (asnId: string, dockId: string) => void;
-  receiveLine: (asnId: string, lineId: string, qty: number, damagedQty?: number, notes?: string) => void;
+  receiveLine: (
+    asnId: string,
+    lineId: string,
+    qty: number,
+    opts?: { damagedQty?: number; rejectedQty?: number; lotNumber?: string | null; expiryDate?: string | null; notes?: string | null; receivedBy?: string },
+  ) => void;
   raiseDiscrepancy: (disc: Omit<Discrepancy, "id" | "reportedAt">) => void;
   resolveDiscrepancy: (asnId: string, discId: string, resolvedBy: string, resolution: string) => void;
   updateDockStatus: (dockId: string, status: DockDoor["status"]) => void;
@@ -334,6 +339,12 @@ interface InboundState {
     pendingPutaway: number;
   };
   availableDocks: () => DockDoor[];
+  receivingWorklist: () => ASN[];
+  allDiscrepancies: () => (Discrepancy & { asnNumber: string; vendor: string; priority: ASN["priority"] })[];
+  dockUtilization: () => { occupied: number; available: number; reserved: number; maintenance: number; total: number; pct: number };
+  agingBuckets: () => { label: string; count: number }[];
+  vendorList: () => string[];
+  carrierList: () => string[];
 }
 
 let _asnSeq = 100;
@@ -398,7 +409,8 @@ export const useInboundStore = create<InboundState>()(
         }));
       },
 
-      receiveLine: (asnId, lineId, qty, damagedQty = 0, notes = null) => {
+      receiveLine: (asnId, lineId, qty, opts = {}) => {
+        const { damagedQty = 0, rejectedQty = 0, lotNumber, expiryDate, notes = null, receivedBy = "Current User" } = opts;
         set((s) => {
           const asns = s.asns.map((a) => {
             if (a.id !== asnId) return a;
@@ -407,18 +419,23 @@ export const useInboundStore = create<InboundState>()(
               const newReceived = l.receivedQty + qty;
               let lineStatus: ReceivingLineStatus = "IN_PROGRESS";
               if (newReceived >= l.expectedQty) lineStatus = newReceived > l.expectedQty ? "OVER_RECEIPT" : "RECEIVED";
-              else if (newReceived > 0 && newReceived < l.expectedQty) lineStatus = "RECEIVED";
+              else if (newReceived > 0 && newReceived < l.expectedQty) lineStatus = "SHORT_RECEIPT";
+              if (rejectedQty > 0 && newReceived === 0) lineStatus = "REJECTED";
               return {
                 ...l,
                 receivedQty: newReceived,
                 damagedQty: l.damagedQty + damagedQty,
+                rejectedQty: l.rejectedQty + rejectedQty,
                 status: lineStatus,
+                lotNumber: lotNumber ?? l.lotNumber,
+                expiryDate: expiryDate ?? l.expiryDate,
                 receivedAt: new Date().toISOString(),
+                receivedBy,
                 notes: notes ?? l.notes,
               };
             });
-            const allDone = lines.every((l) => ["RECEIVED", "OVER_RECEIPT", "REJECTED"].includes(l.status));
-            const anyDone = lines.some((l) => l.receivedQty > 0);
+            const allDone = lines.every((l) => ["RECEIVED", "OVER_RECEIPT", "SHORT_RECEIPT", "REJECTED"].includes(l.status));
+            const anyDone = lines.some((l) => l.receivedQty > 0 || l.rejectedQty > 0);
             const receivedUnits = lines.reduce((acc, l) => acc + l.receivedQty, 0);
             return {
               ...a,
@@ -533,6 +550,60 @@ export const useInboundStore = create<InboundState>()(
       availableDocks: () => {
         return get().dockDoors.filter((d) => d.status === "AVAILABLE" && (d.type === "INBOUND" || d.type === "BOTH"));
       },
+
+      receivingWorklist: () => {
+        const active: AsnStatus[] = ["DOCKED", "RECEIVING", "PARTIAL"];
+        return get()
+          .asns.filter((a) => active.includes(a.status))
+          .sort((a, b) => {
+            const pr = { URGENT: 0, HIGH: 1, NORMAL: 2 } as const;
+            if (pr[a.priority] !== pr[b.priority]) return pr[a.priority] - pr[b.priority];
+            return a.scheduledArrival.localeCompare(b.scheduledArrival);
+          });
+      },
+
+      allDiscrepancies: () => {
+        return get()
+          .asns.flatMap((a) =>
+            a.discrepancies.map((d) => ({ ...d, asnNumber: a.asnNumber, vendor: a.vendor, priority: a.priority })),
+          )
+          .sort((a, b) => b.reportedAt.localeCompare(a.reportedAt));
+      },
+
+      dockUtilization: () => {
+        const docks = get().dockDoors;
+        const occupied = docks.filter((d) => d.status === "OCCUPIED").length;
+        const available = docks.filter((d) => d.status === "AVAILABLE").length;
+        const reserved = docks.filter((d) => d.status === "RESERVED").length;
+        const maintenance = docks.filter((d) => d.status === "MAINTENANCE").length;
+        const total = docks.length;
+        return { occupied, available, reserved, maintenance, total, pct: total ? Math.round(((occupied + reserved) / total) * 100) : 0 };
+      },
+
+      agingBuckets: () => {
+        const open: AsnStatus[] = ["PENDING", "SCHEDULED", "ARRIVED", "DOCKED", "RECEIVING", "PARTIAL", "DISCREPANCY"];
+        const now = Date.now();
+        const buckets = [
+          { label: "On time", count: 0 },
+          { label: "< 2h late", count: 0 },
+          { label: "2–6h late", count: 0 },
+          { label: "> 6h late", count: 0 },
+        ];
+        get()
+          .asns.filter((a) => open.includes(a.status))
+          .forEach((a) => {
+            const lateMs = now - new Date(a.scheduledArrival).getTime();
+            const lateH = lateMs / 3600000;
+            if (lateH <= 0) buckets[0].count++;
+            else if (lateH < 2) buckets[1].count++;
+            else if (lateH < 6) buckets[2].count++;
+            else buckets[3].count++;
+          });
+        return buckets;
+      },
+
+      vendorList: () => Array.from(new Set(get().asns.map((a) => a.vendor))).sort(),
+      carrierList: () => Array.from(new Set(get().asns.map((a) => a.carrierName))).sort(),
     }),
     {
       name: "trilowms-inbound-v1",
