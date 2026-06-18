@@ -205,6 +205,11 @@ interface QCState {
   pagedInspections: () => QCInspection[];
   totalPages: () => number;
   kpis: () => { openHolds: number; passRate: string; failed: number; inProgress: number; avgDefectRate: string; inspectorsActive: number; pendingReview: number };
+  inspectorWorkload: () => { id: string; name: string; total: number; passed: number; failed: number; inProgress: number; passRate: number }[];
+  typeMix: () => { type: QCInspection["type"]; count: number }[];
+  statusFunnel: () => { status: InspectionStatus; count: number }[];
+  activeHolds: () => QCHold[];
+  inspectorList: () => string[];
 }
 
 export const useQCStore = create<QCState>()(
@@ -309,6 +314,38 @@ export const useQCStore = create<QCState>()(
           pendingReview: inspections.filter((i) => i.status === "PENDING_REVIEW").length,
         };
       },
+
+      inspectorWorkload: () => {
+        const map = new Map<string, { id: string; name: string; total: number; passed: number; failed: number; inProgress: number }>();
+        for (const i of get().inspections) {
+          const e = map.get(i.inspectorId) ?? { id: i.inspectorId, name: i.inspectorName, total: 0, passed: 0, failed: 0, inProgress: 0 };
+          e.total++;
+          if (i.status === "PASSED" || i.status === "CONDITIONAL_PASS") e.passed++;
+          else if (i.status === "FAILED") e.failed++;
+          else if (i.status === "IN_PROGRESS") e.inProgress++;
+          map.set(i.inspectorId, e);
+        }
+        return Array.from(map.values())
+          .map((v) => ({ ...v, passRate: v.passed + v.failed > 0 ? Math.round((v.passed / (v.passed + v.failed)) * 100) : 100 }))
+          .sort((a, b) => b.total - a.total);
+      },
+
+      typeMix: () => {
+        const map = new Map<QCInspection["type"], number>();
+        for (const i of get().inspections) map.set(i.type, (map.get(i.type) ?? 0) + 1);
+        return Array.from(map.entries()).map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count);
+      },
+
+      statusFunnel: () => {
+        const order: InspectionStatus[] = ["QUEUED", "IN_PROGRESS", "PENDING_REVIEW", "PASSED", "CONDITIONAL_PASS", "FAILED", "HOLD", "DISPOSED"];
+        const map = new Map<InspectionStatus, number>();
+        for (const i of get().inspections) map.set(i.status, (map.get(i.status) ?? 0) + 1);
+        return order.map((status) => ({ status, count: map.get(status) ?? 0 })).filter((x) => x.count > 0);
+      },
+
+      activeHolds: () => get().holds.filter((h) => h.status !== "RESOLVED").sort((a, b) => b.raisedAt.localeCompare(a.raisedAt)),
+
+      inspectorList: () => Array.from(new Set(get().inspections.map((i) => i.inspectorName))).sort(),
     }),
     {
       name: "trilowms-qc-v1",
@@ -317,14 +354,14 @@ export const useQCStore = create<QCState>()(
   )
 );
 
-export const QC_STATUS_META: Record<InspectionStatus, { label: string; color: string; bg: string }> = {
-  QUEUED:           { label: "Queued",           color: "text-slate-400",   bg: "bg-slate-500/10"   },
-  IN_PROGRESS:      { label: "In Progress",      color: "text-amber-400",   bg: "bg-amber-500/10"   },
-  PASSED:           { label: "Passed",           color: "text-emerald-400", bg: "bg-emerald-500/10" },
-  FAILED:           { label: "Failed",           color: "text-red-400",     bg: "bg-red-500/10"     },
-  CONDITIONAL_PASS: { label: "Conditional Pass", color: "text-yellow-400",  bg: "bg-yellow-500/10"  },
-  PENDING_REVIEW:   { label: "Pending Review",   color: "text-orange-400",  bg: "bg-orange-500/10"  },
-  SAMPLED:          { label: "Sampled",          color: "text-blue-400",    bg: "bg-blue-500/10"    },
-  HOLD:             { label: "On Hold",          color: "text-red-400",     bg: "bg-red-500/10"     },
-  DISPOSED:         { label: "Disposed",         color: "text-slate-400",   bg: "bg-slate-500/10"   },
+export const QC_STATUS_META: Record<InspectionStatus, { label: string; color: string; bg: string; border: string }> = {
+  QUEUED:           { label: "Queued",           color: "text-slate-400",   bg: "bg-slate-500/10",   border: "border-slate-500/30"   },
+  IN_PROGRESS:      { label: "In Progress",      color: "text-amber-400",   bg: "bg-amber-500/10",   border: "border-amber-500/30"   },
+  PASSED:           { label: "Passed",           color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30" },
+  FAILED:           { label: "Failed",           color: "text-red-400",     bg: "bg-red-500/10",     border: "border-red-500/30"     },
+  CONDITIONAL_PASS: { label: "Conditional Pass", color: "text-yellow-400",  bg: "bg-yellow-500/10",  border: "border-yellow-500/30"  },
+  PENDING_REVIEW:   { label: "Pending Review",   color: "text-orange-400",  bg: "bg-orange-500/10",  border: "border-orange-500/30"  },
+  SAMPLED:          { label: "Sampled",          color: "text-blue-400",    bg: "bg-blue-500/10",    border: "border-blue-500/30"    },
+  HOLD:             { label: "On Hold",          color: "text-red-400",     bg: "bg-red-500/10",     border: "border-red-500/30"     },
+  DISPOSED:         { label: "Disposed",         color: "text-slate-400",   bg: "bg-slate-500/10",   border: "border-slate-500/30"   },
 };
