@@ -202,6 +202,11 @@ interface PutawayState {
     throughputPerHour: number;
   };
   operatorWorkloads: () => { operatorId: string; operatorName: string; assigned: number; inProgress: number; completed: number }[];
+  strategyMix: () => { strategy: PutawayStrategy; count: number }[];
+  zoneDistribution: () => { zone: string; open: number; completed: number; total: number }[];
+  blockedTasks: () => PutawayTask[];
+  operatorList: () => string[];
+  zoneList: () => string[];
 }
 
 let _seq = 200;
@@ -338,6 +343,38 @@ export const usePutawayStore = create<PutawayState>()(
         }
         return Array.from(map.values()).sort((a, b) => (b.assigned + b.inProgress) - (a.assigned + a.inProgress));
       },
+
+      strategyMix: () => {
+        const open: PutawayStatus[] = ["PENDING", "ASSIGNED", "IN_PROGRESS", "BLOCKED"];
+        const map = new Map<PutawayStrategy, number>();
+        for (const t of get().tasks) {
+          if (!open.includes(t.status)) continue;
+          map.set(t.strategy, (map.get(t.strategy) ?? 0) + 1);
+        }
+        return Array.from(map.entries())
+          .map(([strategy, count]) => ({ strategy, count }))
+          .sort((a, b) => b.count - a.count);
+      },
+
+      zoneDistribution: () => {
+        const map = new Map<string, { open: number; completed: number; total: number }>();
+        for (const t of get().tasks) {
+          if (t.status === "CANCELLED") continue;
+          const e = map.get(t.zone) ?? { open: 0, completed: 0, total: 0 };
+          e.total++;
+          if (t.status === "COMPLETED") e.completed++;
+          else e.open++;
+          map.set(t.zone, e);
+        }
+        return Array.from(map.entries())
+          .map(([zone, v]) => ({ zone, ...v }))
+          .sort((a, b) => b.total - a.total);
+      },
+
+      blockedTasks: () => get().tasks.filter((t) => t.status === "BLOCKED").sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+
+      operatorList: () => Array.from(new Set(get().tasks.map((t) => t.assignedOperator).filter(Boolean) as string[])).sort(),
+      zoneList: () => Array.from(new Set(get().tasks.map((t) => t.zone))).sort(),
     }),
     {
       name: "trilowms-putaway-v1",
