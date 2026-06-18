@@ -381,7 +381,11 @@ function PickFloorView({ onOpenWave }: { onOpenWave: (w: Wave) => void }) {
               <th className="text-left font-semibold py-2.5 px-3">Order</th>
               <th className="text-left font-semibold py-2.5 px-3">SKU</th>
               <th className="text-left font-semibold py-2.5 px-3">Bin</th>
+              <th className="text-left font-semibold py-2.5 px-3">Loc</th>
               <th className="text-left font-semibold py-2.5 px-3">Zone</th>
+              <th className="text-left font-semibold py-2.5 px-3">Lot / Batch</th>
+              <th className="text-left font-semibold py-2.5 px-3">Exp</th>
+              <th className="text-left font-semibold py-2.5 px-3">Tote / Bay</th>
               <th className="text-right font-semibold py-2.5 px-3">Req</th>
               <th className="text-right font-semibold py-2.5 px-3">Picked</th>
               <th className="text-left font-semibold py-2.5 px-3">Picker</th>
@@ -401,7 +405,11 @@ function PickFloorView({ onOpenWave }: { onOpenWave: (w: Wave) => void }) {
                     <div className="text-[11px] text-muted-foreground truncate max-w-36">{t.skuName}</div>
                   </td>
                   <td className="py-2 px-3 font-mono text-xs whitespace-nowrap">{t.binCode}</td>
+                  <td className="py-2 px-3 font-mono text-xs text-muted-foreground whitespace-nowrap">{t.aisle}/{t.rack}/{t.level}</td>
                   <td className="py-2 px-3 text-xs text-muted-foreground">{t.zone}</td>
+                  <td className="py-2 px-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">{t.lotNumber ?? "—"}<span className="opacity-50"> / </span>{t.batchNumber ?? "—"}</td>
+                  <td className="py-2 px-3 font-mono text-[11px] whitespace-nowrap">{t.expiryDate ? <span className="text-amber-400">{t.expiryDate}</span> : <span className="text-muted-foreground">—</span>}</td>
+                  <td className="py-2 px-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">{t.toteId ?? "—"}<span className="opacity-50"> / </span>{t.sortationBay ?? "—"}</td>
                   <td className="py-2 px-3 text-right font-mono tabular-nums text-xs">{t.qtyRequired} <span className="text-muted-foreground">{t.uom}</span></td>
                   <td className="py-2 px-3 text-right font-mono tabular-nums text-xs text-emerald-400">{t.qtyPicked}</td>
                   <td className="py-2 px-3 text-xs whitespace-nowrap">{t.assignedPickerName ?? <span className="text-muted-foreground">—</span>}</td>
@@ -426,7 +434,7 @@ function PickFloorView({ onOpenWave }: { onOpenWave: (w: Wave) => void }) {
               );
             })}
             {active.length === 0 && (
-              <tr><td colSpan={10} className="text-center py-12 text-sm text-muted-foreground">No open pick lines. Release a wave to populate the floor.</td></tr>
+              <tr><td colSpan={14} className="text-center py-12 text-sm text-muted-foreground">No open pick lines. Release a wave to populate the floor.</td></tr>
             )}
           </tbody>
         </table>
@@ -642,9 +650,16 @@ function WaveDetailDrawer({ waveId, onClose }: { waveId: string | null; onClose:
                         <span className="text-xs text-muted-foreground truncate">{task.skuName}</span>
                       </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-[11px] text-muted-foreground font-mono">
+                        <span>Order <span className="text-foreground">{task.orderId}</span></span>
                         <span>Bin <span className="text-foreground">{task.binCode}</span></span>
+                        <span>Loc <span className="text-foreground">{task.aisle}/{task.rack}/{task.level}</span></span>
                         <span>Zone <span className="text-foreground">{task.zone}</span></span>
                         <span>Tote {task.toteId ?? "—"}</span>
+                        <span>Bay {task.sortationBay ?? "—"}</span>
+                        <span>Lot {task.lotNumber ?? "—"}</span>
+                        <span>Batch {task.batchNumber ?? "—"}</span>
+                        {task.expiryDate && <span>Exp <span className="text-amber-400">{task.expiryDate}</span></span>}
+                        {task.scanConfirmed && <span className="text-emerald-400 inline-flex items-center gap-0.5"><ScanLine className="h-3 w-3" /> scan ok</span>}
                         {task.assignedPickerName && <span>{task.assignedPickerName}</span>}
                       </div>
                       {task.shortReason && <div className="text-[11px] text-red-400 mt-0.5">{task.shortReason}</div>}
