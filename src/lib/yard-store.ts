@@ -98,7 +98,7 @@ const YARD_DOCKS: YardDock[] = [
 
 function buildSeedTrucks(): YardTruck[] {
   const statuses: YardTruckStatus[] = ["GATE_IN","WAITING","DOCKING","DOCKED_IN","DOCKED_OUT","LOADING","UNLOADING","LOADED","GATE_OUT"];
-  const positions: (YardPosition | null)[] = ["LANE_A","LANE_B","LANE_C","STAGING","WAITING","OVERFLOW",null];
+  const positions: (YardPosition | null)[] = ["LANE_A","LANE_B","LANE_C","STAGING","HAZMAT","OVERFLOW",null];
   const now = new Date();
   return Array.from({ length: 20 }, (_, i) => {
     const status = statuses[i % statuses.length];
@@ -173,6 +173,11 @@ interface YardState {
 
   filteredTrucks: () => YardTruck[];
   kpis: () => { inYard: number; dockedIn: number; dockedOut: number; avgDwell: string; dwellAlerts: number; gateMoves: number; availableDocks: number };
+  yardOccupancy: () => { position: YardPosition; count: number }[];
+  statusFunnel: () => { status: YardTruckStatus; count: number }[];
+  dwellTrucks: () => YardTruck[];
+  upcomingAppointments: () => YardAppointment[];
+  carrierList: () => string[];
 }
 
 export const useYardStore = create<YardState>()(
@@ -259,6 +264,28 @@ export const useYardStore = create<YardState>()(
           availableDocks: docks.filter((d) => d.status === "AVAILABLE").length,
         };
       },
+
+      yardOccupancy: () => {
+        const order: YardPosition[] = ["LANE_A", "LANE_B", "LANE_C", "STAGING", "OVERFLOW", "HAZMAT"];
+        const active = get().trucks.filter((t) => !["GATE_OUT", "DEPARTED"].includes(t.status));
+        const map = new Map<YardPosition, number>();
+        for (const t of active) if (t.yardPosition) map.set(t.yardPosition, (map.get(t.yardPosition) ?? 0) + 1);
+        return order.map((position) => ({ position, count: map.get(position) ?? 0 }));
+      },
+
+      statusFunnel: () => {
+        const order: YardTruckStatus[] = ["GATE_IN", "WAITING", "DOCKING", "DOCKED_IN", "UNLOADING", "DOCKED_OUT", "LOADING", "LOADED", "GATE_OUT"];
+        const map = new Map<YardTruckStatus, number>();
+        for (const t of get().trucks) map.set(t.status, (map.get(t.status) ?? 0) + 1);
+        return order.map((status) => ({ status, count: map.get(status) ?? 0 })).filter((x) => x.count > 0);
+      },
+
+      dwellTrucks: () => get().trucks.filter((t) => t.dwellAlert && !["GATE_OUT", "DEPARTED"].includes(t.status)).sort((a, b) => b.dwellMinutes - a.dwellMinutes),
+
+      upcomingAppointments: () =>
+        get().appointments.filter((a) => ["SCHEDULED", "CHECKED_IN"].includes(a.status)).sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime)),
+
+      carrierList: () => Array.from(new Set(get().trucks.map((t) => t.carrier))).sort(),
     }),
     {
       name: "trilowms-yard-v1",
@@ -267,15 +294,15 @@ export const useYardStore = create<YardState>()(
   )
 );
 
-export const YARD_STATUS_META: Record<YardTruckStatus, { label: string; color: string; bg: string }> = {
-  GATE_IN:    { label: "Gate In",    color: "text-cyan-400",    bg: "bg-cyan-500/10"    },
-  WAITING:    { label: "Waiting",    color: "text-amber-400",   bg: "bg-amber-500/10"   },
-  DOCKING:    { label: "Docking",    color: "text-blue-400",    bg: "bg-blue-500/10"    },
-  DOCKED_IN:  { label: "Docked In",  color: "text-indigo-400",  bg: "bg-indigo-500/10"  },
-  DOCKED_OUT: { label: "Docked Out", color: "text-violet-400",  bg: "bg-violet-500/10"  },
-  LOADING:    { label: "Loading",    color: "text-orange-400",  bg: "bg-orange-500/10"  },
-  UNLOADING:  { label: "Unloading",  color: "text-amber-400",   bg: "bg-amber-500/10"   },
-  LOADED:     { label: "Loaded",     color: "text-emerald-400", bg: "bg-emerald-500/10" },
-  GATE_OUT:   { label: "Gate Out",   color: "text-green-400",   bg: "bg-green-500/10"   },
-  DEPARTED:   { label: "Departed",   color: "text-slate-400",   bg: "bg-slate-500/10"   },
+export const YARD_STATUS_META: Record<YardTruckStatus, { label: string; color: string; bg: string; border: string }> = {
+  GATE_IN:    { label: "Gate In",    color: "text-cyan-400",    bg: "bg-cyan-500/10",    border: "border-cyan-500/30"    },
+  WAITING:    { label: "Waiting",    color: "text-amber-400",   bg: "bg-amber-500/10",   border: "border-amber-500/30"   },
+  DOCKING:    { label: "Docking",    color: "text-blue-400",    bg: "bg-blue-500/10",    border: "border-blue-500/30"    },
+  DOCKED_IN:  { label: "Docked In",  color: "text-indigo-400",  bg: "bg-indigo-500/10",  border: "border-indigo-500/30"  },
+  DOCKED_OUT: { label: "Docked Out", color: "text-violet-400",  bg: "bg-violet-500/10",  border: "border-violet-500/30"  },
+  LOADING:    { label: "Loading",    color: "text-orange-400",  bg: "bg-orange-500/10",  border: "border-orange-500/30"  },
+  UNLOADING:  { label: "Unloading",  color: "text-amber-400",   bg: "bg-amber-500/10",   border: "border-amber-500/30"   },
+  LOADED:     { label: "Loaded",     color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30" },
+  GATE_OUT:   { label: "Gate Out",   color: "text-green-400",   bg: "bg-green-500/10",   border: "border-green-500/30"   },
+  DEPARTED:   { label: "Departed",   color: "text-slate-400",   bg: "bg-slate-500/10",   border: "border-slate-500/30"   },
 };
