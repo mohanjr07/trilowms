@@ -168,6 +168,10 @@ interface LaborState {
   kpis: () => { onShift: number; avgUph: number; idleRate: string; overtimeHours: number; targetVsActual: string; activeOnTask: number; onBreak: number };
   shiftBreakdown: () => { shift: ShiftType; count: number; avgUph: number }[];
   departmentStats: () => { department: string; count: number; avgUph: number; avgAccuracy: number }[];
+  taskTypeMix: () => { type: TaskType; count: number }[];
+  topPerformers: () => LaborEmployee[];
+  roleList: () => string[];
+  departmentList: () => string[];
 }
 
 export const useLaborStore = create<LaborState>()(
@@ -301,6 +305,21 @@ export const useLaborStore = create<LaborState>()(
           avgAccuracy: parseFloat((v.accSum / v.count).toFixed(1)),
         }));
       },
+
+      taskTypeMix: () => {
+        const onTask = get().employees.filter((e) => e.status === "CLOCKED_IN" && e.currentTaskType);
+        const map = new Map<TaskType, number>();
+        for (const e of onTask) if (e.currentTaskType) map.set(e.currentTaskType, (map.get(e.currentTaskType) ?? 0) + 1);
+        return Array.from(map.entries()).map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count);
+      },
+
+      topPerformers: () =>
+        get().employees
+          .filter((e) => e.status === "CLOCKED_IN" && e.unitsPerHour > 0)
+          .sort((a, b) => b.unitsPerHour - a.unitsPerHour),
+
+      roleList: () => Array.from(new Set(get().employees.map((e) => e.role))).sort(),
+      departmentList: () => Array.from(new Set(get().employees.map((e) => e.department))).sort(),
     }),
     {
       name: "trilowms-labor-v1",
@@ -309,11 +328,11 @@ export const useLaborStore = create<LaborState>()(
   )
 );
 
-export const EMPLOYEE_STATUS_META: Record<EmployeeStatus, { label: string; color: string; bg: string }> = {
-  CLOCKED_IN:  { label: "Clocked In",  color: "text-emerald-400", bg: "bg-emerald-500/10" },
-  CLOCKED_OUT: { label: "Clocked Out", color: "text-slate-400",   bg: "bg-slate-500/10"   },
-  ON_BREAK:    { label: "On Break",    color: "text-amber-400",   bg: "bg-amber-500/10"   },
-  ON_LEAVE:    { label: "On Leave",    color: "text-blue-400",    bg: "bg-blue-500/10"    },
-  TRAINING:    { label: "Training",    color: "text-purple-400",  bg: "bg-purple-500/10"  },
-  INACTIVE:    { label: "Inactive",    color: "text-slate-400",   bg: "bg-slate-500/10"   },
+export const EMPLOYEE_STATUS_META: Record<EmployeeStatus, { label: string; color: string; bg: string; border: string }> = {
+  CLOCKED_IN:  { label: "Clocked In",  color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30" },
+  CLOCKED_OUT: { label: "Clocked Out", color: "text-slate-400",   bg: "bg-slate-500/10",   border: "border-slate-500/30"   },
+  ON_BREAK:    { label: "On Break",    color: "text-amber-400",   bg: "bg-amber-500/10",   border: "border-amber-500/30"   },
+  ON_LEAVE:    { label: "On Leave",    color: "text-blue-400",    bg: "bg-blue-500/10",    border: "border-blue-500/30"    },
+  TRAINING:    { label: "Training",    color: "text-purple-400",  bg: "bg-purple-500/10",  border: "border-purple-500/30"  },
+  INACTIVE:    { label: "Inactive",    color: "text-slate-400",   bg: "bg-slate-500/10",   border: "border-slate-500/30"   },
 };
