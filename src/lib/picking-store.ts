@@ -273,6 +273,10 @@ interface PickingState {
     pendingRelease: number;
   };
   pickerProductivity: () => { name: string; picked: number; short: number; accuracy: number }[];
+  methodMix: () => { method: PickingMethod; count: number }[];
+  zoneLoad: () => { zone: string; open: number; picked: number; total: number }[];
+  activePickTasks: () => (PickTask & { waveNumber: string; priority: PickPriority; dueBy: string })[];
+  zoneList: () => string[];
 }
 
 const _seedWaves = buildSeedWaves();
@@ -465,6 +469,41 @@ export const usePickingStore = create<PickingState>()(
           accuracy: v.required > 0 ? Math.round(((v.required - v.short) / v.required) * 100) : 100,
         }));
       },
+
+      methodMix: () => {
+        const active: WaveStatus[] = ["RELEASED", "IN_PROGRESS", "PARTIAL"];
+        const map = new Map<PickingMethod, number>();
+        for (const w of get().waves) {
+          if (!active.includes(w.status)) continue;
+          map.set(w.pickMethod, (map.get(w.pickMethod) ?? 0) + 1);
+        }
+        return Array.from(map.entries()).map(([method, count]) => ({ method, count })).sort((a, b) => b.count - a.count);
+      },
+
+      zoneLoad: () => {
+        const map = new Map<string, { open: number; picked: number; total: number }>();
+        for (const w of get().waves) {
+          for (const t of w.tasks) {
+            const e = map.get(t.zone) ?? { open: 0, picked: 0, total: 0 };
+            e.total++;
+            if (t.status === "PICKED") e.picked++;
+            else e.open++;
+            map.set(t.zone, e);
+          }
+        }
+        return Array.from(map.entries()).map(([zone, v]) => ({ zone, ...v })).sort((a, b) => b.total - a.total);
+      },
+
+      activePickTasks: () => {
+        const active: WaveStatus[] = ["RELEASED", "IN_PROGRESS", "PARTIAL"];
+        const openTask: PickTaskStatus[] = ["PENDING", "ASSIGNED", "IN_PROGRESS"];
+        return get()
+          .waves.filter((w) => active.includes(w.status))
+          .flatMap((w) => w.tasks.filter((t) => openTask.includes(t.status)).map((t) => ({ ...t, waveNumber: w.waveNumber, priority: w.priority, dueBy: w.dueBy })))
+          .sort((a, b) => a.dueBy.localeCompare(b.dueBy));
+      },
+
+      zoneList: () => Array.from(new Set(get().waves.flatMap((w) => w.zones))).sort(),
     }),
     {
       name: "trilowms-picking-v1",
