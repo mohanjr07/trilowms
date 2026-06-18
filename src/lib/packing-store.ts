@@ -209,6 +209,10 @@ interface PackingState {
   pagedOrders: () => PackOrder[];
   totalPages: () => number;
   kpis: () => { activeStations: number; cartonsPacked: number; avgPackTime: string; rework: number; pendingLabel: number; dispatched: number };
+  carrierList: () => string[];
+  carrierMix: () => { carrier: string; count: number }[];
+  statusFunnel: () => { status: PackOrderStatus; count: number }[];
+  allCartons: () => (Carton & { orderNumber: string; carrier: string; customer: string })[];
 }
 
 export const usePackingStore = create<PackingState>()(
@@ -305,6 +309,24 @@ export const usePackingStore = create<PackingState>()(
           dispatched: orders.filter((o) => o.status === "DISPATCHED" && o.completedAt?.startsWith(today)).length,
         };
       },
+
+      carrierList: () => Array.from(new Set(get().orders.map((o) => o.carrier))).sort(),
+
+      carrierMix: () => {
+        const map = new Map<string, number>();
+        for (const o of get().orders) map.set(o.carrier, (map.get(o.carrier) ?? 0) + 1);
+        return Array.from(map.entries()).map(([carrier, count]) => ({ carrier, count })).sort((a, b) => b.count - a.count);
+      },
+
+      statusFunnel: () => {
+        const order: PackOrderStatus[] = ["QUEUED", "ASSIGNED", "PACKING", "PACKED", "LABELLED", "MANIFESTED", "DISPATCHED", "EXCEPTION"];
+        const map = new Map<PackOrderStatus, number>();
+        for (const o of get().orders) map.set(o.status, (map.get(o.status) ?? 0) + 1);
+        return order.map((status) => ({ status, count: map.get(status) ?? 0 }));
+      },
+
+      allCartons: () =>
+        get().orders.flatMap((o) => o.cartons.map((c) => ({ ...c, orderNumber: o.orderNumber, carrier: o.carrier, customer: o.customer }))),
     }),
     {
       name: "trilowms-packing-v1",
@@ -313,13 +335,13 @@ export const usePackingStore = create<PackingState>()(
   )
 );
 
-export const PACK_STATUS_META: Record<PackOrderStatus, { label: string; color: string; bg: string }> = {
-  QUEUED:     { label: "Queued",     color: "text-slate-400",   bg: "bg-slate-500/10"   },
-  ASSIGNED:   { label: "Assigned",   color: "text-blue-400",    bg: "bg-blue-500/10"    },
-  PACKING:    { label: "Packing",    color: "text-amber-400",   bg: "bg-amber-500/10"   },
-  PACKED:     { label: "Packed",     color: "text-cyan-400",    bg: "bg-cyan-500/10"    },
-  LABELLED:   { label: "Labelled",   color: "text-indigo-400",  bg: "bg-indigo-500/10"  },
-  MANIFESTED: { label: "Manifested", color: "text-violet-400",  bg: "bg-violet-500/10"  },
-  DISPATCHED: { label: "Dispatched", color: "text-emerald-400", bg: "bg-emerald-500/10" },
-  EXCEPTION:  { label: "Exception",  color: "text-red-400",     bg: "bg-red-500/10"     },
+export const PACK_STATUS_META: Record<PackOrderStatus, { label: string; color: string; bg: string; border: string }> = {
+  QUEUED:     { label: "Queued",     color: "text-slate-400",   bg: "bg-slate-500/10",   border: "border-slate-500/30"   },
+  ASSIGNED:   { label: "Assigned",   color: "text-blue-400",    bg: "bg-blue-500/10",    border: "border-blue-500/30"    },
+  PACKING:    { label: "Packing",    color: "text-amber-400",   bg: "bg-amber-500/10",   border: "border-amber-500/30"   },
+  PACKED:     { label: "Packed",     color: "text-cyan-400",    bg: "bg-cyan-500/10",    border: "border-cyan-500/30"    },
+  LABELLED:   { label: "Labelled",   color: "text-indigo-400",  bg: "bg-indigo-500/10",  border: "border-indigo-500/30"  },
+  MANIFESTED: { label: "Manifested", color: "text-violet-400",  bg: "bg-violet-500/10",  border: "border-violet-500/30"  },
+  DISPATCHED: { label: "Dispatched", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30" },
+  EXCEPTION:  { label: "Exception",  color: "text-red-400",     bg: "bg-red-500/10",     border: "border-red-500/30"     },
 };
