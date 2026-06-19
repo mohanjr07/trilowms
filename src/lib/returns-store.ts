@@ -189,7 +189,7 @@ interface ReturnsState {
 export const useReturnsStore = create<ReturnsState>()(
   persist(
     (set, get) => ({
-      rmas: buildSeedRMAs(),
+      rmas: [],
       filters: DEFAULT_FILTERS,
       page: 1,
       pageSize: 15,
@@ -330,7 +330,7 @@ export const useReturnsStore = create<ReturnsState>()(
       customerList: () => Array.from(new Set(get().rmas.map((r) => r.customer))).sort(),
     }),
     {
-      name: "trilowms-returns-v1",
+      name: "trilowms-returns-v2",
       partialize: (s) => ({ rmas: s.rmas }),
     }
   )
