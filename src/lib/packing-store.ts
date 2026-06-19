@@ -218,8 +218,8 @@ interface PackingState {
 export const usePackingStore = create<PackingState>()(
   persist(
     (set, get) => ({
-      stations: PACK_STATIONS,
-      orders: buildSeedOrders(),
+      stations: [],
+      orders: [],
       filters: DEFAULT_FILTERS,
       page: 1,
       pageSize: 15,
@@ -329,7 +329,7 @@ export const usePackingStore = create<PackingState>()(
         get().orders.flatMap((o) => o.cartons.map((c) => ({ ...c, orderNumber: o.orderNumber, carrier: o.carrier, customer: o.customer }))),
     }),
     {
-      name: "trilowms-packing-v1",
+      name: "trilowms-packing-v2",
       partialize: (s) => ({ stations: s.stations, orders: s.orders }),
     }
   )
