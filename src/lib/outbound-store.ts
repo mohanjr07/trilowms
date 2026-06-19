@@ -151,7 +151,7 @@ interface OutboundState {
 export const useOutboundStore = create<OutboundState>()(
   persist(
     (set, get) => ({
-      shipments: buildSeedShipments(),
+      shipments: [],
       filters: DEFAULT_FILTERS,
       page: 1,
       pageSize: 15,
@@ -242,7 +242,7 @@ export const useOutboundStore = create<OutboundState>()(
           .sort((a, b) => a.scheduledDispatch.localeCompare(b.scheduledDispatch)),
     }),
     {
-      name: "trilowms-outbound-v1",
+      name: "trilowms-outbound-v2",
       partialize: (s) => ({ shipments: s.shipments }),
     }
   )
