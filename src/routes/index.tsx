@@ -31,7 +31,7 @@ export const Route = createFileRoute("/")({
   component: RoleDashboard,
 });
 
-const throughput = Array.from({ length: 24 }, (_, i) => ({ h: `${i}:00`, in: Math.floor(20 + Math.abs(Math.sin(i / 2)) * 80), out: Math.floor(15 + Math.abs(Math.cos(i / 2)) * 95) }));
+const throughput = Array.from({ length: 24 }, (_, i) => ({ h: `${i}:00`, in: 0, out: 0 }));
 const zoneUtil = warehouse.zones.map((z) => ({ name: z.name.split(" ")[0], util: Math.round(z.utilization * 100), fill: z.color }));
 
 function RoleDashboard() {
