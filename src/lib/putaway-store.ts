@@ -217,8 +217,8 @@ function nextPtwId() {
 export const usePutawayStore = create<PutawayState>()(
   persist(
     (set, get) => ({
-      tasks: buildSeedTasks(),
-      rules: SEED_RULES,
+      tasks: [],
+      rules: [],
       filters: DEFAULT_FILTERS,
       selectedTaskId: null,
       page: 1,
@@ -377,7 +377,7 @@ export const usePutawayStore = create<PutawayState>()(
       zoneList: () => Array.from(new Set(get().tasks.map((t) => t.zone))).sort(),
     }),
     {
-      name: "trilowms-putaway-v1",
+      name: "trilowms-putaway-v2",
       partialize: (s) => ({ tasks: s.tasks, rules: s.rules }),
     }
   )
