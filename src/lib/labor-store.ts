@@ -177,8 +177,8 @@ interface LaborState {
 export const useLaborStore = create<LaborState>()(
   persist(
     (set, get) => ({
-      employees: buildSeedEmployees(),
-      tasks: buildSeedTasks(),
+      employees: [],
+      tasks: [],
       filters: DEFAULT_FILTERS,
       page: 1,
       pageSize: 20,
@@ -322,7 +322,7 @@ export const useLaborStore = create<LaborState>()(
       departmentList: () => Array.from(new Set(get().employees.map((e) => e.department))).sort(),
     }),
     {
-      name: "trilowms-labor-v1",
+      name: "trilowms-labor-v2",
       partialize: (s) => ({ employees: s.employees }),
     }
   )
