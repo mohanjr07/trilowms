@@ -356,8 +356,8 @@ function nextAsnId() {
 export const useInboundStore = create<InboundState>()(
   persist(
     (set, get) => ({
-      asns: buildSeedAsns(),
-      dockDoors: DOCK_DOORS,
+      asns: [],
+      dockDoors: [],
       filters: DEFAULT_FILTERS,
       selectedAsnId: null,
       selectedLineId: null,
@@ -606,7 +606,7 @@ export const useInboundStore = create<InboundState>()(
       carrierList: () => Array.from(new Set(get().asns.map((a) => a.carrierName))).sort(),
     }),
     {
-      name: "trilowms-inbound-v1",
+      name: "trilowms-inbound-v2",
       partialize: (s) => ({ asns: s.asns, dockDoors: s.dockDoors }),
     }
   )
