@@ -92,20 +92,14 @@ function makeBins(rackId: string, levels: number, perLevel: number): Bin[] {
   const statuses: BinStatus[] = ["Empty", "Partial", "Full", "Reserved", "Blocked"];
   for (let l = 0; l < levels; l++) {
     for (let p = 0; p < perLevel; p++) {
-      const r = Math.random();
-      const status: BinStatus =
-        r < 0.15 ? "Empty" :
-        r < 0.45 ? "Partial" :
-        r < 0.85 ? "Full" :
-        r < 0.95 ? "Reserved" :
-        statuses[Math.floor(Math.random() * statuses.length)];
+      const status: BinStatus = "Empty";
       bins.push({
         id: `${rackId}-L${l + 1}-${p + 1}`,
         code: `${rackId}-${String.fromCharCode(65 + l)}${p + 1}`,
         status,
-        occupancy: status === "Empty" ? 0 : status === "Full" ? 1 : Math.random(),
-        sku: status !== "Empty" ? `SKU-${Math.floor(10000 + Math.random() * 89999)}` : undefined,
-        pallets: status === "Full" ? 2 : status === "Partial" ? 1 : 0,
+        occupancy: 0,
+        sku: undefined,
+        pallets: 0,
       });
     }
   }
