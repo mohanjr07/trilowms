@@ -328,13 +328,10 @@ export const useTransactionStore = create<TransactionState>()(
       },
     }),
     {
-      name: "trilowms-transactions-v1",
+      name: "trilowms-transactions-v2",
       partialize: (s) => ({ transactions: s.transactions }),
-      onRehydrateStorage: () => (state) => {
-        // Seed if empty
-        if (state && state.transactions.length === 0) {
-          state.transactions = buildSeedTransactions("TRILO-DC-01");
-        }
+      onRehydrateStorage: () => () => {
+        // demo seeding disabled — start clean
       },
     }
   )
@@ -361,13 +358,6 @@ export const TXN_STATUS_META: Record<TransactionStatus, { label: string; color: 
   CANCELLED:   { label: "Cancelled",   color: "text-slate-400",   bg: "bg-slate-500/15"   },
 };
 
-export function ensureSeeded(warehouseName: string) {
-  const { transactions } = useTransactionStore.getState();
-  const hasForWarehouse = transactions.some((t) => t.sourceWarehouse === warehouseName);
-  if (!hasForWarehouse) {
-    const seeded = buildSeedTransactions(warehouseName);
-    useTransactionStore.setState((s) => ({
-      transactions: [...seeded, ...s.transactions],
-    }));
-  }
+export function ensureSeeded(_warehouseName: string) {
+  // demo seeding disabled — start clean
 }
