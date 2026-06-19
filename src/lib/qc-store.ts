@@ -215,8 +215,8 @@ interface QCState {
 export const useQCStore = create<QCState>()(
   persist(
     (set, get) => ({
-      inspections: buildSeedInspections(),
-      holds: buildSeedHolds(),
+      inspections: [],
+      holds: [],
       filters: DEFAULT_FILTERS,
       page: 1,
       pageSize: 15,
@@ -348,7 +348,7 @@ export const useQCStore = create<QCState>()(
       inspectorList: () => Array.from(new Set(get().inspections.map((i) => i.inspectorName))).sort(),
     }),
     {
-      name: "trilowms-qc-v1",
+      name: "trilowms-qc-v2",
       partialize: (s) => ({ inspections: s.inspections, holds: s.holds }),
     }
   )
