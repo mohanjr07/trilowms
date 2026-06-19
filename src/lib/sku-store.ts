@@ -210,7 +210,7 @@ interface SkuState {
 export const useSkuStore = create<SkuState>()(
   persist(
     (set, get) => ({
-      skus: SEED_SKUS,
+      skus: [],
       filters: DEFAULT_FILTERS,
       sortKey: "",
       sortDir: "asc",
@@ -311,7 +311,7 @@ export const useSkuStore = create<SkuState>()(
       },
     }),
     {
-      name: "trilowms-sku-master",
+      name: "trilowms-sku-master-v2",
       partialize: (state) => ({ skus: state.skus }),
     }
   )
