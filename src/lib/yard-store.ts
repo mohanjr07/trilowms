@@ -183,9 +183,9 @@ interface YardState {
 export const useYardStore = create<YardState>()(
   persist(
     (set, get) => ({
-      trucks: buildSeedTrucks(),
-      docks: YARD_DOCKS,
-      appointments: buildSeedAppointments(),
+      trucks: [],
+      docks: [],
+      appointments: [],
       filters: DEFAULT_FILTERS,
       page: 1,
 
@@ -288,7 +288,7 @@ export const useYardStore = create<YardState>()(
       carrierList: () => Array.from(new Set(get().trucks.map((t) => t.carrier))).sort(),
     }),
     {
-      name: "trilowms-yard-v1",
+      name: "trilowms-yard-v2",
       partialize: (s) => ({ trucks: s.trucks, docks: s.docks, appointments: s.appointments }),
     }
   )
