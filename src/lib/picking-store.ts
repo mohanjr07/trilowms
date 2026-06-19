@@ -284,8 +284,8 @@ const _seedWaves = buildSeedWaves();
 export const usePickingStore = create<PickingState>()(
   persist(
     (set, get) => ({
-      waves: _seedWaves,
-      shortages: buildSeedShortages(_seedWaves),
+      waves: [],
+      shortages: [],
       filters: DEFAULT_FILTERS,
       selectedWaveId: null,
       page: 1,
@@ -506,7 +506,7 @@ export const usePickingStore = create<PickingState>()(
       zoneList: () => Array.from(new Set(get().waves.flatMap((w) => w.zones))).sort(),
     }),
     {
-      name: "trilowms-picking-v1",
+      name: "trilowms-picking-v2",
       partialize: (s) => ({ waves: s.waves, shortages: s.shortages }),
     }
   )
