@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { Bell, Search, Activity, Wifi, LogOut, User, ChevronDown, Shield } from "lucide-react";
 import { useAuthStore, ROLE_DEFINITIONS } from "@/lib/auth-store";
+import { usePickingStore } from "@/lib/picking-store";
+import { useOutboundStore } from "@/lib/outbound-store";
+import { useInboundStore } from "@/lib/inbound-store";
 import { cn } from "@/lib/utils";
 
 export function TopBar() {
@@ -8,6 +11,10 @@ export function TopBar() {
   const [profileOpen, setProfileOpen] = useState(false);
   const dropRef = useRef<HTMLDivElement>(null);
   const roleDef = role();
+
+  const openPicks = usePickingStore((s) => s.kpis)().openPicks;
+  const orders = useOutboundStore((s) => s.shipments).length;
+  const dockUtil = useInboundStore((s) => s.dockUtilization)().pct;
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -40,9 +47,9 @@ export function TopBar() {
       </div>
 
       <div className="ml-auto flex items-center gap-3 text-xs">
-        <KPIPill label="ORDERS"    value="1,284" tone="info"    />
-        <KPIPill label="OPEN PICKS" value="217"  tone="warning" />
-        <KPIPill label="DOCK UTIL" value="78%"   tone="success" />
+        <KPIPill label="ORDERS"    value={orders.toLocaleString()} tone="info"    />
+        <KPIPill label="OPEN PICKS" value={openPicks.toLocaleString()}  tone="warning" />
+        <KPIPill label="DOCK UTIL" value={`${dockUtil}%`}   tone="success" />
         <button className="p-2 rounded-md hover:bg-secondary"><Activity className="h-4 w-4" /></button>
         <button className="p-2 rounded-md hover:bg-secondary"><Wifi className="h-4 w-4" /></button>
         <button className="p-2 rounded-md hover:bg-secondary relative">
