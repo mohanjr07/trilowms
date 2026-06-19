@@ -11,7 +11,7 @@ import { useAuthStore } from "@/lib/auth-store";
 import { useMemo } from "react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, ResponsiveContainer,
-  Tooltip, CartesianGrid, RadialBarChart, RadialBar, PolarAngleAxis, Cell,
+  Tooltip, CartesianGrid, Cell,
 } from "recharts";
 import { useTransactionStore, TXN_TYPE_META, TXN_STATUS_META, type InventoryTransaction } from "@/lib/transaction-store";
 import { useInvBinStore } from "@/lib/inventory-bin-store";
@@ -224,28 +224,7 @@ function EnterpriseDashboard() {
               </AreaChart>
             </ResponsiveContainer>
           </Panel>
-          <Panel title="WAREHOUSE OCCUPANCY" className="h-[280px]">
-            <div className="grid grid-cols-2 gap-2 p-3">
-              <div className="flex flex-col items-center justify-center">
-                <ResponsiveContainer width="100%" height={130}>
-                  <RadialBarChart innerRadius="70%" outerRadius="100%" data={[{ value: Math.round(k.utilization * 100), fill: "var(--color-primary)" }]} startAngle={90} endAngle={-270}>
-                    <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
-                    <RadialBar background={{ fill: "var(--color-secondary)" } as never} dataKey="value" cornerRadius={10} />
-                  </RadialBarChart>
-                </ResponsiveContainer>
-                <div className="text-2xl font-bold text-mono text-primary -mt-10">{(k.utilization * 100).toFixed(0)}%</div>
-                <div className="text-[10px] text-muted-foreground">UTILIZATION</div>
-              </div>
-              <div className="space-y-2 text-xs pt-2">
-                <DR label="Total bins" value={k.totalBins.toLocaleString()} />
-                <DR label="Occupied" value={k.occupied.toLocaleString()} />
-                <DR label="Free" value={(k.totalBins - k.occupied).toLocaleString()} />
-                <DR label="Blocked" value={k.blocked.toLocaleString()} accent="destructive" />
-                <DR label="Docks open" value={yard.availableDocks} />
-                <DR label="On shift" value={labor.onShift} />
-              </div>
-            </div>
-          </Panel>
+          <OccupancyPanel total={k.totalBins} occupied={k.occupied} blocked={k.blocked} util={k.utilization} docksOpen={yard.availableDocks} onShift={labor.onShift} />
         </div>
 
         {/* Exceptions + live feed */}
@@ -311,12 +290,78 @@ function EnterpriseDashboard() {
   );
 }
 
-function DR({ label, value, accent }: { label: string; value: string | number; accent?: string }) {
+function OccupancyPanel({ total, occupied, blocked, util, docksOpen, onShift }: {
+  total: number; occupied: number; blocked: number; util: number; docksOpen: number; onShift: number;
+}) {
+  const pct = Math.round(util * 100);
+  const free = Math.max(0, total - occupied);
+  const R = 54, C = 2 * Math.PI * R;
+  const tone = pct >= 90 ? "var(--color-destructive)" : pct >= 75 ? "var(--color-warning)" : "var(--color-primary)";
+
+  const segs = [
+    { label: "Occupied", n: occupied - blocked, c: "var(--color-primary)", dot: "bg-primary" },
+    { label: "Blocked", n: blocked, c: "var(--color-destructive)", dot: "bg-destructive" },
+    { label: "Free", n: free, c: "var(--color-secondary)", dot: "bg-muted-foreground/40" },
+  ];
+
   return (
-    <div className="flex justify-between">
-      <span className="text-muted-foreground">{label}</span>
-      <span className={cn("font-mono font-bold", accent === "destructive" ? "text-destructive" : "")}>{value}</span>
-    </div>
+    <Panel title="WAREHOUSE OCCUPANCY" className="h-[280px]">
+      <div className="flex flex-col h-full p-4 gap-3">
+        <div className="flex items-center gap-4">
+          {/* Donut */}
+          <div className="relative shrink-0" style={{ width: 124, height: 124 }}>
+            <svg viewBox="0 0 128 128" className="w-full h-full -rotate-90">
+              <circle cx="64" cy="64" r={R} fill="none" stroke="var(--color-secondary)" strokeWidth="12" />
+              <circle
+                cx="64" cy="64" r={R} fill="none" stroke={tone} strokeWidth="12" strokeLinecap="round"
+                strokeDasharray={C} strokeDashoffset={C * (1 - util)}
+                style={{ transition: "stroke-dashoffset 0.6s ease" }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-[28px] leading-none font-bold font-mono tabular-nums" style={{ color: tone }}>{pct}%</span>
+              <span className="text-[9px] text-muted-foreground tracking-wider uppercase mt-1">Utilization</span>
+            </div>
+          </div>
+
+          {/* Key figures */}
+          <div className="flex-1 min-w-0 space-y-2">
+            {segs.map((s) => (
+              <div key={s.label} className="flex items-center gap-2">
+                <span className={cn("h-2.5 w-2.5 rounded-sm shrink-0", s.dot)} />
+                <span className="text-xs text-muted-foreground flex-1">{s.label}</span>
+                <span className={cn("text-sm font-bold font-mono tabular-nums", s.label === "Blocked" && blocked > 0 ? "text-destructive" : "")}>{Math.max(0, s.n).toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Segmented occupancy bar */}
+        <div>
+          <div className="flex h-2.5 w-full rounded-full overflow-hidden bg-secondary">
+            {segs.map((s) => s.n > 0 && (
+              <div key={s.label} style={{ width: `${(s.n / total) * 100}%`, background: s.c }} title={`${s.label}: ${s.n}`} />
+            ))}
+          </div>
+          <div className="flex justify-between text-[10px] text-muted-foreground mt-1.5 font-mono">
+            <span>{total.toLocaleString()} bins total</span>
+            <span>{free.toLocaleString()} available</span>
+          </div>
+        </div>
+
+        {/* Footer figures */}
+        <div className="mt-auto grid grid-cols-2 gap-2 pt-2 border-t border-border/60">
+          <div className="flex items-center justify-between px-3 py-2 rounded border border-border/60 bg-card/40">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Docks open</span>
+            <span className="text-sm font-bold font-mono tabular-nums text-emerald-400">{docksOpen}</span>
+          </div>
+          <div className="flex items-center justify-between px-3 py-2 rounded border border-border/60 bg-card/40">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">On shift</span>
+            <span className="text-sm font-bold font-mono tabular-nums">{onShift}</span>
+          </div>
+        </div>
+      </div>
+    </Panel>
   );
 }
 
