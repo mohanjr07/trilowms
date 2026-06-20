@@ -7,6 +7,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useStockStore } from "@/lib/stock-store";
 
 export type OrderStatus =
   | "NEW" | "ALLOCATED" | "PICKING" | "PACKED" | "SHIPPED" | "DELIVERED" | "EXCEPTION" | "CANCELLED";
@@ -130,7 +131,7 @@ export const useOrdersStore = create<OrdersState>()(
           skuName: l.skuName,
           uom: l.uom || "EA",
           requestedQty: l.requestedQty,
-          availableQty: l.availableQty ?? l.requestedQty,
+          availableQty: l.availableQty ?? useStockStore.getState().available(l.skuCode),
           allocatedQty: 0,
           binCode: null,
           allocStatus: "UNALLOCATED",
@@ -181,14 +182,20 @@ export const useOrdersStore = create<OrdersState>()(
 
       autoAllocate: (orderId) => {
         let shortLines = 0;
+        const stock = useStockStore.getState();
         set((s) => ({
           orders: s.orders.map((o) => {
             if (o.id !== orderId) return o;
             const lines = o.lines.map((l) => {
-              const alloc = Math.min(l.requestedQty, l.availableQty);
+              const already = l.allocatedQty;
+              const need = l.requestedQty - already;
+              const reserved = need > 0 ? stock.reserve(l.skuCode, need) : 0;
+              const alloc = already + reserved;
+              const avail = stock.available(l.skuCode) + alloc; // on-hand snapshot for display
               if (alloc < l.requestedQty) shortLines++;
               const allocStatus: AllocStatus = alloc === 0 ? "UNALLOCATED" : alloc < l.requestedQty ? "PARTIAL" : "ALLOCATED";
-              return { ...l, allocatedQty: alloc, allocStatus, binCode: l.binCode ?? "PICK-FACE" };
+              const binCode = l.binCode ?? (stock.stock[l.skuCode] ? Object.keys(stock.stock[l.skuCode].bins)[0] ?? "PICK-FACE" : "PICK-FACE");
+              return { ...l, allocatedQty: alloc, availableQty: avail, allocStatus, binCode };
             });
             const allDone = lines.every((l) => l.allocStatus === "ALLOCATED");
             const anyDone = lines.some((l) => l.allocatedQty > 0);
@@ -198,7 +205,6 @@ export const useOrdersStore = create<OrdersState>()(
             return recalc({ ...o, lines, status, stages });
           }),
         }));
-        const o = get().orders.find((x) => x.id === orderId);
         return { fully: shortLines === 0, shortLines };
       },
 
@@ -235,7 +241,14 @@ export const useOrdersStore = create<OrdersState>()(
         }),
       })),
 
-      cancelOrder: (orderId) => get().updateStatus(orderId, "CANCELLED"),
+      cancelOrder: (orderId) => {
+        const o = get().orders.find((x) => x.id === orderId);
+        if (o && !["SHIPPED", "DELIVERED"].includes(o.status)) {
+          const stock = useStockStore.getState();
+          o.lines.forEach((l) => l.allocatedQty > 0 && stock.release(l.skuCode, l.allocatedQty));
+        }
+        get().updateStatus(orderId, "CANCELLED");
+      },
       selectOrder: (id) => set({ selectedOrderId: id }),
       setFilters: (f) => set((s) => ({ filters: { ...s.filters, ...f }, page: 1 })),
       resetFilters: () => set({ filters: DEFAULT_FILTERS, page: 1 }),
