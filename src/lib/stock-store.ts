@@ -16,14 +16,29 @@ export interface StockRecord {
   updatedAt: string;
 }
 
+export interface AdjustmentRecord {
+  id: string;
+  skuCode: string;
+  skuName: string;
+  previousQty: number;
+  newQty: number;
+  variance: number;
+  reason: string;
+  binCode: string | null;
+  by: string;
+  ts: string;
+}
+
 interface StockState {
   stock: Record<string, StockRecord>;
+  adjustments: AdjustmentRecord[];
 
   addStock: (skuCode: string, skuName: string, qty: number, binCode?: string | null) => void;
   available: (skuCode: string) => number;
   reserve: (skuCode: string, qty: number) => number;   // returns qty actually reserved
   release: (skuCode: string, qty: number) => void;
   consume: (skuCode: string, qty: number) => void;       // ship/pick: remove from onHand + reserved
+  applyCount: (skuCode: string, countedQty: number, reason: string, binCode?: string | null, by?: string) => void;
 
   list: () => StockRecord[];
   kpis: () => { skus: number; totalOnHand: number; totalReserved: number; totalAvailable: number };
@@ -33,6 +48,7 @@ export const useStockStore = create<StockState>()(
   persist(
     (set, get) => ({
       stock: {},
+      adjustments: [],
 
       addStock: (skuCode, skuName, qty, binCode) => {
         if (qty <= 0) return;
@@ -73,6 +89,27 @@ export const useStockStore = create<StockState>()(
         const r = get().stock[skuCode];
         if (!r || qty <= 0) return;
         set((s) => ({ stock: { ...s.stock, [skuCode]: { ...r, onHand: Math.max(0, r.onHand - qty), reserved: Math.max(0, r.reserved - qty), updatedAt: new Date().toISOString() } } }));
+      },
+
+      applyCount: (skuCode, countedQty, reason, binCode, by = "Current User") => {
+        const prev = get().stock[skuCode];
+        const previousQty = prev?.onHand ?? 0;
+        const newQty = Math.max(0, countedQty);
+        const variance = newQty - previousQty;
+        const now = new Date().toISOString();
+        const record: AdjustmentRecord = {
+          id: `adj-${Date.now()}`, skuCode, skuName: prev?.skuName ?? skuCode,
+          previousQty, newQty, variance, reason, binCode: binCode ?? null, by, ts: now,
+        };
+        set((s) => {
+          const base = prev ?? { skuCode, skuName: skuCode, onHand: 0, reserved: 0, bins: {}, updatedAt: now };
+          const bins = { ...base.bins };
+          if (binCode) bins[binCode] = newQty;
+          return {
+            stock: { ...s.stock, [skuCode]: { ...base, onHand: newQty, reserved: Math.min(base.reserved, newQty), bins, updatedAt: now } },
+            adjustments: [record, ...s.adjustments],
+          };
+        });
       },
 
       list: () => Object.values(get().stock).sort((a, b) => a.skuCode.localeCompare(b.skuCode)),
