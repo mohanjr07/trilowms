@@ -4,7 +4,7 @@ import {
   ClipboardList,
   LayoutDashboard, Boxes, PackageSearch, PackageOpen, PackageCheck,
   Truck, Warehouse, Forklift, ShieldCheck, RotateCcw, Users, BarChart3,
-  Settings, ArrowDownToLine, ArrowUpFromLine, LogOut,
+  Settings, ArrowDownToLine, ArrowUpFromLine, LogOut, Combine,
 } from "lucide-react";
 import {
   cn } from "@/lib/utils";
@@ -22,8 +22,9 @@ const ALL_MODULES: { to: string; label: string; icon: typeof LayoutDashboard; hi
   { to: "/orders",   label: "Orders",            icon: ClipboardList },
   { to: "/inbound",  label: "Inbound",           icon: ArrowDownToLine },
   { to: "/putaway",  label: "Putaway",           icon: PackageOpen },
-  { to: "/picking",  label: "Picking",           icon: PackageSearch },
-  { to: "/packing",  label: "Packing",           icon: PackageCheck },
+  { to: "/picking",       label: "Picking",        icon: PackageSearch },
+  { to: "/consolidation", label: "Consolidation", icon: Combine },
+  { to: "/packing",       label: "Packing",       icon: PackageCheck },
   { to: "/outbound", label: "Outbound",          icon: ArrowUpFromLine },
   { to: "/yard",     label: "Yard & Dock",       icon: Truck },
   { to: "/qc",       label: "QC",                icon: ShieldCheck },
