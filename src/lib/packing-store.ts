@@ -1,13 +1,19 @@
 /**
  * TriloWMS — Packing Module Store
+ * Consumes orders that Consolidation has moved to packing (MOVED_TO_PACKING
+ * lanes). No fabricated/random data — every order, line, and quantity here
+ * traces back to a real Consolidation lane, which itself traces back to a
+ * real Picking wave.
  */
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useConsolidationStore } from "@/lib/consolidation-store";
 
 export type PackStationStatus = "IDLE" | "ACTIVE" | "PAUSED" | "MAINTENANCE";
 export type PackOrderStatus = "QUEUED" | "ASSIGNED" | "PACKING" | "PACKED" | "LABELLED" | "MANIFESTED" | "DISPATCHED" | "EXCEPTION";
 export type CartonStatus = "OPEN" | "CLOSED" | "LABELLED" | "SCANNED" | "EXCEPTION";
+export type PackPriority = "STANDARD" | "RUSH" | "SAME_DAY" | "OVERNIGHT";
 
 export interface PackStation {
   id: string;
@@ -17,9 +23,9 @@ export interface PackStation {
   status: PackStationStatus;
   currentOrderId: string | null;
   packedToday: number;
-  avgPackTime: number;    // minutes
+  avgPackTime: number; // minutes, 0 until real pack times accumulate
   lastActivity: string | null;
-  equipment: string[];    // printer, scale, scanner
+  equipment: string[];
 }
 
 export interface PackItem {
@@ -29,13 +35,13 @@ export interface PackItem {
   uom: string;
   qtyRequired: number;
   qtyPacked: number;
-  weight: number;
+  weight: number; // kg, captured during weigh step — 0 until then
 }
 
 export interface Carton {
   id: string;
   orderId: string;
-  stationId: string;
+  stationId: string | null;
   cartonCode: string;
   items: PackItem[];
   length: number;
@@ -55,12 +61,14 @@ export interface Carton {
 export interface PackOrder {
   id: string;
   orderNumber: string;
+  sourceLaneId: string;     // the Consolidation lane this order was synced from (dedupe key)
   stationId: string | null;
   stationCode: string | null;
   status: PackOrderStatus;
-  priority: "STANDARD" | "RUSH" | "SAME_DAY";
+  priority: PackPriority;
   carrier: string;
   serviceLevel: string;
+  lines: PackItem[];        // master pack list synced from Consolidation
   totalLines: number;
   totalUnits: number;
   packedUnits: number;
@@ -77,104 +85,33 @@ export interface PackOrder {
   notes: string | null;
 }
 
-// ─── Seed ────────────────────────────────────────────────────────────────────
+// ─── Fixed station config (physical infrastructure, not sample data) ────────
+// Real deployments would manage this list from Admin → Device Setup.
 
-const OPERATORS = ["Carlos Mendez", "Sarah Kim", "Tommy Wu", "Aisha Patel", "Marcus Johnson"];
-const CARRIERS_SVC = [
-  { carrier: "UPS", svc: "Ground" },
-  { carrier: "FedEx", svc: "2Day" },
-  { carrier: "DHL", svc: "Express" },
-  { carrier: "USPS", svc: "Priority" },
-];
-const CUSTOMERS = ["TechHub Inc.", "MegaStore Corp.", "RetailPlus", "BuildWorld", "AutoParts Direct", "HomeGoods Plus"];
-
-const PACK_STATIONS: PackStation[] = Array.from({ length: 10 }, (_, i) => ({
+const PACK_STATIONS: PackStation[] = Array.from({ length: 6 }, (_, i) => ({
   id: `ps-${i + 1}`,
   code: `PS-${String(i + 1).padStart(2, "0")}`,
-  operatorId: i < 8 ? `op${i + 1}` : null,
-  operatorName: i < 8 ? OPERATORS[i % OPERATORS.length] : null,
-  status: i < 8 ? (i === 3 ? "PAUSED" : "ACTIVE") : i === 8 ? "MAINTENANCE" : "IDLE",
-  currentOrderId: i < 6 ? `ORD-${30000 + i}` : null,
-  packedToday: Math.floor(100 + i * 47 % 300),
-  avgPackTime: parseFloat((1.2 + i * 0.3 % 2).toFixed(1)),
-  lastActivity: i < 8 ? new Date(Date.now() - i * 120000).toISOString() : null,
-  equipment: ["Label Printer", "Scale", "Scanner", i % 2 === 0 ? "Tape Dispenser" : "Bubble Wrap Dispenser"],
+  operatorId: null,
+  operatorName: null,
+  status: "IDLE" as PackStationStatus,
+  currentOrderId: null,
+  packedToday: 0,
+  avgPackTime: 0,
+  lastActivity: null,
+  equipment: ["Label Printer", "Scale", "Scanner"],
 }));
 
-function buildCarton(orderId: string, stationId: string, idx: number): Carton {
-  const skus = [
-    { code: "SKU-10000", name: "Aluminum Bracket", weight: 0.8 },
-    { code: "SKU-10002", name: "Hydraulic Pump", weight: 3.2 },
-    { code: "SKU-10005", name: "PCB Controller", weight: 0.3 },
-  ];
-  const itemCount = 1 + (idx % 4);
-  const items: PackItem[] = Array.from({ length: itemCount }, (_, j) => {
-    const sku = skus[(idx + j) % skus.length];
-    const qty = 1 + (j % 5);
-    return { lineId: `line-${idx}-${j}`, skuCode: sku.code, skuName: sku.name, uom: "EA", qtyRequired: qty, qtyPacked: qty, weight: sku.weight };
-  });
-  const grossWeight = parseFloat(items.reduce((s, item) => s + item.weight * item.qtyPacked, 0).toFixed(2));
-  const statuses: CartonStatus[] = ["LABELLED", "CLOSED", "OPEN", "SCANNED"];
-  return {
-    id: `CTN-${30000 + idx}`,
-    orderId,
-    stationId,
-    cartonCode: `CTN-${30000 + idx}`,
-    items,
-    length: 30 + idx * 5 % 40,
-    width: 20 + idx * 3 % 30,
-    height: 15 + idx * 2 % 25,
-    grossWeight,
-    netWeight: parseFloat((grossWeight - 0.2).toFixed(2)),
-    shippingLabel: idx % 3 !== 0 ? `LBL-${idx * 7 + 10000}` : null,
-    trackingNumber: idx % 3 !== 0 ? `1Z${String(999 + idx * 13).slice(-9)}` : null,
-    status: statuses[idx % statuses.length],
-    packedAt: new Date(Date.now() - idx * 1800000).toISOString(),
-    packedBy: OPERATORS[idx % OPERATORS.length],
-    reworkRequired: idx % 9 === 0,
-    reworkReason: idx % 9 === 0 ? "Weight discrepancy detected" : null,
-  };
-}
+const SERVICE_LEVEL_BY_PRIORITY: Record<PackPriority, string> = {
+  STANDARD: "Ground",
+  RUSH: "Express",
+  SAME_DAY: "Same Day",
+  OVERNIGHT: "Overnight",
+};
 
-function buildSeedOrders(): PackOrder[] {
-  const statuses: PackOrderStatus[] = ["QUEUED", "ASSIGNED", "PACKING", "PACKED", "LABELLED", "MANIFESTED", "DISPATCHED", "EXCEPTION"];
-  const now = new Date();
-  return Array.from({ length: 30 }, (_, i) => {
-    const status = statuses[i % statuses.length];
-    const station = PACK_STATIONS[i % PACK_STATIONS.length];
-    const cs = CARRIERS_SVC[i % CARRIERS_SVC.length];
-    const lines = 2 + (i % 6);
-    const units = lines * (2 + i % 5);
-    const cartonCount = 1 + Math.floor(lines / 3);
-    const cartons = Array.from({ length: cartonCount }, (_, j) => buildCarton(`ORD-${30000 + i}`, station.id, i * cartonCount + j));
-    const packed = ["PACKED","LABELLED","MANIFESTED","DISPATCHED"].includes(status) ? units : Math.floor(units * 0.6);
-    const dueBy = new Date(now.getTime() + (i - 8) * 3600000 * 3);
-    return {
-      id: `ORD-${30000 + i}`,
-      orderNumber: `ORD-${30000 + i}`,
-      stationId: station.id,
-      stationCode: station.code,
-      status,
-      priority: i % 7 === 0 ? "SAME_DAY" : i % 4 === 0 ? "RUSH" : "STANDARD",
-      carrier: cs.carrier,
-      serviceLevel: cs.svc,
-      totalLines: lines,
-      totalUnits: units,
-      packedUnits: packed,
-      cartons,
-      totalWeight: parseFloat((packed * 0.8 + 0.2 * cartonCount).toFixed(2)),
-      shippingAddress: `${100 + i} Main St, City ${i % 5 + 1}, ST ${10000 + i}`,
-      customer: CUSTOMERS[i % CUSTOMERS.length],
-      waveId: `WAVE-${300 + (i % 8)}`,
-      packingSlip: `PS-${70000 + i}`,
-      createdAt: new Date(now.getTime() - (i + 1) * 3600000 * 2).toISOString(),
-      startedAt: status !== "QUEUED" ? new Date(now.getTime() - i * 3600000).toISOString() : null,
-      completedAt: ["PACKED","LABELLED","MANIFESTED","DISPATCHED"].includes(status) ? new Date(now.getTime() - i * 1800000).toISOString() : null,
-      dueBy: dueBy.toISOString(),
-      notes: i % 10 === 0 ? "Fragile — handle with care" : null,
-    };
-  });
-}
+let _cartonSeq = 1;
+const nextCartonCode = () => `CTN-${String(_cartonSeq++).padStart(5, "0")}`;
+let _packingSlipSeq = 1;
+const nextPackingSlip = () => `PS-${String(_packingSlipSeq++).padStart(5, "0")}`;
 
 // ─── Store ────────────────────────────────────────────────────────────────────
 
@@ -194,11 +131,15 @@ interface PackingState {
   filters: PackFilters;
   page: number;
   pageSize: number;
+  lastSyncAt: string | null;
 
+  syncFromConsolidation: () => number;
   assignOrder: (orderId: string, stationId: string) => void;
   startPacking: (orderId: string) => void;
+  createCarton: (orderId: string) => void;
+  scanCartonItem: (orderId: string, cartonId: string, lineId: string) => void;
+  closeCarton: (orderId: string, cartonId: string, weightKg: number, dims?: { length: number; width: number; height: number }) => void;
   completeOrder: (orderId: string) => void;
-  addCarton: (orderId: string, carton: Carton) => void;
   labelCarton: (orderId: string, cartonId: string, trackingNumber: string) => void;
   manifestOrder: (orderId: string) => void;
   dispatchOrder: (orderId: string) => void;
@@ -217,17 +158,71 @@ interface PackingState {
   allCartons: () => (Carton & { orderNumber: string; carrier: string; customer: string })[];
 }
 
-const _seedStations = PACK_STATIONS;
-const _seedOrders = buildSeedOrders();
-
 export const usePackingStore = create<PackingState>()(
   persist(
     (set, get) => ({
-      stations: _seedStations,
-      orders: _seedOrders,
+      stations: PACK_STATIONS,
+      orders: [],
       filters: DEFAULT_FILTERS,
       page: 1,
       pageSize: 15,
+      lastSyncAt: null,
+
+      // Pull every MOVED_TO_PACKING lane from Consolidation that hasn't been
+      // synced into a pack order yet. Real lines, real wave, real carrier.
+      syncFromConsolidation: () => {
+        const { lanes } = useConsolidationStore.getState();
+        const { orders } = get();
+        const existingLaneIds = new Set(orders.map((o) => o.sourceLaneId));
+        const eligible = lanes.filter((l) => l.status === "MOVED_TO_PACKING" && !existingLaneIds.has(l.id));
+        if (eligible.length === 0) return 0;
+
+        const now = new Date().toISOString();
+        const newOrders: PackOrder[] = eligible.map((lane) => {
+          const lines: PackItem[] = lane.lines
+            .filter((l) => l.status === "ARRIVED" || l.status === "SHORT")
+            .map((l) => ({
+              lineId: l.id,
+              skuCode: l.skuCode,
+              skuName: l.skuName,
+              uom: l.uom,
+              qtyRequired: l.qtyArrived,
+              qtyPacked: 0,
+              weight: 0,
+            }));
+          const totalUnits = lines.reduce((s, l) => s + l.qtyRequired, 0);
+
+          return {
+            id: `PACK-${lane.orderId}`,
+            orderNumber: lane.orderId,
+            sourceLaneId: lane.id,
+            stationId: null,
+            stationCode: null,
+            status: "QUEUED" as PackOrderStatus,
+            priority: "STANDARD" as PackPriority,
+            carrier: "—",
+            serviceLevel: SERVICE_LEVEL_BY_PRIORITY.STANDARD,
+            lines,
+            totalLines: lines.length,
+            totalUnits,
+            packedUnits: 0,
+            cartons: [],
+            totalWeight: 0,
+            shippingAddress: "Awaiting shipping details",
+            customer: lane.orderId,
+            waveId: lane.waveId,
+            packingSlip: null,
+            createdAt: now,
+            startedAt: null,
+            completedAt: null,
+            dueBy: lane.movedAt ?? now,
+            notes: lane.hasShortage ? "Consolidated with shortage — verify before pack" : null,
+          };
+        });
+
+        set((s) => ({ orders: [...newOrders, ...s.orders], lastSyncAt: now }));
+        return newOrders.length;
+      },
 
       assignOrder: (orderId, stationId) => {
         const station = get().stations.find((s) => s.id === stationId);
@@ -235,28 +230,112 @@ export const usePackingStore = create<PackingState>()(
           orders: s.orders.map((o) =>
             o.id === orderId ? { ...o, stationId, stationCode: station?.code ?? null, status: "ASSIGNED" as PackOrderStatus } : o
           ),
+          stations: s.stations.map((st) => st.id === stationId ? { ...st, currentOrderId: orderId, status: "ACTIVE" as PackStationStatus } : st),
         }));
       },
 
       startPacking: (orderId) => {
         set((s) => ({
           orders: s.orders.map((o) =>
-            o.id === orderId ? { ...o, status: "PACKING" as PackOrderStatus, startedAt: new Date().toISOString() } : o
+            o.id === orderId ? { ...o, status: "PACKING" as PackOrderStatus, startedAt: o.startedAt ?? new Date().toISOString() } : o
           ),
+        }));
+      },
+
+      // Opens one carton containing every line item not yet fully packed.
+      createCarton: (orderId) => {
+        set((s) => ({
+          orders: s.orders.map((o) => {
+            if (o.id !== orderId) return o;
+            const remaining = o.lines.filter((l) => l.qtyPacked < l.qtyRequired);
+            if (remaining.length === 0) return o;
+            const carton: Carton = {
+              id: `CTN-${orderId}-${o.cartons.length + 1}`,
+              orderId,
+              stationId: o.stationId,
+              cartonCode: nextCartonCode(),
+              items: remaining.map((l) => ({ ...l, qtyPacked: 0 })),
+              length: 0,
+              width: 0,
+              height: 0,
+              grossWeight: 0,
+              netWeight: 0,
+              shippingLabel: null,
+              trackingNumber: null,
+              status: "OPEN",
+              packedAt: null,
+              packedBy: null,
+              reworkRequired: false,
+              reworkReason: null,
+            };
+            return { ...o, cartons: [...o.cartons, carton], status: o.status === "QUEUED" || o.status === "ASSIGNED" ? "PACKING" as PackOrderStatus : o.status };
+          }),
+        }));
+      },
+
+      // Scan one unit of a line item into an open carton.
+      scanCartonItem: (orderId, cartonId, lineId) => {
+        set((s) => ({
+          orders: s.orders.map((o) => {
+            if (o.id !== orderId) return o;
+            let packedDelta = 0;
+            const cartons = o.cartons.map((c) => {
+              if (c.id !== cartonId || c.status !== "OPEN") return c;
+              const items = c.items.map((it) => {
+                if (it.lineId !== lineId || it.qtyPacked >= it.qtyRequired) return it;
+                packedDelta = 1;
+                return { ...it, qtyPacked: it.qtyPacked + 1 };
+              });
+              return { ...c, items };
+            });
+            const lines = o.lines.map((l) => (l.lineId === lineId ? { ...l, qtyPacked: Math.min(l.qtyRequired, l.qtyPacked + packedDelta) } : l));
+            return { ...o, cartons, lines, packedUnits: o.packedUnits + packedDelta };
+          }),
+        }));
+      },
+
+      // Closes a carton once weighed — captures real weight/dims, no estimate.
+      closeCarton: (orderId, cartonId, weightKg, dims) => {
+        set((s) => ({
+          orders: s.orders.map((o) => {
+            if (o.id !== orderId) return o;
+            const cartons = o.cartons.map((c) =>
+              c.id === cartonId
+                ? {
+                    ...c,
+                    status: "CLOSED" as CartonStatus,
+                    grossWeight: weightKg,
+                    netWeight: weightKg,
+                    length: dims?.length ?? c.length,
+                    width: dims?.width ?? c.width,
+                    height: dims?.height ?? c.height,
+                    packedAt: new Date().toISOString(),
+                  }
+                : c
+            );
+            const totalWeight = parseFloat(cartons.reduce((s2, c) => s2 + c.grossWeight, 0).toFixed(2));
+            const allLinesPacked = o.lines.every((l) => l.qtyPacked >= l.qtyRequired);
+            const allCartonsClosed = cartons.every((c) => c.status !== "OPEN");
+            const status: PackOrderStatus = allLinesPacked && allCartonsClosed ? "PACKED" : o.status;
+            return {
+              ...o,
+              cartons,
+              totalWeight,
+              status,
+              packingSlip: status === "PACKED" && !o.packingSlip ? nextPackingSlip() : o.packingSlip,
+              completedAt: status === "PACKED" ? new Date().toISOString() : o.completedAt,
+            };
+          }),
         }));
       },
 
       completeOrder: (orderId) => {
         set((s) => ({
           orders: s.orders.map((o) =>
-            o.id === orderId ? { ...o, status: "PACKED" as PackOrderStatus, packedUnits: o.totalUnits, completedAt: new Date().toISOString() } : o
+            o.id === orderId
+              ? { ...o, status: "PACKED" as PackOrderStatus, packingSlip: o.packingSlip ?? nextPackingSlip(), completedAt: new Date().toISOString() }
+              : o
           ),
-        }));
-      },
-
-      addCarton: (orderId, carton) => {
-        set((s) => ({
-          orders: s.orders.map((o) => o.id === orderId ? { ...o, cartons: [...o.cartons, carton] } : o),
         }));
       },
 
@@ -264,7 +343,9 @@ export const usePackingStore = create<PackingState>()(
         set((s) => ({
           orders: s.orders.map((o) => {
             if (o.id !== orderId) return o;
-            return { ...o, cartons: o.cartons.map((c) => c.id === cartonId ? { ...c, trackingNumber, status: "LABELLED" as CartonStatus } : c) };
+            const cartons = o.cartons.map((c) => (c.id === cartonId ? { ...c, trackingNumber, status: "LABELLED" as CartonStatus } : c));
+            const allLabelled = cartons.length > 0 && cartons.every((c) => c.status === "LABELLED");
+            return { ...o, cartons, status: allLabelled ? ("LABELLED" as PackOrderStatus) : o.status };
           }),
         }));
       },
@@ -276,9 +357,7 @@ export const usePackingStore = create<PackingState>()(
               ? {
                   ...o,
                   status: "MANIFESTED" as PackOrderStatus,
-                  cartons: o.cartons.map((c) =>
-                    c.status === "OPEN" || c.status === "CLOSED" ? { ...c, status: "SCANNED" as CartonStatus } : c
-                  ),
+                  cartons: o.cartons.map((c) => (c.status === "LABELLED" ? { ...c, status: "SCANNED" as CartonStatus } : c)),
                 }
               : o
           ),
@@ -297,7 +376,7 @@ export const usePackingStore = create<PackingState>()(
 
       flagException: (orderId, reason) => {
         set((s) => ({
-          orders: s.orders.map((o) => o.id === orderId ? { ...o, status: "EXCEPTION" as PackOrderStatus, notes: reason } : o),
+          orders: s.orders.map((o) => (o.id === orderId ? { ...o, status: "EXCEPTION" as PackOrderStatus, notes: reason } : o)),
         }));
       },
 
@@ -331,17 +410,18 @@ export const usePackingStore = create<PackingState>()(
       kpis: () => {
         const { stations, orders } = get();
         const today = new Date().toISOString().slice(0, 10);
+        const stationsWithTime = stations.filter((s) => s.avgPackTime > 0);
         return {
           activeStations: stations.filter((s) => s.status === "ACTIVE").length,
           cartonsPacked: orders.reduce((s, o) => s + o.cartons.filter((c) => c.status !== "OPEN").length, 0),
-          avgPackTime: `${(stations.filter((s) => s.avgPackTime > 0).reduce((s, st) => s + st.avgPackTime, 0) / Math.max(1, stations.filter((st) => st.avgPackTime > 0).length)).toFixed(1)}m`,
+          avgPackTime: stationsWithTime.length > 0 ? `${(stationsWithTime.reduce((s, st) => s + st.avgPackTime, 0) / stationsWithTime.length).toFixed(1)}m` : "—",
           rework: orders.reduce((s, o) => s + o.cartons.filter((c) => c.reworkRequired).length, 0),
           pendingLabel: orders.filter((o) => o.status === "PACKED").length,
           dispatched: orders.filter((o) => o.status === "DISPATCHED" && o.completedAt?.startsWith(today)).length,
         };
       },
 
-      carrierList: () => Array.from(new Set(get().orders.map((o) => o.carrier))).sort(),
+      carrierList: () => Array.from(new Set(get().orders.map((o) => o.carrier))).filter((c) => c !== "—").sort(),
 
       carrierMix: () => {
         const map = new Map<string, number>();
@@ -360,8 +440,8 @@ export const usePackingStore = create<PackingState>()(
         get().orders.flatMap((o) => o.cartons.map((c) => ({ ...c, orderNumber: o.orderNumber, carrier: o.carrier, customer: o.customer }))),
     }),
     {
-      name: "trilowms-packing-v2",
-      partialize: (s) => ({ stations: s.stations, orders: s.orders }),
+      name: "trilowms-packing-v3",
+      partialize: (s) => ({ stations: s.stations, orders: s.orders, lastSyncAt: s.lastSyncAt }),
     }
   )
 );
