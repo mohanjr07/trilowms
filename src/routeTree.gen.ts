@@ -17,9 +17,11 @@ import { Route as PutawayRouteImport } from './routes/putaway'
 import { Route as PickingRouteImport } from './routes/picking'
 import { Route as PackingRouteImport } from './routes/packing'
 import { Route as OutboundRouteImport } from './routes/outbound'
+import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as LaborRouteImport } from './routes/labor'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as InboundRouteImport } from './routes/inbound'
+import { Route as ConsolidationRouteImport } from './routes/consolidation'
 import { Route as BuilderRouteImport } from './routes/builder'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -64,6 +66,11 @@ const OutboundRoute = OutboundRouteImport.update({
   path: '/outbound',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrdersRoute = OrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LaborRoute = LaborRouteImport.update({
   id: '/labor',
   path: '/labor',
@@ -77,6 +84,11 @@ const InventoryRoute = InventoryRouteImport.update({
 const InboundRoute = InboundRouteImport.update({
   id: '/inbound',
   path: '/inbound',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConsolidationRoute = ConsolidationRouteImport.update({
+  id: '/consolidation',
+  path: '/consolidation',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BuilderRoute = BuilderRouteImport.update({
@@ -99,9 +111,11 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/builder': typeof BuilderRoute
+  '/consolidation': typeof ConsolidationRoute
   '/inbound': typeof InboundRoute
   '/inventory': typeof InventoryRoute
   '/labor': typeof LaborRoute
+  '/orders': typeof OrdersRoute
   '/outbound': typeof OutboundRoute
   '/packing': typeof PackingRoute
   '/picking': typeof PickingRoute
@@ -115,9 +129,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/builder': typeof BuilderRoute
+  '/consolidation': typeof ConsolidationRoute
   '/inbound': typeof InboundRoute
   '/inventory': typeof InventoryRoute
   '/labor': typeof LaborRoute
+  '/orders': typeof OrdersRoute
   '/outbound': typeof OutboundRoute
   '/packing': typeof PackingRoute
   '/picking': typeof PickingRoute
@@ -132,9 +148,11 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/builder': typeof BuilderRoute
+  '/consolidation': typeof ConsolidationRoute
   '/inbound': typeof InboundRoute
   '/inventory': typeof InventoryRoute
   '/labor': typeof LaborRoute
+  '/orders': typeof OrdersRoute
   '/outbound': typeof OutboundRoute
   '/packing': typeof PackingRoute
   '/picking': typeof PickingRoute
@@ -150,9 +168,11 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/builder'
+    | '/consolidation'
     | '/inbound'
     | '/inventory'
     | '/labor'
+    | '/orders'
     | '/outbound'
     | '/packing'
     | '/picking'
@@ -166,9 +186,11 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/builder'
+    | '/consolidation'
     | '/inbound'
     | '/inventory'
     | '/labor'
+    | '/orders'
     | '/outbound'
     | '/packing'
     | '/picking'
@@ -182,9 +204,11 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/builder'
+    | '/consolidation'
     | '/inbound'
     | '/inventory'
     | '/labor'
+    | '/orders'
     | '/outbound'
     | '/packing'
     | '/picking'
@@ -199,9 +223,11 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   BuilderRoute: typeof BuilderRoute
+  ConsolidationRoute: typeof ConsolidationRoute
   InboundRoute: typeof InboundRoute
   InventoryRoute: typeof InventoryRoute
   LaborRoute: typeof LaborRoute
+  OrdersRoute: typeof OrdersRoute
   OutboundRoute: typeof OutboundRoute
   PackingRoute: typeof PackingRoute
   PickingRoute: typeof PickingRoute
@@ -270,6 +296,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OutboundRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/orders': {
+      id: '/orders'
+      path: '/orders'
+      fullPath: '/orders'
+      preLoaderRoute: typeof OrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/labor': {
       id: '/labor'
       path: '/labor'
@@ -289,6 +322,13 @@ declare module '@tanstack/react-router' {
       path: '/inbound'
       fullPath: '/inbound'
       preLoaderRoute: typeof InboundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/consolidation': {
+      id: '/consolidation'
+      path: '/consolidation'
+      fullPath: '/consolidation'
+      preLoaderRoute: typeof ConsolidationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/builder': {
@@ -319,9 +359,11 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   BuilderRoute: BuilderRoute,
+  ConsolidationRoute: ConsolidationRoute,
   InboundRoute: InboundRoute,
   InventoryRoute: InventoryRoute,
   LaborRoute: LaborRoute,
+  OrdersRoute: OrdersRoute,
   OutboundRoute: OutboundRoute,
   PackingRoute: PackingRoute,
   PickingRoute: PickingRoute,
