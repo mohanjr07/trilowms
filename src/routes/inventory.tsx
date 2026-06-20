@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import { SkuMasterPage } from "@/components/sku/SkuMasterPage";
 import { InventoryBinMapPage } from "@/components/inventory/InventoryBinMapPage";
 import { TransactionsPage } from "@/components/inventory/TransactionsPage";
-import { Boxes, Map, ArrowLeftRight } from "lucide-react";
+import { StockLevelsPage } from "@/components/inventory/StockLevelsPage";
+import { Boxes, Map, ArrowLeftRight, Gauge } from "lucide-react";
 import { useInvBinStore } from "@/lib/inventory-bin-store";
 import { ensureSeeded } from "@/lib/transaction-store";
 
@@ -17,10 +18,11 @@ export const Route = createFileRoute("/inventory")({
   component: InventoryPage,
 });
 
-type Tab = "sku" | "binmap" | "transactions";
+type Tab = "sku" | "stock" | "binmap" | "transactions";
 
 const TABS: { id: Tab; label: string; icon: typeof Boxes; badge?: string }[] = [
   { id: "sku",          label: "SKU Master",   icon: Boxes },
+  { id: "stock",        label: "Stock Levels",  icon: Gauge,           badge: "Live" },
   { id: "binmap",       label: "Bin Map",       icon: Map,             badge: "Live" },
   { id: "transactions", label: "Transactions",  icon: ArrowLeftRight,  badge: "New" },
 ];
@@ -64,6 +66,7 @@ function InventoryPage() {
       {/* Tab content */}
       <div className="flex-1 overflow-hidden">
         {tab === "sku"          && <SkuMasterPage />}
+        {tab === "stock"        && <StockLevelsPage />}
         {tab === "binmap"       && <InventoryBinMapPage />}
         {tab === "transactions" && <TransactionsPage />}
       </div>
