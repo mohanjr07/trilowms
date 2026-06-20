@@ -200,6 +200,8 @@ interface PackingState {
   completeOrder: (orderId: string) => void;
   addCarton: (orderId: string, carton: Carton) => void;
   labelCarton: (orderId: string, cartonId: string, trackingNumber: string) => void;
+  manifestOrder: (orderId: string) => void;
+  dispatchOrder: (orderId: string) => void;
   flagException: (orderId: string, reason: string) => void;
   setFilters: (f: Partial<PackFilters>) => void;
   resetFilters: () => void;
@@ -215,11 +217,14 @@ interface PackingState {
   allCartons: () => (Carton & { orderNumber: string; carrier: string; customer: string })[];
 }
 
+const _seedStations = PACK_STATIONS;
+const _seedOrders = buildSeedOrders();
+
 export const usePackingStore = create<PackingState>()(
   persist(
     (set, get) => ({
-      stations: [],
-      orders: [],
+      stations: _seedStations,
+      orders: _seedOrders,
       filters: DEFAULT_FILTERS,
       page: 1,
       pageSize: 15,
@@ -261,6 +266,32 @@ export const usePackingStore = create<PackingState>()(
             if (o.id !== orderId) return o;
             return { ...o, cartons: o.cartons.map((c) => c.id === cartonId ? { ...c, trackingNumber, status: "LABELLED" as CartonStatus } : c) };
           }),
+        }));
+      },
+
+      manifestOrder: (orderId) => {
+        set((s) => ({
+          orders: s.orders.map((o) =>
+            o.id === orderId
+              ? {
+                  ...o,
+                  status: "MANIFESTED" as PackOrderStatus,
+                  cartons: o.cartons.map((c) =>
+                    c.status === "OPEN" || c.status === "CLOSED" ? { ...c, status: "SCANNED" as CartonStatus } : c
+                  ),
+                }
+              : o
+          ),
+        }));
+      },
+
+      dispatchOrder: (orderId) => {
+        set((s) => ({
+          orders: s.orders.map((o) =>
+            o.id === orderId
+              ? { ...o, status: "DISPATCHED" as PackOrderStatus, completedAt: o.completedAt ?? new Date().toISOString() }
+              : o
+          ),
         }));
       },
 
