@@ -39,6 +39,7 @@ function dueLabel(iso: string): { text: string; tone: "ok" | "warn" | "late" } {
 }
 
 const PRIORITY_META: Record<PackOrder["priority"], { label: string; cls: string }> = {
+  OVERNIGHT: { label: "Overnight", cls: "text-red-400 bg-red-500/10" },
   SAME_DAY: { label: "Same Day", cls: "text-red-400 bg-red-500/10" },
   RUSH:     { label: "Rush",     cls: "text-orange-400 bg-orange-500/10" },
   STANDARD: { label: "Standard", cls: "text-slate-400 bg-slate-500/10" },
@@ -512,13 +513,96 @@ function DetailRow({ icon: Icon, label, value }: { icon: typeof Hash; label: str
   );
 }
 
+function CartonCard({ orderId, carton }: { orderId: string; carton: Carton }) {
+  const { scanCartonItem, closeCarton, labelCarton } = usePackingStore();
+  const [weightInput, setWeightInput] = useState("");
+  const fullyPacked = carton.items.every((it) => it.qtyPacked >= it.qtyRequired);
+
+  return (
+    <div className="rounded-lg border border-border bg-card/40 p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs text-primary">{carton.cartonCode}</span>
+            {carton.reworkRequired && <span className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/30 px-1 rounded">Rework</span>}
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-[11px] text-muted-foreground font-mono">
+            <span>{carton.length || carton.width || carton.height ? `${carton.length}×${carton.width}×${carton.height} cm` : "Dimensions not captured"}</span>
+            <span>{carton.grossWeight > 0 ? `${carton.grossWeight} kg gross` : "Not weighed"}</span>
+            <span>Track {carton.trackingNumber ?? "—"}</span>
+          </div>
+        </div>
+        <CartonStatusTag status={carton.status} />
+      </div>
+
+      <div className="mt-2 space-y-1">
+        {carton.items.map((it) => {
+          const done = it.qtyPacked >= it.qtyRequired;
+          return (
+            <div key={it.lineId} className="flex items-center justify-between gap-2 text-[11px] px-2 py-1 rounded bg-background/30 border border-border/40">
+              <span className="font-mono text-primary shrink-0">{it.skuCode}</span>
+              <span className="text-muted-foreground truncate flex-1">{it.skuName}</span>
+              <span className="font-mono tabular-nums shrink-0">{it.qtyPacked}/{it.qtyRequired} {it.uom}</span>
+              {carton.status === "OPEN" && !done && (
+                <Button size="sm" variant="outline" className="h-6 px-2 text-[10px] shrink-0" onClick={() => scanCartonItem(orderId, carton.id, it.lineId)}>
+                  <ScanLine className="h-3 w-3 mr-1" /> Scan
+                </Button>
+              )}
+              {done && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />}
+            </div>
+          );
+        })}
+      </div>
+
+      {carton.status === "OPEN" && fullyPacked && (
+        <div className="flex items-center gap-2 mt-2.5 pt-2.5 border-t border-border/50">
+          <Weight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <Input
+            type="number"
+            placeholder="Weight (kg)"
+            value={weightInput}
+            onChange={(e) => setWeightInput(e.target.value)}
+            className="h-8 text-xs"
+          />
+          <Button
+            size="sm"
+            className="h-8 text-xs gap-1 shrink-0"
+            disabled={!weightInput || parseFloat(weightInput) <= 0}
+            onClick={() => { closeCarton(orderId, carton.id, parseFloat(weightInput)); setWeightInput(""); }}
+          >
+            <Scale className="h-3.5 w-3.5" /> Close & weigh
+          </Button>
+        </div>
+      )}
+
+      {carton.status === "CLOSED" && (
+        <div className="mt-2.5 pt-2.5 border-t border-border/50">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs gap-1"
+            onClick={() => labelCarton(orderId, carton.id, `1Z${Date.now().toString().slice(-9)}`)}
+          >
+            <Printer className="h-3.5 w-3.5" /> Print label
+          </Button>
+        </div>
+      )}
+
+      {carton.reworkReason && <div className="text-[11px] text-red-400 mt-1.5">{carton.reworkReason}</div>}
+    </div>
+  );
+}
+
 function OrderDetailDrawer({ orderId, onClose }: { orderId: string | null; onClose: () => void }) {
   const order = usePackingStore((s) => s.orders.find((o) => o.id === orderId)) ?? null;
-  const { startPacking, completeOrder, labelCarton, manifestOrder, dispatchOrder, flagException } = usePackingStore();
+  const { startPacking, createCarton, manifestOrder, dispatchOrder, flagException } = usePackingStore();
   const [tab, setTab] = useState("cartons");
 
   if (!order) return null;
   const pct = order.totalUnits > 0 ? Math.round((order.packedUnits / order.totalUnits) * 100) : 0;
+  const hasOpenCarton = order.cartons.some((c) => c.status === "OPEN");
+  const allPacked = order.lines.length > 0 && order.lines.every((l) => l.qtyPacked >= l.qtyRequired);
+  const allLabelled = order.cartons.length > 0 && order.cartons.every((c) => c.status === "LABELLED");
 
   return (
     <div className="flex flex-col h-full">
@@ -546,9 +630,17 @@ function OrderDetailDrawer({ orderId, onClose }: { orderId: string | null; onClo
           <Progress value={pct} className="h-2" />
         </div>
         <div className="flex flex-wrap gap-2">
-          {["QUEUED", "ASSIGNED"].includes(order.status) && <Button size="sm" className="h-8 text-xs gap-1" onClick={() => startPacking(order.id)}><Play className="h-3.5 w-3.5" /> Start packing</Button>}
-          {order.status === "PACKING" && <Button size="sm" className="h-8 text-xs gap-1" onClick={() => completeOrder(order.id)}><CheckCircle2 className="h-3.5 w-3.5" /> Complete pack</Button>}
-          {order.status === "PACKED" && <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => order.cartons[0] && labelCarton(order.id, order.cartons[0].id, `1Z${Date.now().toString().slice(-9)}`)}><Printer className="h-3.5 w-3.5" /> Print labels</Button>}
+          {["QUEUED", "ASSIGNED"].includes(order.status) && !hasOpenCarton && (
+            <Button size="sm" className="h-8 text-xs gap-1" onClick={() => { startPacking(order.id); createCarton(order.id); }}>
+              <Play className="h-3.5 w-3.5" /> Start packing
+            </Button>
+          )}
+          {order.status === "PACKING" && allPacked && !hasOpenCarton && (
+            <span className="text-[11px] text-muted-foreground self-center">All items packed — close each carton below to weigh.</span>
+          )}
+          {order.status === "PACKED" && !allLabelled && (
+            <span className="text-[11px] text-muted-foreground self-center">Print a label for each carton below.</span>
+          )}
           {order.status === "LABELLED" && <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => manifestOrder(order.id)}><FileText className="h-3.5 w-3.5" /> Add to manifest</Button>}
           {order.status === "MANIFESTED" && <Button size="sm" className="h-8 text-xs gap-1" onClick={() => dispatchOrder(order.id)}><Truck className="h-3.5 w-3.5" /> Confirm dispatch</Button>}
           {!["EXCEPTION", "DISPATCHED"].includes(order.status) && <Button size="sm" variant="ghost" className="h-8 text-xs text-red-400 ml-auto" onClick={() => flagException(order.id, "Flagged from pack station")}>Flag exception</Button>}
@@ -563,30 +655,11 @@ function OrderDetailDrawer({ orderId, onClose }: { orderId: string | null; onClo
 
         <div className="flex-1 overflow-y-auto px-5 pb-5">
           <TabsContent value="cartons" className="mt-3 space-y-2">
+            {order.cartons.length === 0 && (
+              <div className="text-xs text-muted-foreground text-center py-8">No cartons opened yet. Start packing to open the first carton.</div>
+            )}
             {order.cartons.map((c) => (
-              <div key={c.id} className="rounded-lg border border-border bg-card/40 p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2"><span className="font-mono text-xs text-primary">{c.cartonCode}</span>{c.reworkRequired && <span className="text-[10px] text-red-400 bg-red-500/10 border border-red-500/30 px-1 rounded">Rework</span>}</div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-[11px] text-muted-foreground font-mono">
-                      <span>{c.length}×{c.width}×{c.height} cm</span>
-                      <span>{c.grossWeight} kg gross</span>
-                      <span>Track {c.trackingNumber ?? "—"}</span>
-                    </div>
-                  </div>
-                  <CartonStatusTag status={c.status} />
-                </div>
-                <div className="mt-2 space-y-1">
-                  {c.items.map((it) => (
-                    <div key={it.lineId} className="flex items-center justify-between text-[11px] px-2 py-1 rounded bg-background/30 border border-border/40">
-                      <span className="font-mono text-primary">{it.skuCode}</span>
-                      <span className="text-muted-foreground truncate flex-1 mx-2">{it.skuName}</span>
-                      <span className="font-mono tabular-nums">{it.qtyPacked}/{it.qtyRequired} {it.uom}</span>
-                    </div>
-                  ))}
-                </div>
-                {c.reworkReason && <div className="text-[11px] text-red-400 mt-1.5">{c.reworkReason}</div>}
-              </div>
+              <CartonCard key={c.id} orderId={order.id} carton={c} />
             ))}
           </TabsContent>
 
@@ -634,9 +707,16 @@ export function PackingPage() {
   const [openOrderId, setOpenOrderId] = useState<string | null>(null);
   const kpis = usePackingStore((s) => s.kpis)();
   const orders = usePackingStore((s) => s.orders);
+  const syncFromConsolidation = usePackingStore((s) => s.syncFromConsolidation);
   const exceptionCount = orders.filter((o) => o.status === "EXCEPTION").length;
 
   const open = (o: PackOrder) => setOpenOrderId(o.id);
+
+  const handleSync = () => {
+    const n = syncFromConsolidation();
+    // Toast-free fallback: rely on visible queue count change; n kept for future toast wiring.
+    void n;
+  };
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -646,8 +726,9 @@ export function PackingPage() {
         subtitle="Pack-station dispatch · carton build · weigh & label · manifest & dispatch"
         actions={
           <>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5"><Scale className="h-3.5 w-3.5" /> Cartonize</Button>
-            <Button size="sm" className="h-8 text-xs gap-1.5"><Printer className="h-3.5 w-3.5" /> Print manifest</Button>
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handleSync}>
+              <Scale className="h-3.5 w-3.5" /> Sync from Consolidation
+            </Button>
           </>
         }
       />
