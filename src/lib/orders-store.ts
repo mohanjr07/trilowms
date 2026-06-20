@@ -52,6 +52,7 @@ export interface Order {
   dueBy: string;
   slaHours: number;
   stages: OrderStage[];
+  pickWaveNumber: string | null;
 }
 
 export const ORDER_STATUS_META: Record<OrderStatus, { label: string; color: string; bg: string; border: string }> = {
@@ -91,6 +92,7 @@ interface OrdersState {
   setLineAllocation: (orderId: string, lineId: string, allocatedQty: number, binCode?: string) => void;
   bulkAllocate: (ids: string[]) => void;
   updateStatus: (orderId: string, status: OrderStatus) => void;
+  linkPickWave: (orderId: string, waveNumber: string) => void;
   cancelOrder: (orderId: string) => void;
   selectOrder: (id: string | null) => void;
   setFilters: (f: Partial<OrderFilters>) => void;
@@ -155,6 +157,7 @@ export const useOrdersStore = create<OrdersState>()(
           dueBy: new Date(Date.now() + slaHours * 3600000).toISOString(),
           slaHours,
           stages: [{ status: "NEW", ts: now }],
+          pickWaveNumber: null,
         });
         set((s) => ({ orders: [order, ...s.orders] }));
         return order;
@@ -224,6 +227,14 @@ export const useOrdersStore = create<OrdersState>()(
         }),
       })),
 
+      linkPickWave: (orderId, waveNumber) => set((s) => ({
+        orders: s.orders.map((o) => {
+          if (o.id !== orderId) return o;
+          const now = new Date().toISOString();
+          return { ...o, status: "PICKING" as OrderStatus, pickWaveNumber: waveNumber, stages: [...o.stages, { status: "PICKING" as OrderStatus, ts: now }] };
+        }),
+      })),
+
       cancelOrder: (orderId) => get().updateStatus(orderId, "CANCELLED"),
       selectOrder: (id) => set({ selectedOrderId: id }),
       setFilters: (f) => set((s) => ({ filters: { ...s.filters, ...f }, page: 1 })),
@@ -277,6 +288,6 @@ export const useOrdersStore = create<OrdersState>()(
       customerList: () => Array.from(new Set(get().orders.map((o) => o.customer))).sort(),
       allocatableOrders: () => get().orders.filter((o) => o.status === "NEW"),
     }),
-    { name: "trilowms-orders-v1" },
+    { name: "trilowms-orders-v2" },
   ),
 );
