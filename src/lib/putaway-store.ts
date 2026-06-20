@@ -5,6 +5,8 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useInboundStore } from "@/lib/inbound-store";
+import { useStockStore } from "@/lib/stock-store";
 
 export type PutawayStatus = "PENDING" | "ASSIGNED" | "IN_PROGRESS" | "COMPLETED" | "BLOCKED" | "CANCELLED";
 export type PutawayStrategy = "FIXED" | "DIRECTED" | "CHAOTIC" | "ZONE_BASED" | "FEFO" | "FIFO";
@@ -178,6 +180,7 @@ interface PutawayState {
   pageSize: number;
 
   createTask: (data: Omit<PutawayTask, "id" | "createdAt" | "status">) => PutawayTask;
+  syncFromInbound: () => number;
   assignOperator: (taskId: string, operatorId: string, operatorName: string) => void;
   startTask: (taskId: string) => void;
   completeTask: (taskId: string, actualBinId: string, actualBinCode: string, cycleTime: number) => void;
@@ -230,6 +233,49 @@ export const usePutawayStore = create<PutawayState>()(
         return task;
       },
 
+      syncFromInbound: () => {
+        const ready = useInboundStore.getState().putawayReadyLines();
+        const existing = new Set(get().tasks.map((t) => t.asnLine).filter(Boolean) as string[]);
+        const fresh = ready.filter((r) => !existing.has(r.line.id));
+        if (fresh.length === 0) return 0;
+        const now = new Date().toISOString();
+        const tasks: PutawayTask[] = fresh.map((r) => {
+          const good = r.line.receivedQty - r.line.damagedQty - r.line.rejectedQty;
+          return {
+            id: nextPtwId(),
+            asnId: r.line.asnId,
+            asnLine: r.line.id,
+            skuCode: r.line.skuCode,
+            skuName: r.line.skuName,
+            quantity: good,
+            uom: r.line.uom,
+            lotNumber: r.line.lotNumber,
+            batchNumber: r.line.batchNumber,
+            expiryDate: r.line.expiryDate,
+            palletId: null,
+            sourceLocation: r.sourceDock ? `Dock ${r.sourceDock}` : "Staging",
+            sourceDock: r.sourceDock,
+            suggestedBinId: null,
+            suggestedBinCode: null,
+            actualBinId: null,
+            actualBinCode: null,
+            zone: "RECEIVING",
+            aisle: null,
+            rack: null,
+            strategy: "DIRECTED" as PutawayStrategy,
+            assignedOperator: null,
+            assignedOperatorId: null,
+            status: "PENDING" as PutawayStatus,
+            priority: r.line.expiryDate ? "HIGH" : "NORMAL",
+            createdAt: now,
+            assignedAt: null,
+            startedAt: null,
+          } as PutawayTask;
+        });
+        set((s) => ({ tasks: [...tasks, ...s.tasks] }));
+        return tasks.length;
+      },
+
       assignOperator: (taskId, operatorId, operatorName) => {
         set((s) => ({
           tasks: s.tasks.map((t) =>
@@ -249,6 +295,7 @@ export const usePutawayStore = create<PutawayState>()(
       },
 
       completeTask: (taskId, actualBinId, actualBinCode, cycleTime) => {
+        const t = get().tasks.find((x) => x.id === taskId);
         set((s) => ({
           tasks: s.tasks.map((t) =>
             t.id === taskId
@@ -256,6 +303,7 @@ export const usePutawayStore = create<PutawayState>()(
               : t
           ),
         }));
+        if (t) useStockStore.getState().addStock(t.skuCode, t.skuName, t.quantity, actualBinCode);
       },
 
       blockTask: (taskId, reason) => {
