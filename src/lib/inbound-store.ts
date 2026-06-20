@@ -339,6 +339,7 @@ interface InboundState {
     pendingPutaway: number;
   };
   availableDocks: () => DockDoor[];
+  putawayReadyLines: () => { line: AsnLine; asnNumber: string; sourceDock: string | null }[];
   receivingWorklist: () => ASN[];
   allDiscrepancies: () => (Discrepancy & { asnNumber: string; vendor: string; priority: ASN["priority"] })[];
   dockUtilization: () => { occupied: number; available: number; reserved: number; maintenance: number; total: number; pct: number };
@@ -549,6 +550,20 @@ export const useInboundStore = create<InboundState>()(
 
       availableDocks: () => {
         return get().dockDoors.filter((d) => d.status === "AVAILABLE" && (d.type === "INBOUND" || d.type === "BOTH"));
+      },
+
+      putawayReadyLines: () => {
+        const out: { line: AsnLine; asnNumber: string; sourceDock: string | null }[] = [];
+        for (const a of get().asns) {
+          if (!["PARTIAL", "RECEIVED", "DISCREPANCY", "CLOSED"].includes(a.status)) continue;
+          for (const l of a.lines) {
+            const good = l.receivedQty - l.damagedQty - l.rejectedQty;
+            if (l.status === "RECEIVED" && good > 0) {
+              out.push({ line: l, asnNumber: a.asnNumber, sourceDock: a.dockCode ?? null });
+            }
+          }
+        }
+        return out;
       },
 
       receivingWorklist: () => {
