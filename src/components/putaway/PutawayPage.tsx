@@ -610,6 +610,7 @@ export function PutawayPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const kpis = usePutawayStore((s) => s.kpis)();
+  const syncFromInbound = usePutawayStore((s) => s.syncFromInbound);
 
   const open = (t: PutawayTask) => setOpenTaskId(t.id);
 
@@ -621,7 +622,7 @@ export function PutawayPage() {
         subtitle="Directed putaway · task dispatch · bin routing · forklift operations"
         actions={
           <>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5"><RefreshCw className="h-3.5 w-3.5" /> Refresh</Button>
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => syncFromInbound()}><RefreshCw className="h-3.5 w-3.5" /> Generate from Inbound</Button>
             <Button size="sm" className="h-8 text-xs gap-1.5"><Zap className="h-3.5 w-3.5" /> Auto-assign</Button>
           </>
         }
