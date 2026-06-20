@@ -20,6 +20,7 @@ import {
   useOrdersStore, ORDER_STATUS_META,
   type Order, type OrderStatus, type OrderPriority, type OrderLineInput, type AllocStatus,
 } from "@/lib/orders-store";
+import { usePickingStore } from "@/lib/picking-store";
 import { PageHeader, KPICard } from "@/components/wms/Primitives";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { cn } from "@/lib/utils";
@@ -407,14 +408,27 @@ function DetailRow({ icon: Icon, label, value }: { icon: typeof Hash; label: str
 
 function OrderDrawer({ orderId, onClose }: { orderId: string | null; onClose: () => void }) {
   const order = useOrdersStore((s) => s.orders.find((o) => o.id === orderId)) ?? null;
-  const { autoAllocate, setLineAllocation, updateStatus, cancelOrder } = useOrdersStore();
+  const { autoAllocate, setLineAllocation, updateStatus, cancelOrder, linkPickWave } = useOrdersStore();
+  const createWaveFromOrder = usePickingStore((s) => s.createWaveFromOrder);
   const [tab, setTab] = useState("alloc");
   if (!order) return null;
 
   const pct = order.totalUnits > 0 ? Math.round((order.allocatedUnits / order.totalUnits) * 100) : 0;
   const hasConflict = order.lines.some((l) => l.allocStatus === "PARTIAL") || order.status === "EXCEPTION";
   const flowIdx = TIMELINE.indexOf(order.status === "EXCEPTION" ? "ALLOCATED" : order.status);
-  const next: Record<string, OrderStatus> = { ALLOCATED: "PICKING", PICKING: "PACKED", PACKED: "SHIPPED", SHIPPED: "DELIVERED" };
+  const next: Record<string, OrderStatus> = { PICKING: "PACKED", PACKED: "SHIPPED", SHIPPED: "DELIVERED" };
+
+  const releaseToPicking = () => {
+    const wave = createWaveFromOrder({
+      sourceOrderId: order.id,
+      orderNumber: order.orderNumber,
+      priority: order.priority === "RUSH" ? "RUSH" : "STANDARD",
+      carrier: order.carrier ?? undefined,
+      dueBy: order.dueBy,
+      lines: order.lines.filter((l) => l.allocatedQty > 0).map((l) => ({ skuCode: l.skuCode, skuName: l.skuName, uom: l.uom, qty: l.allocatedQty })),
+    });
+    linkPickWave(order.id, wave.waveNumber);
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -452,9 +466,13 @@ function OrderDrawer({ orderId, onClose }: { orderId: string | null; onClose: ()
 
         <div className="flex flex-wrap gap-2">
           {order.status === "NEW" && <Button size="sm" className="h-8 text-xs gap-1" onClick={() => autoAllocate(order.id)}><Zap className="h-3.5 w-3.5" /> Auto-allocate</Button>}
+          {order.status === "ALLOCATED" && <Button size="sm" className="h-8 text-xs gap-1" onClick={releaseToPicking}><Send className="h-3.5 w-3.5" /> Release to picking</Button>}
           {next[order.status] && <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => updateStatus(order.id, next[order.status])}>{order.status === "PACKED" ? <Send className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />} Advance to {ORDER_STATUS_META[next[order.status]].label}</Button>}
           {!["SHIPPED", "DELIVERED", "CANCELLED"].includes(order.status) && <Button size="sm" variant="ghost" className="h-8 text-xs text-red-400 ml-auto" onClick={() => { cancelOrder(order.id); onClose(); }}>Cancel</Button>}
         </div>
+        {order.pickWaveNumber && (
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><Layers className="h-3 w-3" /> Pick wave <span className="font-mono text-foreground">{order.pickWaveNumber}</span></div>
+        )}
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="flex flex-col flex-1 overflow-hidden">
@@ -523,6 +541,7 @@ function OrderDrawer({ orderId, onClose }: { orderId: string | null; onClose: ()
               <DetailRow icon={Clock} label="Due (SLA)" value={`${fmtDateTime(order.dueBy)} (${order.slaHours}h)`} />
               <DetailRow icon={User} label="Created by" value={order.createdBy} />
               <DetailRow icon={Boxes} label="Units" value={`${order.totalUnits}`} />
+              {order.pickWaveNumber && <DetailRow icon={Layers} label="Pick wave" value={order.pickWaveNumber} />}
             </div>
             <div className="rounded border border-border/60 bg-card/30 px-3 py-2 mt-2">
               <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wide"><MapPin className="h-3 w-3" /> Ship to</div>
