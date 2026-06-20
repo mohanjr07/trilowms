@@ -8,7 +8,7 @@ import { useMemo, useState } from "react";
 import {
   PackageCheck, Search, X, ChevronRight, Play, CheckCircle2, AlertTriangle,
   LayoutDashboard, ClipboardList, Monitor, Box, PackageX, Printer, Truck,
-  Hash, User, Weight, Ruler, MapPin, Clock, Scale, ScanLine, FileDown, Boxes, Tag,
+  Hash, User, Weight, Ruler, MapPin, Clock, Scale, ScanLine, FileDown, Boxes, Tag, FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -514,7 +514,7 @@ function DetailRow({ icon: Icon, label, value }: { icon: typeof Hash; label: str
 
 function OrderDetailDrawer({ orderId, onClose }: { orderId: string | null; onClose: () => void }) {
   const order = usePackingStore((s) => s.orders.find((o) => o.id === orderId)) ?? null;
-  const { startPacking, completeOrder, labelCarton, flagException } = usePackingStore();
+  const { startPacking, completeOrder, labelCarton, manifestOrder, dispatchOrder, flagException } = usePackingStore();
   const [tab, setTab] = useState("cartons");
 
   if (!order) return null;
@@ -549,6 +549,8 @@ function OrderDetailDrawer({ orderId, onClose }: { orderId: string | null; onClo
           {["QUEUED", "ASSIGNED"].includes(order.status) && <Button size="sm" className="h-8 text-xs gap-1" onClick={() => startPacking(order.id)}><Play className="h-3.5 w-3.5" /> Start packing</Button>}
           {order.status === "PACKING" && <Button size="sm" className="h-8 text-xs gap-1" onClick={() => completeOrder(order.id)}><CheckCircle2 className="h-3.5 w-3.5" /> Complete pack</Button>}
           {order.status === "PACKED" && <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => order.cartons[0] && labelCarton(order.id, order.cartons[0].id, `1Z${Date.now().toString().slice(-9)}`)}><Printer className="h-3.5 w-3.5" /> Print labels</Button>}
+          {order.status === "LABELLED" && <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => manifestOrder(order.id)}><FileText className="h-3.5 w-3.5" /> Add to manifest</Button>}
+          {order.status === "MANIFESTED" && <Button size="sm" className="h-8 text-xs gap-1" onClick={() => dispatchOrder(order.id)}><Truck className="h-3.5 w-3.5" /> Confirm dispatch</Button>}
           {!["EXCEPTION", "DISPATCHED"].includes(order.status) && <Button size="sm" variant="ghost" className="h-8 text-xs text-red-400 ml-auto" onClick={() => flagException(order.id, "Flagged from pack station")}>Flag exception</Button>}
         </div>
       </div>
