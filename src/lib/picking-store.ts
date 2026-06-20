@@ -64,6 +64,7 @@ export interface Wave {
   dueBy: string;
   packingBay: string;
   carrier: string;
+  sourceOrderId: string | null;
 }
 
 export interface Shortage {
@@ -194,6 +195,7 @@ function buildSeedWaves(): Wave[] {
       dueBy: dueBy.toISOString(),
       packingBay: `BAY-${(i % 4) + 1}`,
       carrier: CARRIERS[i % CARRIERS.length],
+      sourceOrderId: null,
     };
   });
 }
@@ -225,6 +227,48 @@ function buildSeedShortages(waves: Wave[]): Shortage[] {
   return shorts;
 }
 
+let _waveSeq = 400;
+const nextWaveId = () => `WAVE-${++_waveSeq}`;
+
+function hashCode(str: string): number {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+function locationFor(skuCode: string, idx: number) {
+  const h = hashCode(skuCode) + idx;
+  const aisle = `A-0${(h % 3) + 1}`;
+  const rack = `R-0${(h % 5) + 1}`;
+  const level = `L${(h % 4) + 1}`;
+  const bin = `P${(h % 6) + 1}`;
+  return { zone: ZONES[h % ZONES.length], aisle, rack, level, binCode: `${aisle}-${rack}-${level}-${bin}` };
+}
+
+/** Round-robins new work to whichever picker currently has the fewest open tasks. */
+function leastLoadedPicker(waves: Wave[]): { id: string; name: string } {
+  const openStatuses: PickTaskStatus[] = ["PENDING", "ASSIGNED", "IN_PROGRESS"];
+  const load = new Map<string, number>(PICKERS.map((p) => [p.id, 0]));
+  for (const w of waves) {
+    for (const t of w.tasks) {
+      if (t.assignedPickerId && openStatuses.includes(t.status)) {
+        load.set(t.assignedPickerId, (load.get(t.assignedPickerId) ?? 0) + 1);
+      }
+    }
+  }
+  return PICKERS.reduce((best, p) => ((load.get(p.id) ?? 0) < (load.get(best.id) ?? 0) ? p : best), PICKERS[0]);
+}
+
+export interface WaveSourceLine { skuCode: string; skuName: string; uom: string; qty: number; }
+export interface CreateWaveFromOrderInput {
+  sourceOrderId: string;
+  orderNumber: string;
+  priority: PickPriority;
+  carrier?: string;
+  dueBy?: string;
+  lines: WaveSourceLine[];
+}
+
 // ─── Filters ──────────────────────────────────────────────────────────────────
 
 export interface WaveFilters {
@@ -251,6 +295,7 @@ interface PickingState {
   startWave: (id: string) => void;
   completeWave: (id: string) => void;
   cancelWave: (id: string) => void;
+  createWaveFromOrder: (input: CreateWaveFromOrderInput) => Wave;
   pickTask: (waveId: string, taskId: string, qtyPicked: number) => void;
   reportShort: (waveId: string, taskId: string, qtyAvailable: number, reason: Shortage["reason"]) => void;
   resolveShortage: (shortageId: string, resolution: string) => void;
@@ -310,6 +355,72 @@ export const usePickingStore = create<PickingState>()(
       cancelWave: (id) => set((s) => ({
         waves: s.waves.map((w) => w.id === id ? { ...w, status: "CANCELLED" as WaveStatus } : w),
       })),
+
+      createWaveFromOrder: (input) => {
+        const picker = leastLoadedPicker(get().waves);
+        const waveId = nextWaveId();
+        const now = new Date().toISOString();
+        const tasks: PickTask[] = input.lines.map((l, j) => {
+          const loc = locationFor(l.skuCode, j);
+          return {
+            id: `PICK-${waveId}-${j + 1}`,
+            waveId,
+            orderId: input.orderNumber,
+            lineNumber: j + 1,
+            skuCode: l.skuCode,
+            skuName: l.skuName,
+            uom: l.uom || "EA",
+            qtyRequired: l.qty,
+            qtyPicked: 0,
+            qtyShort: 0,
+            binId: `bin-${waveId}-${j}`,
+            binCode: loc.binCode,
+            zone: loc.zone,
+            aisle: loc.aisle,
+            rack: loc.rack,
+            level: loc.level,
+            lotNumber: null,
+            expiryDate: null,
+            batchNumber: null,
+            assignedPickerId: picker.id,
+            assignedPickerName: picker.name,
+            status: "ASSIGNED",
+            pickMethod: "SINGLE",
+            sortationBay: `BAY-${(j % 4) + 1}`,
+            toteId: null,
+            scanConfirmed: false,
+            startedAt: null,
+            completedAt: null,
+            shortReason: null,
+            substituteSkuCode: null,
+          };
+        });
+        const totalUnits = tasks.reduce((s, t) => s + t.qtyRequired, 0);
+        const wave: Wave = {
+          id: waveId,
+          waveNumber: waveId,
+          status: "RELEASED",
+          pickMethod: "SINGLE",
+          priority: input.priority,
+          totalOrders: 1,
+          totalLines: tasks.length,
+          totalUnits,
+          pickedUnits: 0,
+          shortUnits: 0,
+          zones: Array.from(new Set(tasks.map((t) => t.zone))),
+          assignedPickers: [picker.name],
+          tasks,
+          createdAt: now,
+          releasedAt: now,
+          completedAt: null,
+          dueBy: input.dueBy ?? new Date(Date.now() + 4 * 3600000).toISOString(),
+          packingBay: `BAY-${(tasks.length % 4) + 1}`,
+          carrier: input.carrier ?? "Unassigned",
+          sourceOrderId: input.sourceOrderId,
+        };
+        set((s) => ({ waves: [wave, ...s.waves] }));
+        return wave;
+      },
 
       pickTask: (waveId, taskId, qtyPicked) => {
         set((s) => ({
@@ -506,7 +617,7 @@ export const usePickingStore = create<PickingState>()(
       zoneList: () => Array.from(new Set(get().waves.flatMap((w) => w.zones))).sort(),
     }),
     {
-      name: "trilowms-picking-v2",
+      name: "trilowms-picking-v3",
       partialize: (s) => ({ waves: s.waves, shortages: s.shortages }),
     }
   )
