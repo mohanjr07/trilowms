@@ -1,18 +1,25 @@
-import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  Link, useRouterState } from "@tanstack/react-router";
+import {
+  ClipboardList,
   LayoutDashboard, Boxes, PackageSearch, PackageOpen, PackageCheck,
   Truck, Warehouse, Forklift, ShieldCheck, RotateCcw, Users, BarChart3,
   Settings, ArrowDownToLine, ArrowUpFromLine, LogOut,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useState } from "react";
-import { WarehouseSwitcher } from "@/components/builder/WarehouseSwitcher";
-import { useAuthStore, ROLE_DEFINITIONS } from "@/lib/auth-store";
+import {
+  cn } from "@/lib/utils";
+import {
+  useState } from "react";
+import {
+  WarehouseSwitcher } from "@/components/builder/WarehouseSwitcher";
+import {
+  useAuthStore, ROLE_DEFINITIONS } from "@/lib/auth-store";
 
 const ALL_MODULES: { to: string; label: string; icon: typeof LayoutDashboard; highlight?: boolean }[] = [
   { to: "/",         label: "Dashboard",        icon: LayoutDashboard },
   { to: "/builder",  label: "Warehouse Builder", icon: Warehouse, highlight: true },
   { to: "/inventory",label: "Inventory & Bins",    icon: Boxes },
+  { to: "/orders",   label: "Orders",            icon: ClipboardList },
   { to: "/inbound",  label: "Inbound",           icon: ArrowDownToLine },
   { to: "/putaway",  label: "Putaway",           icon: PackageOpen },
   { to: "/picking",  label: "Picking",           icon: PackageSearch },
