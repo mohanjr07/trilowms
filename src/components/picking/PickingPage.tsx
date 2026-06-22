@@ -9,6 +9,7 @@ import {
   PackageSearch, Search, X, ChevronRight, Play, CheckCircle2, AlertTriangle, Zap,
   Users, LayoutDashboard, Waves as WavesIcon, ListChecks, PackageX, ArrowRight,
   Hash, MapPin, Boxes, Clock, User, Truck, Layers, ScanLine, FileDown, Timer, Target,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,8 @@ import {
   usePickingStore, WAVE_STATUS_META,
   type Wave, type WaveStatus, type PickingMethod, type PickPriority, type PickTask, type PickTaskStatus, type Shortage,
 } from "@/lib/picking-store";
+import { usePickPathStore, type RouteResult } from "@/lib/pickpath-store";
+import { useEditorStore } from "@/lib/wms-editor-store";
 import { PageHeader, KPICard } from "@/components/wms/Primitives";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { cn } from "@/lib/utils";
@@ -584,9 +587,43 @@ function ShortagesView() {
 //  WAVE DETAIL DRAWER
 // ════════════════════════════════════════════════════════════════════════════
 
+function RouteMap({ route }: { route: RouteResult }) {
+  const wh = useEditorStore((s) => s.warehouse);
+  const W = 360, H = 220, pad = 14;
+  const sx = (wh.size.w || 1), sz = (wh.size.d || 1);
+  const px = (x: number) => pad + (x / sx) * (W - pad * 2);
+  const pz = (z: number) => pad + (z / sz) * (H - pad * 2);
+  const pts = [route.start, ...route.stops, route.end];
+  const line = pts.map((p) => `${px(p.x).toFixed(1)},${pz(p.z).toFixed(1)}`).join(" ");
+
+  return (
+    <div className="rounded-lg border border-border bg-background/40 p-2">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 240 }}>
+        {wh.zones.map((z) => (
+          <rect key={z.id} x={px(z.bounds.x)} y={pz(z.bounds.z)} width={(z.bounds.w / sx) * (W - pad * 2)} height={(z.bounds.d / sz) * (H - pad * 2)}
+            fill={z.color} fillOpacity={0.08} stroke={z.color} strokeOpacity={0.3} strokeWidth={0.5} rx={2} />
+        ))}
+        <polyline points={line} fill="none" stroke="var(--color-primary)" strokeWidth={1.6} strokeOpacity={0.7} strokeDasharray="3 2" />
+        <circle cx={px(route.start.x)} cy={pz(route.start.z)} r={6} fill="var(--color-secondary)" stroke="var(--color-border)" />
+        <text x={px(route.start.x)} y={pz(route.start.z) + 2.5} textAnchor="middle" fontSize={6} fill="var(--color-foreground)">S</text>
+        {route.stops.map((st) => (
+          <g key={st.taskId}>
+            <circle cx={px(st.x)} cy={pz(st.z)} r={7} fill="var(--color-primary)" fillOpacity={0.85} />
+            <text x={px(st.x)} y={pz(st.z) + 2.5} textAnchor="middle" fontSize={6.5} fontWeight="bold" fill="var(--color-primary-foreground)">{st.seq}</text>
+          </g>
+        ))}
+        <circle cx={px(route.end.x)} cy={pz(route.end.z)} r={6} fill="#16a34a" />
+        <text x={px(route.end.x)} y={pz(route.end.z) + 2.5} textAnchor="middle" fontSize={6} fill="#fff">P</text>
+      </svg>
+    </div>
+  );
+}
+
 function WaveDetailDrawer({ waveId, onClose }: { waveId: string | null; onClose: () => void }) {
   const wave = usePickingStore((s) => s.waves.find((w) => w.id === waveId)) ?? null;
   const { releaseWave, startWave, completeWave, cancelWave, pickTask, reportShort } = usePickingStore();
+  const route = usePickPathStore((s) => (waveId ? s.routes[waveId] : null)) ?? null;
+  const optimize = usePickPathStore((s) => s.optimize);
   const [tab, setTab] = useState("lines");
   const [pickingId, setPickingId] = useState<string | null>(null);
   const [qty, setQty] = useState("");
@@ -632,6 +669,7 @@ function WaveDetailDrawer({ waveId, onClose }: { waveId: string | null; onClose:
       <Tabs value={tab} onValueChange={setTab} className="flex flex-col flex-1 overflow-hidden">
         <TabsList className="mx-5 mt-3 w-fit">
           <TabsTrigger value="lines" className="text-xs">Pick Lines · {wave.totalLines}</TabsTrigger>
+          <TabsTrigger value="route" className="text-xs">Route</TabsTrigger>
           <TabsTrigger value="pickers" className="text-xs">Pickers · {wave.assignedPickers.length}</TabsTrigger>
         </TabsList>
 
@@ -689,6 +727,39 @@ function WaveDetailDrawer({ waveId, onClose }: { waveId: string | null; onClose:
                 </div>
               );
             })}
+          </TabsContent>
+
+          <TabsContent value="route" className="mt-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="text-[11px] text-muted-foreground">{route ? route.note : "Optimize the shortest pick path for this wave."}</div>
+              <Button size="sm" className="h-7 text-xs gap-1" onClick={() => optimize(wave.id, true)}><Sparkles className="h-3.5 w-3.5" /> {route ? "Re-optimize" : "Optimize route"}</Button>
+            </div>
+
+            {route && route.stops.length > 0 && (
+              <>
+                <div className="grid grid-cols-3 gap-2">
+                  <MiniStat label="Stops" value={`${route.stops.length}`} />
+                  <MiniStat label="Distance" value={`${route.totalDistance} m`} />
+                  <MiniStat label="Walk ETA" value={`${route.etaMin} min`} tone="text-primary" />
+                </div>
+                <RouteMap route={route} />
+                <div className="space-y-1.5">
+                  <div className="text-[9px] uppercase tracking-wide text-muted-foreground">Turn-by-turn</div>
+                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground px-2"><span className="h-5 w-5 rounded-full bg-secondary flex items-center justify-center text-[9px] font-bold">S</span> Pick start</div>
+                  {route.stops.map((st) => (
+                    <div key={st.taskId} className="flex items-center gap-2 rounded border border-border/60 bg-card/40 px-2.5 py-1.5">
+                      <span className="h-5 w-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">{st.seq}</span>
+                      <span className="font-mono text-xs text-foreground w-28 shrink-0">{st.binCode}</span>
+                      <span className="font-mono text-[11px] text-primary shrink-0">{st.skuCode}</span>
+                      <span className="text-[11px] text-muted-foreground ml-auto shrink-0">×{st.qty}</span>
+                      <span className="text-[10px] text-muted-foreground font-mono w-14 text-right shrink-0">{st.legDistance}m</span>
+                    </div>
+                  ))}
+                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground px-2"><span className="h-5 w-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[9px] font-bold">P</span> Packing bay {wave.packingBay}</div>
+                </div>
+              </>
+            )}
+            {route && route.stops.length === 0 && <div className="text-center py-8 text-sm text-muted-foreground">{route.note}</div>}
           </TabsContent>
 
           <TabsContent value="pickers" className="mt-3 space-y-2">
