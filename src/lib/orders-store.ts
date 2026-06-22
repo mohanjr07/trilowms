@@ -21,10 +21,11 @@ export interface OrderLine {
   skuName: string;
   uom: string;
   requestedQty: number;
-  availableQty: number;   // notional on-hand used for allocation
+  availableQty: number;   // real on-hand stock available for this SKU (live snapshot, not allocation-adjusted)
   allocatedQty: number;
   binCode: string | null;
   allocStatus: AllocStatus;
+  backordered?: boolean;  // true if some/all of allocatedQty was committed without real on-hand stock
 }
 
 export interface OrderStage {
@@ -182,6 +183,7 @@ export const useOrdersStore = create<OrdersState>()(
 
       autoAllocate: (orderId) => {
         let shortLines = 0;
+        let backorderedLines = 0;
         const stock = useStockStore.getState();
         set((s) => ({
           orders: s.orders.map((o) => {
@@ -189,34 +191,66 @@ export const useOrdersStore = create<OrdersState>()(
             const lines = o.lines.map((l) => {
               const already = l.allocatedQty;
               const need = l.requestedQty - already;
+              // 1. Try to reserve against real on-hand stock first.
               const reserved = need > 0 ? stock.reserve(l.skuCode, need) : 0;
-              const alloc = already + reserved;
-              const avail = stock.available(l.skuCode) + alloc; // on-hand snapshot for display
+              let alloc = already + reserved;
+              let backordered = l.backordered ?? false;
+              // 2. If on-hand stock can't cover the rest, commit the shortfall as a
+              //    backorder allocation — standard WMS behaviour: the order can still
+              //    move to ALLOCATED so it isn't stuck on NEW forever, but the shortfall
+              //    is explicitly flagged (not pretending it's real stock).
+              const stillShort = l.requestedQty - alloc;
+              if (stillShort > 0) {
+                alloc += stillShort;
+                backordered = true;
+              }
+              const avail = stock.available(l.skuCode); // real on-hand snapshot for display
+              if (backordered) backorderedLines++;
               if (alloc < l.requestedQty) shortLines++;
               const allocStatus: AllocStatus = alloc === 0 ? "UNALLOCATED" : alloc < l.requestedQty ? "PARTIAL" : "ALLOCATED";
               const binCode = l.binCode ?? (stock.stock[l.skuCode] ? Object.keys(stock.stock[l.skuCode].bins)[0] ?? "PICK-FACE" : "PICK-FACE");
-              return { ...l, allocatedQty: alloc, availableQty: avail, allocStatus, binCode };
+              return { ...l, allocatedQty: alloc, availableQty: avail, allocStatus, binCode, backordered };
             });
             const allDone = lines.every((l) => l.allocStatus === "ALLOCATED");
-            const anyDone = lines.some((l) => l.allocatedQty > 0);
             const now = new Date().toISOString();
-            const status: OrderStatus = allDone ? "ALLOCATED" : anyDone ? "EXCEPTION" : "NEW";
+            // Backordered-but-fully-allocated orders still move forward as ALLOCATED;
+            // only a genuine PARTIAL (couldn't even commit a backorder qty) is an EXCEPTION.
+            const anyPartial = lines.some((l) => l.allocStatus === "PARTIAL");
+            const status: OrderStatus = allDone ? "ALLOCATED" : anyPartial ? "EXCEPTION" : o.status;
             const stages = status !== o.status ? [...o.stages, { status, ts: now }] : o.stages;
             return recalc({ ...o, lines, status, stages });
           }),
         }));
-        return { fully: shortLines === 0, shortLines };
+        return { fully: shortLines === 0, shortLines, backordered: backorderedLines };
       },
 
       setLineAllocation: (orderId, lineId, allocatedQty, binCode) => {
+        const stock = useStockStore.getState();
         set((s) => ({
           orders: s.orders.map((o) => {
             if (o.id !== orderId) return o;
             const lines = o.lines.map((l) => {
               if (l.id !== lineId) return l;
-              const a = Math.max(0, Math.min(allocatedQty, l.requestedQty));
-              const allocStatus: AllocStatus = a === 0 ? "UNALLOCATED" : a < l.requestedQty ? "PARTIAL" : "ALLOCATED";
-              return { ...l, allocatedQty: a, allocStatus, binCode: binCode ?? l.binCode };
+              const target = Math.max(0, Math.min(allocatedQty, l.requestedQty));
+              const delta = target - l.allocatedQty;
+              let alloc = l.allocatedQty;
+              let backordered = l.backordered ?? false;
+              if (delta > 0) {
+                // Reserve as much as real stock allows; commit the rest as backorder.
+                const reserved = stock.reserve(l.skuCode, delta);
+                alloc += reserved;
+                const stillShort = target - alloc;
+                if (stillShort > 0) {
+                  alloc += stillShort;
+                  backordered = true;
+                }
+              } else if (delta < 0) {
+                stock.release(l.skuCode, Math.min(-delta, l.allocatedQty));
+                alloc = target;
+                if (alloc === 0) backordered = false;
+              }
+              const allocStatus: AllocStatus = alloc === 0 ? "UNALLOCATED" : alloc < l.requestedQty ? "PARTIAL" : "ALLOCATED";
+              return { ...l, allocatedQty: alloc, availableQty: stock.available(l.skuCode), allocStatus, binCode: binCode ?? l.binCode, backordered };
             });
             return recalc({ ...o, lines });
           }),
@@ -245,7 +279,13 @@ export const useOrdersStore = create<OrdersState>()(
         const o = get().orders.find((x) => x.id === orderId);
         if (o && !["SHIPPED", "DELIVERED"].includes(o.status)) {
           const stock = useStockStore.getState();
-          o.lines.forEach((l) => l.allocatedQty > 0 && stock.release(l.skuCode, l.allocatedQty));
+          o.lines.forEach((l) => {
+            if (l.allocatedQty <= 0) return;
+            // Only release what's actually held in the stock ledger's reserved count —
+            // a fully backordered line never touched the ledger, so there's nothing to release.
+            const heldReserved = stock.stock[l.skuCode]?.reserved ?? 0;
+            stock.release(l.skuCode, Math.min(l.allocatedQty, heldReserved));
+          });
         }
         get().updateStatus(orderId, "CANCELLED");
       },
