@@ -229,7 +229,19 @@ function buildSeedShortages(waves: Wave[]): Shortage[] {
 }
 
 let _waveSeq = 400;
-const nextWaveId = () => `WAVE-${++_waveSeq}`;
+// Deriving from the live store's existing wave ids (rather than relying solely on the
+// module-level counter) means a page reload can't cause a collision: _waveSeq resets
+// to 400 on every load, but persisted waves survive the reload, so without this the
+// next created wave could re-mint an id that's already taken (e.g. two different waves
+// both becoming "WAVE-401").
+const nextWaveId = (existingWaves: Wave[]) => {
+  const maxExisting = existingWaves.reduce((max, w) => {
+    const n = parseInt(w.id.replace("WAVE-", ""), 10);
+    return Number.isFinite(n) ? Math.max(max, n) : max;
+  }, 400);
+  _waveSeq = Math.max(_waveSeq, maxExisting);
+  return `WAVE-${++_waveSeq}`;
+};
 
 function hashCode(str: string): number {
   let h = 0;
@@ -360,7 +372,7 @@ export const usePickingStore = create<PickingState>()(
 
       createWaveFromOrder: (input) => {
         const picker = leastLoadedPicker(get().waves);
-        const waveId = nextWaveId();
+        const waveId = nextWaveId(get().waves);
         const now = new Date().toISOString();
         const tasks: PickTask[] = input.lines.map((l, j) => {
           const loc = locationFor(l.skuCode, j);
@@ -661,7 +673,7 @@ export const usePickingStore = create<PickingState>()(
       zoneList: () => Array.from(new Set(get().waves.flatMap((w) => w.zones))).sort(),
     }),
     {
-      name: "trilowms-picking-v3",
+      name: "trilowms-picking-v4",
       partialize: (s) => ({ waves: s.waves, shortages: s.shortages }),
     }
   )
