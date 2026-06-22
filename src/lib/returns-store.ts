@@ -4,6 +4,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useStockStore } from "@/lib/stock-store";
 
 export type RmaStatus = "REQUESTED" | "APPROVED" | "IN_TRANSIT" | "RECEIVED" | "INSPECTING" | "INSPECTED" | "PROCESSING" | "COMPLETED" | "REJECTED" | "CANCELLED";
 export type ReturnReason = "DAMAGED_IN_TRANSIT" | "WRONG_ITEM" | "QUALITY_DEFECT" | "CUSTOMER_CHANGE_MIND" | "OVERSHIPMENT" | "EXPIRED" | "WARRANTY_CLAIM" | "VENDOR_RECALL";
@@ -236,6 +237,16 @@ export const useReturnsStore = create<ReturnsState>()(
       },
 
       completeRma: (id, processedBy) => {
+        const rma = get().rmas.find((r) => r.id === id);
+        if (rma) {
+          const stock = useStockStore.getState();
+          rma.lines.forEach((l) => {
+            const qty = l.approvedQty || l.receivedQty;
+            if (l.disposition === "RESTOCK" && qty > 0) {
+              stock.addStock(l.skuCode, l.skuName, qty, l.restockBinCode ?? "RETURNS-RESTOCK");
+            }
+          });
+        }
         set((s) => ({
           rmas: s.rmas.map((r) => {
             if (r.id !== id) return r;
