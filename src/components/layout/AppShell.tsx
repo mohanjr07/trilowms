@@ -29,9 +29,9 @@ export function AppShell() {
     <AuthGuard>
       <div className="flex h-screen w-full overflow-hidden bg-background">
         <Sidebar />
-        <div className="flex flex-1 flex-col min-w-0">
+        <div className="flex flex-1 flex-col min-w-0 overflow-visible">
           <TopBar />
-          <main className="flex-1 overflow-hidden">
+          <main className="flex-1 overflow-hidden min-h-0">
             <Outlet />
           </main>
         </div>
