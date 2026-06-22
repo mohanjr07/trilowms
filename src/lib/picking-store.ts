@@ -296,6 +296,7 @@ interface PickingState {
   completeWave: (id: string) => void;
   cancelWave: (id: string) => void;
   createWaveFromOrder: (input: CreateWaveFromOrderInput) => Wave;
+  applyRouteOrder: (waveId: string, orderedTaskIds: string[]) => void;
   pickTask: (waveId: string, taskId: string, qtyPicked: number) => void;
   reportShort: (waveId: string, taskId: string, qtyAvailable: number, reason: Shortage["reason"]) => void;
   resolveShortage: (shortageId: string, resolution: string) => void;
@@ -513,6 +514,17 @@ export const usePickingStore = create<PickingState>()(
       },
 
       selectWave: (id) => set({ selectedWaveId: id }),
+
+      applyRouteOrder: (waveId, orderedTaskIds) => {
+        const rank = new Map(orderedTaskIds.map((id, i) => [id, i]));
+        set((s) => ({
+          waves: s.waves.map((w) =>
+            w.id === waveId
+              ? { ...w, tasks: [...w.tasks].sort((a, b) => (rank.get(a.id) ?? 999) - (rank.get(b.id) ?? 999)) }
+              : w
+          ),
+        }));
+      },
       setFilters: (f) => set((s) => ({ filters: { ...s.filters, ...f }, page: 1 })),
       resetFilters: () => set({ filters: DEFAULT_FILTERS, page: 1 }),
       setPage: (p) => set({ page: p }),
