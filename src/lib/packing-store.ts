@@ -457,7 +457,7 @@ export const usePackingStore = create<PackingState>()(
         get().orders.flatMap((o) => o.cartons.map((c) => ({ ...c, orderNumber: o.orderNumber, carrier: o.carrier, customer: o.customer }))),
     }),
     {
-      name: "trilowms-packing-v3",
+      name: "trilowms-packing-v4",
       partialize: (s) => ({ stations: s.stations, orders: s.orders, lastSyncAt: s.lastSyncAt }),
     }
   )
