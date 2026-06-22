@@ -28,6 +28,7 @@ const ALL_MODULES: { to: string; label: string; icon: typeof LayoutDashboard; hi
   { to: "/scan-pick", label: "Scan Pick", icon: ScanLine, highlight: true },
   { to: "/consolidation", label: "Consolidation", icon: Combine },
   { to: "/packing",       label: "Packing",       icon: PackageCheck },
+  { to: "/scan-pack", label: "Scan Pack", icon: ScanLine, highlight: true },
   { to: "/outbound", label: "Outbound",          icon: ArrowUpFromLine },
   { to: "/yard",     label: "Yard & Dock",       icon: Truck },
   { to: "/qc",       label: "QC",                icon: ShieldCheck },
