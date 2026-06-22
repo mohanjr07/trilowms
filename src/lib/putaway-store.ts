@@ -7,6 +7,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useInboundStore } from "@/lib/inbound-store";
 import { useStockStore } from "@/lib/stock-store";
+import { useSlottingStore } from "@/lib/slotting-store";
 
 export type PutawayStatus = "PENDING" | "ASSIGNED" | "IN_PROGRESS" | "COMPLETED" | "BLOCKED" | "CANCELLED";
 export type PutawayStrategy = "FIXED" | "DIRECTED" | "CHAOTIC" | "ZONE_BASED" | "FEFO" | "FIFO";
@@ -181,6 +182,7 @@ interface PutawayState {
 
   createTask: (data: Omit<PutawayTask, "id" | "createdAt" | "status">) => PutawayTask;
   syncFromInbound: () => number;
+  recomputeSuggestions: () => void;
   assignOperator: (taskId: string, operatorId: string, operatorName: string) => void;
   startTask: (taskId: string) => void;
   completeTask: (taskId: string, actualBinId: string, actualBinCode: string, cycleTime: number) => void;
@@ -272,8 +274,24 @@ export const usePutawayStore = create<PutawayState>()(
             startedAt: null,
           } as PutawayTask;
         });
-        set((s) => ({ tasks: [...tasks, ...s.tasks] }));
+        const sugg = useSlottingStore.getState();
+        const withSuggestions = tasks.map((t) => {
+          const r = sugg.suggestFor({ id: t.id, skuCode: t.skuCode, quantity: t.quantity, expiryDate: t.expiryDate });
+          return r.primary ? { ...t, suggestedBinId: r.primary.binId, suggestedBinCode: r.primary.binCode } : t;
+        });
+        set((s) => ({ tasks: [...withSuggestions, ...s.tasks] }));
         return tasks.length;
+      },
+
+      recomputeSuggestions: () => {
+        const sugg = useSlottingStore.getState();
+        set((s) => ({
+          tasks: s.tasks.map((t) => {
+            if (!["PENDING", "ASSIGNED"].includes(t.status)) return t;
+            const r = sugg.suggestFor({ id: t.id, skuCode: t.skuCode, quantity: t.quantity, expiryDate: t.expiryDate });
+            return r.primary ? { ...t, suggestedBinId: r.primary.binId, suggestedBinCode: r.primary.binCode } : t;
+          }),
+        }));
       },
 
       assignOperator: (taskId, operatorId, operatorName) => {
