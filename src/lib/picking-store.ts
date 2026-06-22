@@ -5,6 +5,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useStockStore } from "@/lib/stock-store";
 
 export type WaveStatus = "DRAFT" | "RELEASED" | "IN_PROGRESS" | "PARTIAL" | "COMPLETED" | "CANCELLED" | "SHORTED";
 export type PickTaskStatus = "PENDING" | "ASSIGNED" | "IN_PROGRESS" | "PICKED" | "SHORT" | "SUBSTITUTED" | "SKIPPED";
@@ -424,6 +425,14 @@ export const usePickingStore = create<PickingState>()(
       },
 
       pickTask: (waveId, taskId, qtyPicked) => {
+        // Pulling the picked units out of the physical stock ledger here — this is the
+        // moment goods leave their bin, so on-hand (and the matching reservation) must
+        // drop now rather than staying parked forever as "reserved".
+        if (qtyPicked > 0) {
+          const wave = get().waves.find((w) => w.id === waveId);
+          const task = wave?.tasks.find((t) => t.id === taskId);
+          if (task) useStockStore.getState().consume(task.skuCode, qtyPicked);
+        }
         set((s) => ({
           waves: s.waves.map((w) => {
             if (w.id !== waveId) return w;
@@ -448,6 +457,17 @@ export const usePickingStore = create<PickingState>()(
       },
 
       reportShort: (waveId, taskId, qtyAvailable, reason) => {
+        const wavePre = get().waves.find((w) => w.id === waveId);
+        const taskPre = wavePre?.tasks.find((t) => t.id === taskId);
+        if (taskPre) {
+          const stock = useStockStore.getState();
+          // Whatever was actually found and picked leaves the ledger now.
+          if (qtyAvailable > 0) stock.consume(taskPre.skuCode, qtyAvailable);
+          // The remainder was reserved for this task but will never be fulfilled from
+          // this bin — release that reservation so it doesn't sit phantom-reserved.
+          const shortQty = taskPre.qtyRequired - qtyAvailable;
+          if (shortQty > 0) stock.release(taskPre.skuCode, shortQty);
+        }
         set((s) => {
           const wave = s.waves.find((w) => w.id === waveId);
           const task = wave?.tasks.find((t) => t.id === taskId);
@@ -478,7 +498,7 @@ export const usePickingStore = create<PickingState>()(
                 shortUnits: w.shortUnits + (task.qtyRequired - qtyAvailable),
                 tasks: w.tasks.map((t) =>
                   t.id === taskId
-                    ? { ...t, status: "SHORT" as PickTaskStatus, qtyShort: task.qtyRequired - qtyAvailable, shortReason: reason }
+                    ? { ...t, qtyPicked: qtyAvailable, status: "SHORT" as PickTaskStatus, qtyShort: task.qtyRequired - qtyAvailable, shortReason: reason }
                     : t
                 ),
               };
