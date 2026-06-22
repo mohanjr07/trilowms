@@ -12,6 +12,7 @@ import {
   PackageOpen, Search, X, ChevronRight, MapPin, User, AlertTriangle, CheckCircle2,
   RefreshCw, LayoutDashboard, ClipboardList, Users, Settings2, Boxes, Forklift,
   Hash, Layers, Weight, Route, Timer, ArrowRight, Ban, PlayCircle, FileDown, Zap,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ import {
   usePutawayStore, PUTAWAY_STATUS_META,
   type PutawayTask, type PutawayStatus, type PutawayStrategy,
 } from "@/lib/putaway-store";
+import { useSlottingStore } from "@/lib/slotting-store";
 import { PageHeader, KPICard } from "@/components/wms/Primitives";
 import {
   BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid, Cell,
@@ -465,7 +467,10 @@ function DetailRow({ icon: Icon, label, value, accent }: { icon: typeof Hash; la
 
 function TaskDetailDrawer({ taskId, onClose }: { taskId: string | null; onClose: () => void }) {
   const task = usePutawayStore((s) => s.tasks.find((t) => t.id === taskId)) ?? null;
-  const { assignOperator, startTask, completeTask, blockTask, cancelTask } = usePutawayStore();
+  const { assignOperator, startTask, completeTask, blockTask, cancelTask, overrideBin } = usePutawayStore();
+  const suggestion = useSlottingStore((s) => (taskId ? s.suggestions[taskId] : null)) ?? null;
+  const suggestFor = useSlottingStore((s) => s.suggestFor);
+  const logOverride = useSlottingStore((s) => s.logOverride);
   const [completeBin, setCompleteBin] = useState("");
   const [blockReason, setBlockReason] = useState("");
   const [mode, setMode] = useState<"none" | "complete" | "block">("none");
@@ -473,6 +478,12 @@ function TaskDetailDrawer({ taskId, onClose }: { taskId: string | null; onClose:
   if (!task) return null;
   const m = PUTAWAY_STATUS_META[task.status];
   const binMatch = task.actualBinCode && task.actualBinCode === task.suggestedBinCode;
+  const canSlot = ["PENDING", "ASSIGNED", "IN_PROGRESS"].includes(task.status);
+
+  const useBin = (binId: string, binCode: string) => {
+    if (binCode !== task.suggestedBinCode) logOverride(task.id, task.skuCode, task.suggestedBinCode, binCode);
+    overrideBin(task.id, binId, binCode);
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -515,6 +526,49 @@ function TaskDetailDrawer({ taskId, onClose }: { taskId: string | null; onClose:
             </div>
           )}
         </div>
+
+        {/* AI Location Suggestion */}
+        {canSlot && (
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-primary font-bold"><Sparkles className="h-3.5 w-3.5" /> AI Location Suggestion</div>
+              <button onClick={() => suggestFor({ id: task.id, skuCode: task.skuCode, quantity: task.quantity, expiryDate: task.expiryDate })} className="text-[10px] text-muted-foreground hover:text-foreground">Recompute</button>
+            </div>
+            {!suggestion || !suggestion.primary ? (
+              <div className="text-xs text-muted-foreground py-2 text-center">{suggestion?.note ?? "No suggestion yet — press Recompute."}</div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between gap-2 rounded-md border border-primary/30 bg-card/60 px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="text-lg font-mono font-bold text-primary leading-tight">{suggestion.primary.binCode}</div>
+                    <div className="text-[11px] text-muted-foreground truncate">{suggestion.primary.reason}</div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span className="text-[9px] text-muted-foreground">score {suggestion.primary.score}</span>
+                    {task.suggestedBinCode === suggestion.primary.binCode
+                      ? <span className="text-[10px] text-emerald-400 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Accepted</span>
+                      : <Button size="sm" className="h-7 text-xs" onClick={() => useBin(suggestion.primary!.binId, suggestion.primary!.binCode)}>Accept</Button>}
+                  </div>
+                </div>
+                {suggestion.alternates.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    <div className="text-[9px] uppercase tracking-wide text-muted-foreground">Alternates</div>
+                    {suggestion.alternates.map((alt) => (
+                      <div key={alt.binId} className="flex items-center justify-between gap-2 rounded border border-border/60 bg-background/30 px-2.5 py-1.5">
+                        <div className="min-w-0">
+                          <span className="font-mono text-xs text-foreground">{alt.binCode}</span>
+                          <span className="text-[10px] text-muted-foreground ml-2 truncate">{alt.reason}</span>
+                        </div>
+                        <Button size="sm" variant="ghost" className="h-6 text-[11px] px-2 shrink-0" onClick={() => useBin(alt.binId, alt.binCode)}>Use</Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="text-[9px] text-muted-foreground mt-2">{suggestion.note}</div>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Details grid */}
         <div className="grid grid-cols-2 gap-2">
