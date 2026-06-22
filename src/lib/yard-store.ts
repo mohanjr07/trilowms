@@ -4,6 +4,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useInboundStore } from "@/lib/inbound-store";
 
 export type YardTruckStatus = "GATE_IN" | "WAITING" | "DOCKING" | "DOCKED_IN" | "DOCKED_OUT" | "LOADING" | "UNLOADING" | "LOADED" | "GATE_OUT" | "DEPARTED";
 export type DockStatus = "AVAILABLE" | "OCCUPIED_IN" | "OCCUPIED_OUT" | "MAINTENANCE" | "RESERVED";
@@ -191,6 +192,26 @@ export const useYardStore = create<YardState>()(
 
       gateIn: (data) => {
         const truck: YardTruck = { ...data, id: `TRK-Y${Date.now()}`, gateInTime: new Date().toISOString(), dwellMinutes: 0, dwellAlert: false };
+        // Inbound trucks register an arrival in the Inbound module so receiving sees them.
+        if (truck.direction === "INBOUND") {
+          const inbound = useInboundStore.getState();
+          if (truck.asnId) {
+            inbound.updateAsnStatus(truck.asnId, "ARRIVED");
+          } else {
+            const asn = inbound.createAsn({
+              status: "PENDING",
+              vendor: truck.carrier, vendorCode: truck.carrier.slice(0, 4).toUpperCase(),
+              poNumbers: [], carrierName: truck.carrier, truckNumber: truck.truckNumber, trailerNumber: truck.plateNumber,
+              dockId: null, dockCode: null, scheduledArrival: truck.gateInTime ?? new Date().toISOString(),
+              actualArrival: new Date().toISOString(), completedAt: null, priority: truck.priority,
+              totalLines: 0, totalUnits: 0, receivedUnits: 0, notes: `Gate-in from yard · ${truck.truckNumber}`,
+              createdBy: "Yard Gate", warehouseId: "WH-01", temperatureRequired: false, hazmat: truck.hazmat,
+              palletCount: 0, grossWeight: 0,
+            });
+            inbound.updateAsnStatus(asn.id, "ARRIVED");
+            truck.asnId = asn.id;   // link back
+          }
+        }
         set((s) => ({ trucks: [truck, ...s.trucks] }));
         return truck;
       },
@@ -206,6 +227,10 @@ export const useYardStore = create<YardState>()(
       assignDock: (truckId, dockId) => {
         const dock = get().docks.find((d) => d.id === dockId);
         if (!dock) return;
+        const truck = get().trucks.find((t) => t.id === truckId);
+        if (truck?.direction === "INBOUND" && truck.asnId) {
+          useInboundStore.getState().updateAsnStatus(truck.asnId, "DOCKED");
+        }
         set((s) => ({
           trucks: s.trucks.map((t) =>
             t.id === truckId
