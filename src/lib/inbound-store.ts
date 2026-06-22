@@ -5,6 +5,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useQCStore } from "@/lib/qc-store";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -553,12 +554,19 @@ export const useInboundStore = create<InboundState>()(
       },
 
       putawayReadyLines: () => {
+        const activeHolds = useQCStore.getState().holds.filter((h) => h.status !== "RESOLVED");
+        // A hold blocks a line if it matches on SKU, and additionally on lot when the
+        // hold specifies one (a lot-specific hold shouldn't block other lots of the
+        // same SKU; a SKU-wide hold with no lot blocks every lot of that SKU).
+        const isHeld = (skuCode: string, lotNumber: string | null) =>
+          activeHolds.some((h) => h.skuCode === skuCode && (!h.lotNumber || h.lotNumber === lotNumber));
+
         const out: { line: AsnLine; asnNumber: string; sourceDock: string | null }[] = [];
         for (const a of get().asns) {
           if (!["PARTIAL", "RECEIVED", "DISCREPANCY", "CLOSED"].includes(a.status)) continue;
           for (const l of a.lines) {
             const good = l.receivedQty - l.damagedQty - l.rejectedQty;
-            if (l.status === "RECEIVED" && good > 0) {
+            if (l.status === "RECEIVED" && good > 0 && !isHeld(l.skuCode, l.lotNumber)) {
               out.push({ line: l, asnNumber: a.asnNumber, sourceDock: a.dockCode ?? null });
             }
           }
