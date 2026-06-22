@@ -415,6 +415,7 @@ function OrderDrawer({ orderId, onClose }: { orderId: string | null; onClose: ()
 
   const pct = order.totalUnits > 0 ? Math.round((order.allocatedUnits / order.totalUnits) * 100) : 0;
   const hasConflict = order.lines.some((l) => l.allocStatus === "PARTIAL") || order.status === "EXCEPTION";
+  const hasBackorder = order.lines.some((l) => l.backordered);
   const flowIdx = TIMELINE.indexOf(order.status === "EXCEPTION" ? "ALLOCATED" : order.status);
   const next: Record<string, OrderStatus> = { PICKING: "PACKED", PACKED: "SHIPPED", SHIPPED: "DELIVERED" };
 
@@ -463,6 +464,13 @@ function OrderDrawer({ orderId, onClose }: { orderId: string | null; onClose: ()
           </div>
         )}
 
+        {!hasConflict && hasBackorder && (
+          <div className="rounded-md border border-orange-500/30 bg-orange-500/5 p-3">
+            <div className="flex items-center gap-2 text-orange-400 text-sm font-medium"><AlertTriangle className="h-4 w-4" /> Allocated against backorder</div>
+            <div className="text-[11px] text-muted-foreground mt-1">No on-hand stock yet for one or more lines — committed as a backorder so the order can move forward. It will need stock received via Inbound → Putaway before it can actually be picked.</div>
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-2">
           {order.status === "NEW" && <Button size="sm" className="h-8 text-xs gap-1" onClick={() => autoAllocate(order.id)}><Zap className="h-3.5 w-3.5" /> Auto-allocate</Button>}
           {order.status === "ALLOCATED" && <Button size="sm" className="h-8 text-xs gap-1" onClick={releaseToPicking}><Send className="h-3.5 w-3.5" /> Release to picking</Button>}
@@ -489,11 +497,14 @@ function OrderDrawer({ orderId, onClose }: { orderId: string | null; onClose: ()
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap"><span className="text-[10px] font-mono text-muted-foreground">#{l.lineNo}</span><span className="font-mono text-xs text-primary">{l.skuCode}</span><span className="text-xs text-muted-foreground truncate">{l.skuName}</span></div>
                     <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-[11px] text-muted-foreground font-mono">
-                      <span>Avail {l.availableQty}</span>
+                      <span>On-hand {l.availableQty}</span>
                       <span>Bin {l.binCode ?? "—"}</span>
                     </div>
                   </div>
-                  <AllocTag s={l.allocStatus} />
+                  <div className="flex items-center gap-1.5">
+                    {l.backordered && <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold border tracking-wide text-orange-400 bg-orange-500/10 border-orange-500/30">Backordered</span>}
+                    <AllocTag s={l.allocStatus} />
+                  </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 mt-2.5 text-center">
                   <div className="rounded border border-border/60 bg-background/30 py-1.5"><div className="text-[9px] uppercase tracking-wide text-muted-foreground">Requested</div><div className="text-sm font-bold font-mono tabular-nums">{l.requestedQty} <span className="text-[9px] text-muted-foreground font-normal">{l.uom}</span></div></div>
@@ -501,7 +512,7 @@ function OrderDrawer({ orderId, onClose }: { orderId: string | null; onClose: ()
                   <div className="rounded border border-border/60 bg-background/30 py-1.5"><div className="text-[9px] uppercase tracking-wide text-muted-foreground">Open</div><div className={cn("text-sm font-bold font-mono tabular-nums", l.requestedQty - l.allocatedQty > 0 ? "text-amber-400" : "")}>{l.requestedQty - l.allocatedQty}</div></div>
                 </div>
                 {order.status === "NEW" && l.allocStatus !== "ALLOCATED" && (
-                  <Button size="sm" variant="outline" className="h-7 text-xs w-full mt-2" onClick={() => setLineAllocation(order.id, l.id, Math.min(l.requestedQty, l.availableQty), "PICK-FACE")}>Reserve this line</Button>
+                  <Button size="sm" variant="outline" className="h-7 text-xs w-full mt-2" onClick={() => setLineAllocation(order.id, l.id, l.requestedQty, l.binCode ?? "PICK-FACE")}>Reserve this line</Button>
                 )}
               </div>
             ))}
