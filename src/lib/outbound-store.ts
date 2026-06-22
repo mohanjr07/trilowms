@@ -5,6 +5,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { usePackingStore } from "@/lib/packing-store";
+import { useOrdersStore } from "@/lib/orders-store";
 
 export type ShipmentStatus = "PLANNED" | "STAGED" | "LOADING" | "LOADED" | "DISPATCHED" | "IN_TRANSIT" | "DELIVERED" | "EXCEPTION" | "RETURNED";
 
@@ -12,6 +13,7 @@ export interface ShipmentOrder {
   id: string;
   orderId: string;
   sourceOrderId: string;
+  realSourceOrderId: string; // the true orders-store order id (sourceOrderId here is the pack order's id)
   cartons: number;
   pallets: number;
   weight: number;
@@ -109,11 +111,18 @@ export const useOutboundStore = create<OutboundState>()(
       pageSize: 15,
 
       updateStatus: (id, status, extra = {}) => {
+        const sh = get().shipments.find((s) => s.id === id);
         set((s) => ({
           shipments: s.shipments.map((sh) =>
             sh.id === id ? { ...sh, ...extra, status, actualDispatch: status === "DISPATCHED" ? new Date().toISOString() : sh.actualDispatch } : sh
           ),
         }));
+        if (sh && (status === "DISPATCHED" || status === "DELIVERED") && sh.status !== status) {
+          try {
+            const ord = useOrdersStore.getState();
+            sh.orders.forEach((o) => ord.syncStatusFromFulfillment(o.realSourceOrderId, status === "DISPATCHED" ? "SHIPPED" : "DELIVERED"));
+          } catch { /* orders handoff best-effort */ }
+        }
       },
 
       syncFromPacking: () => {
@@ -141,6 +150,7 @@ export const useOutboundStore = create<OutboundState>()(
               id: `so-${now}-${i}`,
               orderId: o.orderNumber,
               sourceOrderId: o.id,
+              realSourceOrderId: o.sourceOrderId,
               cartons,
               pallets,
               weight: Math.round(o.totalWeight),
@@ -197,6 +207,12 @@ export const useOutboundStore = create<OutboundState>()(
           const pk = usePackingStore.getState() as unknown as { dispatchOrder?: (oid: string) => void };
           sh.orders.forEach((o) => pk.dispatchOrder?.(o.sourceOrderId));
         } catch { /* packing handoff best-effort */ }
+        // close the loop all the way: the real sales order is now actually shipped —
+        // this is the final link that was missing between Orders and dispatch.
+        try {
+          const ord = useOrdersStore.getState();
+          sh.orders.forEach((o) => ord.syncStatusFromFulfillment(o.realSourceOrderId, "SHIPPED"));
+        } catch { /* orders handoff best-effort */ }
         return true;
       },
 
