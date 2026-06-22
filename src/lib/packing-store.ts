@@ -9,6 +9,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useConsolidationStore } from "@/lib/consolidation-store";
+import { useOrdersStore } from "@/lib/orders-store";
 
 export type PackStationStatus = "IDLE" | "ACTIVE" | "PAUSED" | "MAINTENANCE";
 export type PackOrderStatus = "QUEUED" | "ASSIGNED" | "PACKING" | "PACKED" | "LABELLED" | "MANIFESTED" | "DISPATCHED" | "EXCEPTION";
@@ -61,6 +62,7 @@ export interface Carton {
 export interface PackOrder {
   id: string;
   orderNumber: string;
+  sourceOrderId: string;    // the real orders-store order id this pack order traces back to
   sourceLaneId: string;     // the Consolidation lane this order was synced from (dedupe key)
   stationId: string | null;
   stationCode: string | null;
@@ -172,6 +174,7 @@ export const usePackingStore = create<PackingState>()(
       // synced into a pack order yet. Real lines, real wave, real carrier.
       syncFromConsolidation: () => {
         const { lanes } = useConsolidationStore.getState();
+        const { orders: sourceOrders } = useOrdersStore.getState();
         const { orders } = get();
         const existingLaneIds = new Set(orders.map((o) => o.sourceLaneId));
         const eligible = lanes.filter((l) => l.status === "MOVED_TO_PACKING" && !existingLaneIds.has(l.id));
@@ -191,31 +194,35 @@ export const usePackingStore = create<PackingState>()(
               weight: 0,
             }));
           const totalUnits = lines.reduce((s, l) => s + l.qtyRequired, 0);
+          // lane.orderId is the orders-store internal id — look up the real order for
+          // customer/shipping/carrier instead of leaking the raw id into those fields.
+          const sourceOrder = sourceOrders.find((o) => o.id === lane.orderId);
 
           return {
             id: `PACK-${lane.orderId}`,
-            orderNumber: lane.orderId,
+            orderNumber: sourceOrder?.orderNumber ?? lane.orderId,
+            sourceOrderId: lane.orderId,
             sourceLaneId: lane.id,
             stationId: null,
             stationCode: null,
             status: "QUEUED" as PackOrderStatus,
-            priority: "STANDARD" as PackPriority,
-            carrier: "—",
-            serviceLevel: SERVICE_LEVEL_BY_PRIORITY.STANDARD,
+            priority: sourceOrder?.priority === "RUSH" ? "RUSH" as PackPriority : "STANDARD" as PackPriority,
+            carrier: sourceOrder?.carrier ?? "—",
+            serviceLevel: SERVICE_LEVEL_BY_PRIORITY[sourceOrder?.priority === "RUSH" ? "RUSH" : "STANDARD"],
             lines,
             totalLines: lines.length,
             totalUnits,
             packedUnits: 0,
             cartons: [],
             totalWeight: 0,
-            shippingAddress: "Awaiting shipping details",
-            customer: lane.orderId,
+            shippingAddress: sourceOrder?.shipToAddress ?? "Awaiting shipping details",
+            customer: sourceOrder?.customer ?? "Unknown customer",
             waveId: lane.waveId,
             packingSlip: null,
             createdAt: now,
             startedAt: null,
             completedAt: null,
-            dueBy: lane.movedAt ?? now,
+            dueBy: sourceOrder?.dueBy ?? lane.movedAt ?? now,
             notes: lane.hasShortage ? "Consolidated with shortage — verify before pack" : null,
           };
         });
@@ -296,6 +303,7 @@ export const usePackingStore = create<PackingState>()(
 
       // Closes a carton once weighed — captures real weight/dims, no estimate.
       closeCarton: (orderId, cartonId, weightKg, dims) => {
+        let justPackedSourceOrderId: string | null = null;
         set((s) => ({
           orders: s.orders.map((o) => {
             if (o.id !== orderId) return o;
@@ -317,6 +325,7 @@ export const usePackingStore = create<PackingState>()(
             const allLinesPacked = o.lines.every((l) => l.qtyPacked >= l.qtyRequired);
             const allCartonsClosed = cartons.every((c) => c.status !== "OPEN");
             const status: PackOrderStatus = allLinesPacked && allCartonsClosed ? "PACKED" : o.status;
+            if (status === "PACKED" && o.status !== "PACKED") justPackedSourceOrderId = o.sourceOrderId;
             return {
               ...o,
               cartons,
@@ -327,16 +336,24 @@ export const usePackingStore = create<PackingState>()(
             };
           }),
         }));
+        if (justPackedSourceOrderId) {
+          useOrdersStore.getState().syncStatusFromFulfillment(justPackedSourceOrderId, "PACKED");
+        }
       },
 
       completeOrder: (orderId) => {
+        const wasPacked = get().orders.find((o) => o.id === orderId)?.status === "PACKED";
+        let sourceOrderId: string | null = null;
         set((s) => ({
-          orders: s.orders.map((o) =>
-            o.id === orderId
-              ? { ...o, status: "PACKED" as PackOrderStatus, packingSlip: o.packingSlip ?? nextPackingSlip(), completedAt: new Date().toISOString() }
-              : o
-          ),
+          orders: s.orders.map((o) => {
+            if (o.id !== orderId) return o;
+            if (o.status !== "PACKED") sourceOrderId = o.sourceOrderId;
+            return { ...o, status: "PACKED" as PackOrderStatus, packingSlip: o.packingSlip ?? nextPackingSlip(), completedAt: new Date().toISOString() };
+          }),
         }));
+        if (!wasPacked && sourceOrderId) {
+          useOrdersStore.getState().syncStatusFromFulfillment(sourceOrderId, "PACKED");
+        }
       },
 
       labelCarton: (orderId, cartonId, trackingNumber) => {
