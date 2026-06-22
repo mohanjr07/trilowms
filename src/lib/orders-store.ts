@@ -94,6 +94,7 @@ interface OrdersState {
   setLineAllocation: (orderId: string, lineId: string, allocatedQty: number, binCode?: string) => void;
   bulkAllocate: (ids: string[]) => void;
   updateStatus: (orderId: string, status: OrderStatus) => void;
+  syncStatusFromFulfillment: (orderId: string, status: OrderStatus) => void;
   linkPickWave: (orderId: string, waveNumber: string) => void;
   cancelOrder: (orderId: string) => void;
   selectOrder: (id: string | null) => void;
@@ -274,6 +275,26 @@ export const useOrdersStore = create<OrdersState>()(
           return { ...o, status: "PICKING" as OrderStatus, pickWaveNumber: waveNumber, stages: [...o.stages, { status: "PICKING" as OrderStatus, ts: now }] };
         }),
       })),
+
+      // Called by downstream modules (Picking, Packing, Outbound) when real fulfillment
+      // progress happens, so the order record reflects what actually happened on the
+      // floor instead of only moving when someone clicks "Advance to..." by hand.
+      // Forward-only: never rewinds an order, never touches terminal/cancelled/exception
+      // states, and is a no-op if the order is already at or past the target stage.
+      syncStatusFromFulfillment: (orderId, status) => set((s) => {
+        const FORWARD_ORDER: OrderStatus[] = ["NEW", "ALLOCATED", "PICKING", "PACKED", "SHIPPED", "DELIVERED"];
+        return {
+          orders: s.orders.map((o) => {
+            if (o.id !== orderId) return o;
+            if (["CANCELLED", "EXCEPTION"].includes(o.status)) return o;
+            const curIdx = FORWARD_ORDER.indexOf(o.status);
+            const nextIdx = FORWARD_ORDER.indexOf(status);
+            if (curIdx === -1 || nextIdx === -1 || nextIdx <= curIdx) return o;
+            const now = new Date().toISOString();
+            return { ...o, status, stages: [...o.stages, { status, ts: now }] };
+          }),
+        };
+      }),
 
       cancelOrder: (orderId) => {
         const o = get().orders.find((x) => x.id === orderId);
