@@ -23,6 +23,7 @@ const ALL_MODULES: { to: string; label: string; icon: typeof LayoutDashboard; hi
   { to: "/orders",   label: "Orders",            icon: ClipboardList },
   { to: "/inbound",  label: "Inbound",           icon: ArrowDownToLine },
   { to: "/putaway",  label: "Putaway",           icon: PackageOpen },
+  { to: "/scan-putaway", label: "Scan Putaway", icon: ScanLine, highlight: true },
   { to: "/picking",       label: "Picking",        icon: PackageSearch },
   { to: "/scan-pick", label: "Scan Pick", icon: ScanLine, highlight: true },
   { to: "/consolidation", label: "Consolidation", icon: Combine },
