@@ -493,14 +493,26 @@ export const usePickingStore = create<PickingState>()(
             shortages: [...s.shortages, shortage],
             waves: s.waves.map((w) => {
               if (w.id !== waveId) return w;
+              const tasks = w.tasks.map((t) =>
+                t.id === taskId
+                  ? { ...t, qtyPicked: qtyAvailable, status: "SHORT" as PickTaskStatus, qtyShort: task.qtyRequired - qtyAvailable, shortReason: reason }
+                  : t
+              );
+              // Recompute wave status exactly like pickTask does — a task resolved via
+              // "Report short" still counts as settled for the wave's purposes. Without
+              // this, a wave whose only remaining task gets shorted (rather than picked)
+              // stays stuck at RELEASED/IN_PROGRESS forever and never reaches Consolidation.
+              const allSettled = tasks.every((t) => ["PICKED", "SHORT", "SKIPPED"].includes(t.status));
+              const anySettled = tasks.some((t) => t.qtyPicked > 0 || t.status === "SHORT" || t.status === "SKIPPED");
+              const pickedUnits = tasks.reduce((sum, t) => sum + t.qtyPicked, 0);
+              const allShort = tasks.every((t) => t.status === "SHORT");
               return {
                 ...w,
+                tasks,
+                pickedUnits,
                 shortUnits: w.shortUnits + (task.qtyRequired - qtyAvailable),
-                tasks: w.tasks.map((t) =>
-                  t.id === taskId
-                    ? { ...t, qtyPicked: qtyAvailable, status: "SHORT" as PickTaskStatus, qtyShort: task.qtyRequired - qtyAvailable, shortReason: reason }
-                    : t
-                ),
+                status: allSettled ? (allShort ? "SHORTED" as WaveStatus : "COMPLETED" as WaveStatus) : anySettled ? "IN_PROGRESS" as WaveStatus : w.status,
+                completedAt: allSettled ? new Date().toISOString() : w.completedAt,
               };
             }),
           };
