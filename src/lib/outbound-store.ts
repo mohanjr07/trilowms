@@ -302,7 +302,7 @@ export const useOutboundStore = create<OutboundState>()(
           .sort((a, b) => a.scheduledDispatch.localeCompare(b.scheduledDispatch)),
     }),
     {
-      name: "trilowms-outbound-v2",
+      name: "trilowms-outbound-v3",
       partialize: (s) => ({ shipments: s.shipments }),
     }
   )
