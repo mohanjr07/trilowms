@@ -840,7 +840,6 @@ function AsnDetailDrawer({ asnId, onClose }: { asnId: string | null; onClose: ()
           </div>
           <div className="text-sm text-muted-foreground mt-1">{asn.vendor} · {asn.carrierName}</div>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose} className="shrink-0"><X className="h-4 w-4" /></Button>
       </div>
 
       {/* Summary + progress */}
