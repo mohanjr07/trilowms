@@ -465,7 +465,6 @@ function EmployeeDrawer({ empId, onClose }: { empId: string | null; onClose: () 
               <div className="text-sm text-muted-foreground mt-0.5">{emp.role} · {emp.department} · <span className="font-mono">{emp.employeeId}</span></div>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="shrink-0"><X className="h-4 w-4" /></Button>
         </div>
       </div>
 
