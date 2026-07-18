@@ -497,7 +497,6 @@ function TaskDetailDrawer({ taskId, onClose }: { taskId: string | null; onClose:
           </div>
           <div className="text-sm text-muted-foreground mt-1">{task.skuName}</div>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose} className="shrink-0"><X className="h-4 w-4" /></Button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-5 space-y-4">
