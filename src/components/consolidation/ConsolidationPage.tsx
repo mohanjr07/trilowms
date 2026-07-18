@@ -542,7 +542,6 @@ function LaneDetailDrawer({ laneId, onClose }: { laneId: string | null; onClose:
           </div>
           <div className="text-sm text-muted-foreground mt-1">{lane.orderId} · Wave {lane.waveNumber}</div>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose} className="shrink-0"><X className="h-4 w-4" /></Button>
       </div>
 
       <div className="p-5 border-b border-border space-y-3">
