@@ -643,7 +643,6 @@ function WaveDetailDrawer({ waveId, onClose }: { waveId: string | null; onClose:
           </div>
           <div className="text-sm text-muted-foreground mt-1">{wave.carrier} · Bay {wave.packingBay} · Due {fmtDateTime(wave.dueBy)}</div>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose} className="shrink-0"><X className="h-4 w-4" /></Button>
       </div>
 
       <div className="p-5 border-b border-border space-y-3">
