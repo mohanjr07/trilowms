@@ -3,7 +3,7 @@
  */
 
 import { useState } from "react";
-import { Settings, Users, Shield, Warehouse, Key, ChevronRight, X, Eye, EyeOff } from "lucide-react";
+import { Settings, Users, Shield, Warehouse, Key, ChevronRight, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -41,7 +41,6 @@ function UserDetail({ user, onClose }: { user: DemoUser; onClose: () => void }) 
             <div className="text-xs text-muted-foreground">{user.email}</div>
           </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose}><X className="h-4 w-4" /></Button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
