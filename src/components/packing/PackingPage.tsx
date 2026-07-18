@@ -615,7 +615,6 @@ function OrderDetailDrawer({ orderId, onClose }: { orderId: string | null; onClo
           </div>
           <div className="text-sm text-muted-foreground mt-1">{order.customer} · {order.carrier} {order.serviceLevel}</div>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose} className="shrink-0"><X className="h-4 w-4" /></Button>
       </div>
 
       <div className="p-5 border-b border-border space-y-3">
