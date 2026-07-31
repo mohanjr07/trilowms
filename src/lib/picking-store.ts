@@ -7,6 +7,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useStockStore } from "@/lib/stock-store";
 import { useInvBinStore } from "@/lib/inventory-bin-store";
+import { useLaborStore } from "@/lib/labor-store";
 
 export type WaveStatus = "DRAFT" | "RELEASED" | "IN_PROGRESS" | "PARTIAL" | "COMPLETED" | "CANCELLED" | "SHORTED";
 export type PickTaskStatus = "PENDING" | "ASSIGNED" | "IN_PROGRESS" | "PICKED" | "SHORT" | "SUBSTITUTED" | "SKIPPED";
@@ -283,18 +284,20 @@ function realLocationFor(skuCode: string, idx: number) {
   return { binId: `bin-synthetic-${idx}`, binCode: loc.binCode, zone: loc.zone, aisle: loc.aisle, rack: loc.rack, level: loc.level };
 }
 
-/** Round-robins new work to whichever picker currently has the fewest open tasks. */
+/** Round-robins new work to whichever clocked-in employee currently has the fewest open pick tasks. */
 function leastLoadedPicker(waves: Wave[]): { id: string; name: string } {
+  const roster = useLaborStore.getState().employees.filter((e) => e.status === "CLOCKED_IN");
+  const candidates = roster.length > 0 ? roster.map((e) => ({ id: e.id, name: e.name })) : PICKERS;
   const openStatuses: PickTaskStatus[] = ["PENDING", "ASSIGNED", "IN_PROGRESS"];
-  const load = new Map<string, number>(PICKERS.map((p) => [p.id, 0]));
+  const load = new Map<string, number>(candidates.map((p) => [p.id, 0]));
   for (const w of waves) {
     for (const t of w.tasks) {
-      if (t.assignedPickerId && openStatuses.includes(t.status)) {
+      if (t.assignedPickerId && openStatuses.includes(t.status) && load.has(t.assignedPickerId)) {
         load.set(t.assignedPickerId, (load.get(t.assignedPickerId) ?? 0) + 1);
       }
     }
   }
-  return PICKERS.reduce((best, p) => ((load.get(p.id) ?? 0) < (load.get(best.id) ?? 0) ? p : best), PICKERS[0]);
+  return candidates.reduce((best, p) => ((load.get(p.id) ?? 0) < (load.get(best.id) ?? 0) ? p : best), candidates[0]);
 }
 
 export interface WaveSourceLine { skuCode: string; skuName: string; uom: string; qty: number; }
@@ -458,6 +461,8 @@ export const usePickingStore = create<PickingState>()(
           sourceOrderId: input.sourceOrderId,
         };
         set((s) => ({ waves: [wave, ...s.waves] }));
+        // Reflect the assignment on the employee's record in Labor Management too.
+        useLaborStore.getState().assignTask(picker.id, "PICKING", waveId, wave.zones[0] ?? "Fast Pick");
         return wave;
       },
 
