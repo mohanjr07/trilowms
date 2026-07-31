@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { type SKU, useSkuStore } from "@/lib/sku-store";
+import { useStockStore } from "@/lib/stock-store";
 import { StatusBadge } from "@/components/wms/Primitives";
 
 interface Props {
@@ -98,8 +99,23 @@ function MenuItem({
 
 export function SkuTable({ onView, onEdit, onDelete, readOnly }: Props) {
   const { pagedSkus, filteredSkus, sortKey, sortDir, setSort, page, pageSize, totalPages, setPage, setPageSize } = useSkuStore();
+  // Live stock ledger — same source of truth as Stock Levels / Putaway / Picking,
+  // instead of the static seed numbers on the SKU record.
+  const stockBySkuCode = useStockStore((s) => s.stock);
+  const availableFor = (skuCode: string) => {
+    const rec = stockBySkuCode[skuCode];
+    return rec ? Math.max(0, rec.onHand - rec.reserved) : 0;
+  };
 
-  const rows = pagedSkus();
+  let rows = pagedSkus();
+  // "Available" now renders the live ledger value rather than the SKU's static
+  // seed field, so when sorted by that column, re-sort the visible page by the
+  // same live numbers to keep order and displayed value in sync.
+  if (sortKey === "available") {
+    rows = [...rows].sort((a, b) =>
+      sortDir === "asc" ? availableFor(a.skuCode) - availableFor(b.skuCode) : availableFor(b.skuCode) - availableFor(a.skuCode)
+    );
+  }
   const total = filteredSkus().length;
   const pages = totalPages();
 
@@ -156,12 +172,13 @@ export function SkuTable({ onView, onEdit, onDelete, readOnly }: Props) {
     {
       key: "available", label: "AVAIL.", sortable: true, w: "80px",
       render: (r) => {
-        const low = (r.available ?? 0) < (r.reorderLevel ?? 100);
+        const avail = availableFor(r.skuCode);
+        const low = avail < (r.reorderLevel ?? 100);
         return (
           <div className="flex items-center gap-1">
             {low && <AlertTriangle className="h-3 w-3 text-warning flex-shrink-0" />}
             <span className={cn("text-mono font-bold text-xs", low ? "text-warning" : "text-success")}>
-              {(r.available ?? 0).toLocaleString()}
+              {avail.toLocaleString()}
             </span>
           </div>
         );
