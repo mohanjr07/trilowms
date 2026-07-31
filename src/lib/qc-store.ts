@@ -4,6 +4,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useLaborStore } from "@/lib/labor-store";
 
 export type InspectionStatus = "QUEUED" | "IN_PROGRESS" | "PASSED" | "FAILED" | "CONDITIONAL_PASS" | "PENDING_REVIEW" | "SAMPLED" | "HOLD" | "DISPOSED";
 export type DispositionType = "ACCEPT" | "REJECT" | "REWORK" | "RETURN_TO_VENDOR" | "SCRAP" | "QUARANTINE" | "CONDITIONAL_RELEASE";
@@ -193,6 +194,19 @@ interface QCState {
   page: number;
   pageSize: number;
 
+  // Opens a new inspection — called by other modules (currently: Inbound on receipt)
+  // rather than only being seed data, and auto-assigns a real QC inspector from Labor.
+  createInspection: (input: {
+    type: QCInspection["type"];
+    skuCode: string;
+    skuName: string;
+    sampleSize: number;
+    lotNumber?: string | null;
+    batchNumber?: string | null;
+    expiryDate?: string | null;
+    sourceRef?: string | null;
+    binCode?: string | null;
+  }) => QCInspection;
   startInspection: (id: string) => void;
   updateCheckpoint: (inspId: string, cpId: string, result: "PASS" | "FAIL" | "N/A", value?: string, notes?: string) => void;
   completeInspection: (id: string, disposition: DispositionType, findings: string) => void;
@@ -212,6 +226,29 @@ interface QCState {
   inspectorList: () => string[];
 }
 
+let _qcSeq = 1000;
+function nextInspectionId() {
+  return `QC-${++_qcSeq}`;
+}
+
+/** Least-loaded clocked-in QC inspector (falls back to any clocked-in employee, then the seed roster). */
+function pickInspector(inspections: QCInspection[]): { id: string; name: string } {
+  const roster = useLaborStore.getState().employees.filter((e) => e.status === "CLOCKED_IN");
+  const candidates = (roster.filter((e) => e.role === "QC Inspector").length > 0
+    ? roster.filter((e) => e.role === "QC Inspector")
+    : roster
+  ).map((e) => ({ id: e.id, name: e.name }));
+  if (candidates.length === 0) return INSPECTORS[0];
+  const openStatuses: InspectionStatus[] = ["QUEUED", "IN_PROGRESS"];
+  const load = new Map<string, number>(candidates.map((c) => [c.id, 0]));
+  for (const i of inspections) {
+    if (openStatuses.includes(i.status) && load.has(i.inspectorId)) {
+      load.set(i.inspectorId, (load.get(i.inspectorId) ?? 0) + 1);
+    }
+  }
+  return candidates.reduce((best, c) => ((load.get(c.id) ?? 0) < (load.get(best.id) ?? 0) ? c : best), candidates[0]);
+}
+
 export const useQCStore = create<QCState>()(
   persist(
     (set, get) => ({
@@ -220,6 +257,47 @@ export const useQCStore = create<QCState>()(
       filters: DEFAULT_FILTERS,
       page: 1,
       pageSize: 15,
+
+      createInspection: (input) => {
+        const inspector = pickInspector(get().inspections);
+        const template = CHECKPOINT_TEMPLATES[get().inspections.length % CHECKPOINT_TEMPLATES.length];
+        const id = nextInspectionId();
+        const now = new Date().toISOString();
+        const inspection: QCInspection = {
+          id,
+          inspectionNumber: id,
+          type: input.type,
+          status: "QUEUED",
+          skuCode: input.skuCode,
+          skuName: input.skuName,
+          lotNumber: input.lotNumber ?? null,
+          batchNumber: input.batchNumber ?? null,
+          expiryDate: input.expiryDate ?? null,
+          sampleSize: input.sampleSize,
+          inspectedQty: 0,
+          passedQty: 0,
+          failedQty: 0,
+          defectCount: 0,
+          defectRate: 0,
+          aqlLevel: "AQL_2_5",
+          disposition: null,
+          inspectorId: inspector.id,
+          inspectorName: inspector.name,
+          sourceRef: input.sourceRef ?? null,
+          binCode: input.binCode ?? null,
+          checkpoints: template.map((cp, j) => ({ ...cp, id: `${cp.id}-${id}-${j}`, result: null, value: null, notes: null })),
+          findings: null,
+          images: [],
+          createdAt: now,
+          startedAt: null,
+          completedAt: null,
+          reviewedBy: null,
+          reviewedAt: null,
+        };
+        set((s) => ({ inspections: [inspection, ...s.inspections] }));
+        useLaborStore.getState().assignTask(inspector.id, "QC", id, "QC");
+        return inspection;
+      },
 
       startInspection: (id) => {
         set((s) => ({
