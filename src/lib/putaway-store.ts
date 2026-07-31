@@ -8,6 +8,7 @@ import { persist } from "zustand/middleware";
 import { useInboundStore } from "@/lib/inbound-store";
 import { useStockStore } from "@/lib/stock-store";
 import { useSlottingStore } from "@/lib/slotting-store";
+import { useInvBinStore } from "@/lib/inventory-bin-store";
 
 export type PutawayStatus = "PENDING" | "ASSIGNED" | "IN_PROGRESS" | "COMPLETED" | "BLOCKED" | "CANCELLED";
 export type PutawayStrategy = "FIXED" | "DIRECTED" | "CHAOTIC" | "ZONE_BASED" | "FEFO" | "FIFO";
@@ -321,7 +322,12 @@ export const usePutawayStore = create<PutawayState>()(
               : t
           ),
         }));
-        if (t) useStockStore.getState().addStock(t.skuCode, t.skuName, t.quantity, actualBinCode);
+        if (t) {
+          useStockStore.getState().addStock(t.skuCode, t.skuName, t.quantity, actualBinCode);
+          // Reflect the physical put into the bin map / heatmap too, so Inventory & Bins
+          // shows the same movement instead of its own disconnected seed data.
+          useInvBinStore.getState().depositToBin(actualBinCode, t.skuCode, t.skuName, t.quantity);
+        }
       },
 
       blockTask: (taskId, reason) => {
