@@ -467,7 +467,7 @@ function DetailRow({ icon: Icon, label, value, accent }: { icon: typeof Hash; la
 
 function TaskDetailDrawer({ taskId, onClose }: { taskId: string | null; onClose: () => void }) {
   const task = usePutawayStore((s) => s.tasks.find((t) => t.id === taskId)) ?? null;
-  const { assignOperator, startTask, completeTask, blockTask, cancelTask, overrideBin } = usePutawayStore();
+  const { autoAssignOperator, startTask, completeTask, blockTask, cancelTask, overrideBin } = usePutawayStore();
   const suggestion = useSlottingStore((s) => (taskId ? s.suggestions[taskId] : null)) ?? null;
   const suggestFor = useSlottingStore((s) => s.suggestFor);
   const logOverride = useSlottingStore((s) => s.logOverride);
@@ -631,7 +631,7 @@ function TaskDetailDrawer({ taskId, onClose }: { taskId: string | null; onClose:
 
       {/* Action footer */}
       <div className="border-t border-border p-4 flex flex-wrap gap-2">
-        {task.status === "PENDING" && <Button size="sm" className="h-8 text-xs gap-1" onClick={() => assignOperator(task.id, "op1", "Tommy Wu")}><User className="h-3.5 w-3.5" /> Assign operator</Button>}
+        {task.status === "PENDING" && <Button size="sm" className="h-8 text-xs gap-1" onClick={() => autoAssignOperator(task.id)}><User className="h-3.5 w-3.5" /> Assign operator</Button>}
         {task.status === "ASSIGNED" && <Button size="sm" className="h-8 text-xs gap-1" onClick={() => startTask(task.id)}><PlayCircle className="h-3.5 w-3.5" /> Start task</Button>}
         {task.status === "IN_PROGRESS" && mode === "none" && (
           <>
