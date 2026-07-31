@@ -5,6 +5,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useStockStore } from "@/lib/stock-store";
+import { useTransactionStore } from "@/lib/transaction-store";
 
 export type RmaStatus = "REQUESTED" | "APPROVED" | "IN_TRANSIT" | "RECEIVED" | "INSPECTING" | "INSPECTED" | "PROCESSING" | "COMPLETED" | "REJECTED" | "CANCELLED";
 export type ReturnReason = "DAMAGED_IN_TRANSIT" | "WRONG_ITEM" | "QUALITY_DEFECT" | "CUSTOMER_CHANGE_MIND" | "OVERSHIPMENT" | "EXPIRED" | "WARRANTY_CLAIM" | "VENDOR_RECALL";
@@ -243,7 +244,17 @@ export const useReturnsStore = create<ReturnsState>()(
           rma.lines.forEach((l) => {
             const qty = l.approvedQty || l.receivedQty;
             if (l.disposition === "RESTOCK" && qty > 0) {
-              stock.addStock(l.skuCode, l.skuName, qty, l.restockBinCode ?? "RETURNS-RESTOCK");
+              const binCode = l.restockBinCode ?? "RETURNS-RESTOCK";
+              stock.addStock(l.skuCode, l.skuName, qty, binCode);
+              useTransactionStore.getState().logMovement({
+                type: "RETURNED",
+                skuCode: l.skuCode,
+                skuName: l.skuName,
+                quantity: qty,
+                destBinCode: binCode,
+                referenceDoc: rma.id,
+                notes: `RMA ${rma.id} restocked (order ${rma.orderId})`,
+              });
             }
           });
         }
