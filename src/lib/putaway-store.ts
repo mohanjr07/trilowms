@@ -10,6 +10,7 @@ import { useStockStore } from "@/lib/stock-store";
 import { useSlottingStore } from "@/lib/slotting-store";
 import { useInvBinStore } from "@/lib/inventory-bin-store";
 import { useLaborStore } from "@/lib/labor-store";
+import { useTransactionStore } from "@/lib/transaction-store";
 
 export type PutawayStatus = "PENDING" | "ASSIGNED" | "IN_PROGRESS" | "COMPLETED" | "BLOCKED" | "CANCELLED";
 export type PutawayStrategy = "FIXED" | "DIRECTED" | "CHAOTIC" | "ZONE_BASED" | "FEFO" | "FIFO";
@@ -354,6 +355,20 @@ export const usePutawayStore = create<PutawayState>()(
           // Reflect the physical put into the bin map / heatmap too, so Inventory & Bins
           // shows the same movement instead of its own disconnected seed data.
           useInvBinStore.getState().depositToBin(actualBinCode, t.skuCode, t.skuName, t.quantity);
+          // Log it in the Transaction ledger so it shows up as real activity.
+          useTransactionStore.getState().logMovement({
+            type: "RECEIVED",
+            skuCode: t.skuCode,
+            skuName: t.skuName,
+            quantity: t.quantity,
+            uom: t.uom,
+            destBinCode: actualBinCode,
+            destZone: t.zone,
+            referenceDoc: t.asnId,
+            batchNumber: t.batchNumber,
+            lotNumber: t.lotNumber,
+            notes: `Putaway task ${t.id} completed`,
+          });
         }
       },
 
