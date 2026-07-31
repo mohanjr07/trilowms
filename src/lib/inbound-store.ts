@@ -413,6 +413,7 @@ export const useInboundStore = create<InboundState>()(
 
       receiveLine: (asnId, lineId, qty, opts = {}) => {
         const { damagedQty = 0, rejectedQty = 0, lotNumber, expiryDate, notes = null, receivedBy = "Current User" } = opts;
+        const lineBefore = get().asns.find((a) => a.id === asnId)?.lines.find((l) => l.id === lineId) ?? null;
         set((s) => {
           const asns = s.asns.map((a) => {
             if (a.id !== asnId) return a;
@@ -448,6 +449,20 @@ export const useInboundStore = create<InboundState>()(
           });
           return { asns };
         });
+        // Every physical receipt gets a QC inspection opened against it — this is the
+        // real trigger for QC activity instead of QC being a disconnected seeded list.
+        if (lineBefore && qty > 0) {
+          useQCStore.getState().createInspection({
+            type: "INBOUND",
+            skuCode: lineBefore.skuCode,
+            skuName: lineBefore.skuName,
+            sampleSize: qty,
+            lotNumber: lotNumber ?? lineBefore.lotNumber,
+            batchNumber: lineBefore.batchNumber,
+            expiryDate: expiryDate ?? lineBefore.expiryDate,
+            sourceRef: asnId,
+          });
+        }
       },
 
       raiseDiscrepancy: (disc) => {
