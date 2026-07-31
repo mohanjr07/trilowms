@@ -177,8 +177,11 @@ interface LaborState {
 export const useLaborStore = create<LaborState>()(
   persist(
     (set, get) => ({
-      employees: [],
-      tasks: [],
+      // Seeded roster/history — unlike the stock ledger, employees aren't created by
+      // another module's workflow, so they need to start populated (same pattern as
+      // the SKU catalog) rather than empty.
+      employees: buildSeedEmployees(),
+      tasks: buildSeedTasks(),
       filters: DEFAULT_FILTERS,
       page: 1,
       pageSize: 20,
