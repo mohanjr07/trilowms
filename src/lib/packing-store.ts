@@ -10,6 +10,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useConsolidationStore } from "@/lib/consolidation-store";
 import { useOrdersStore } from "@/lib/orders-store";
+import { useLaborStore } from "@/lib/labor-store";
 
 export type PackStationStatus = "IDLE" | "ACTIVE" | "PAUSED" | "MAINTENANCE";
 export type PackOrderStatus = "QUEUED" | "ASSIGNED" | "PACKING" | "PACKED" | "LABELLED" | "MANIFESTED" | "DISPATCHED" | "EXCEPTION";
@@ -233,11 +234,27 @@ export const usePackingStore = create<PackingState>()(
 
       assignOrder: (orderId, stationId) => {
         const station = get().stations.find((s) => s.id === stationId);
+        // A station going active needs a real operator manning it — assign the
+        // least-loaded clocked-in employee from Labor the first time it's staffed.
+        let operatorId = station?.operatorId ?? null;
+        let operatorName = station?.operatorName ?? null;
+        if (!operatorId) {
+          const roster = useLaborStore.getState().employees.filter((e) => e.status === "CLOCKED_IN");
+          const stationLoad = new Map<string, number>();
+          for (const st of get().stations) if (st.operatorId) stationLoad.set(st.operatorId, (stationLoad.get(st.operatorId) ?? 0) + 1);
+          const candidates = roster.filter((e) => e.role === "Packer").length > 0 ? roster.filter((e) => e.role === "Packer") : roster;
+          if (candidates.length > 0) {
+            const best = candidates.reduce((b, e) => ((stationLoad.get(e.id) ?? 0) < (stationLoad.get(b.id) ?? 0) ? e : b), candidates[0]);
+            operatorId = best.id;
+            operatorName = best.name;
+            useLaborStore.getState().assignTask(best.id, "PACKING", stationId, "Packing");
+          }
+        }
         set((s) => ({
           orders: s.orders.map((o) =>
             o.id === orderId ? { ...o, stationId, stationCode: station?.code ?? null, status: "ASSIGNED" as PackOrderStatus } : o
           ),
-          stations: s.stations.map((st) => st.id === stationId ? { ...st, currentOrderId: orderId, status: "ACTIVE" as PackStationStatus } : st),
+          stations: s.stations.map((st) => st.id === stationId ? { ...st, currentOrderId: orderId, status: "ACTIVE" as PackStationStatus, operatorId, operatorName } : st),
         }));
       },
 
