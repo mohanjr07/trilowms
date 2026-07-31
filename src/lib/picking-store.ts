@@ -8,6 +8,7 @@ import { persist } from "zustand/middleware";
 import { useStockStore } from "@/lib/stock-store";
 import { useInvBinStore } from "@/lib/inventory-bin-store";
 import { useLaborStore } from "@/lib/labor-store";
+import { useTransactionStore } from "@/lib/transaction-store";
 
 export type WaveStatus = "DRAFT" | "RELEASED" | "IN_PROGRESS" | "PARTIAL" | "COMPLETED" | "CANCELLED" | "SHORTED";
 export type PickTaskStatus = "PENDING" | "ASSIGNED" | "IN_PROGRESS" | "PICKED" | "SHORT" | "SUBSTITUTED" | "SKIPPED";
@@ -478,6 +479,20 @@ export const usePickingStore = create<PickingState>()(
             // Mirror the withdrawal on the bin map so occupancy drops where the pick
             // actually came from.
             useInvBinStore.getState().withdrawFromBin(task.binCode, qtyPicked);
+            // Log the goods issue. No dedicated "picked" type exists in the ledger's
+            // movement taxonomy, so this is recorded as MOVED (out of the bin, no
+            // warehouse destination — it's headed to packing/outbound).
+            useTransactionStore.getState().logMovement({
+              type: "MOVED",
+              skuCode: task.skuCode,
+              skuName: task.skuName,
+              quantity: qtyPicked,
+              uom: task.uom,
+              sourceBinCode: task.binCode,
+              sourceZone: task.zone,
+              referenceDoc: waveId,
+              notes: `Picked for order ${task.orderId} (task ${task.id})`,
+            });
           }
         }
         set((s) => ({
@@ -512,6 +527,17 @@ export const usePickingStore = create<PickingState>()(
           if (qtyAvailable > 0) {
             stock.consume(taskPre.skuCode, qtyAvailable);
             useInvBinStore.getState().withdrawFromBin(taskPre.binCode, qtyAvailable);
+            useTransactionStore.getState().logMovement({
+              type: "MOVED",
+              skuCode: taskPre.skuCode,
+              skuName: taskPre.skuName,
+              quantity: qtyAvailable,
+              uom: taskPre.uom,
+              sourceBinCode: taskPre.binCode,
+              sourceZone: taskPre.zone,
+              referenceDoc: waveId,
+              notes: `Partial pick (short) for order ${taskPre.orderId} (task ${taskPre.id})`,
+            });
           }
           // The remainder was reserved for this task but will never be fulfilled from
           // this bin — release that reservation so it doesn't sit phantom-reserved.
