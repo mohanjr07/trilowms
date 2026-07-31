@@ -6,6 +6,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useTransactionStore } from "@/lib/transaction-store";
 
 export interface StockRecord {
   skuCode: string;
@@ -110,6 +111,17 @@ export const useStockStore = create<StockState>()(
             adjustments: [record, ...s.adjustments],
           };
         });
+        if (variance !== 0) {
+          useTransactionStore.getState().logMovement({
+            type: "ADJUSTMENT",
+            skuCode,
+            skuName: prev?.skuName ?? skuCode,
+            quantity: Math.abs(variance),
+            sourceBinCode: binCode ?? null,
+            destBinCode: binCode ?? null,
+            notes: `Cycle count: ${previousQty} → ${newQty} (${variance > 0 ? "+" : ""}${variance}). ${reason}`,
+          });
+        }
       },
 
       list: () => Object.values(get().stock).sort((a, b) => a.skuCode.localeCompare(b.skuCode)),
