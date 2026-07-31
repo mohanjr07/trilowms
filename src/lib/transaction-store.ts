@@ -7,6 +7,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { BinStatus } from "./wms-data";
+import { useAuthStore } from "@/lib/auth-store";
+import { useEditorStore } from "@/lib/wms-editor-store";
 
 // ─── Transaction Types ────────────────────────────────────────────────────────
 
@@ -117,6 +119,24 @@ interface TransactionState {
   createTransaction: (
     params: Omit<InventoryTransaction, "id" | "timestamp" | "completedAt" | "status"> & { status?: TransactionStatus }
   ) => InventoryTransaction;
+  // Convenience wrapper for other modules (Putaway, Picking, Returns, cycle counts) —
+  // fills in warehouse/user context automatically so a real stock movement always
+  // lands a completed transaction record without every caller re-deriving it.
+  logMovement: (input: {
+    type: TransactionType;
+    skuCode: string;
+    skuName: string;
+    quantity: number;
+    uom?: string;
+    sourceBinCode?: string | null;
+    destBinCode?: string | null;
+    sourceZone?: string | null;
+    destZone?: string | null;
+    referenceDoc?: string | null;
+    batchNumber?: string | null;
+    lotNumber?: string | null;
+    notes?: string | null;
+  }) => InventoryTransaction;
   updateTransactionStatus: (id: string, status: TransactionStatus, completedAt?: string) => void;
   selectTransaction: (id: string | null) => void;
   setFilters: (f: Partial<TransactionFilters>) => void;
@@ -241,6 +261,39 @@ export const useTransactionStore = create<TransactionState>()(
           lastAnimatedTxnId: txn.id,
         }));
         return txn;
+      },
+
+      logMovement: (input) => {
+        const wh = useEditorStore.getState().warehouse?.name ?? "TRILO-DC-01";
+        const user = useAuthStore.getState().session?.user;
+        return get().createTransaction({
+          type: input.type,
+          skuCode: input.skuCode,
+          skuName: input.skuName,
+          quantity: input.quantity,
+          uom: input.uom ?? "EA",
+          sourceWarehouse: wh,
+          sourceBinId: null,
+          sourceBinCode: input.sourceBinCode ?? null,
+          sourceZone: input.sourceZone ?? null,
+          destWarehouse: wh,
+          destBinId: null,
+          destBinCode: input.destBinCode ?? null,
+          destZone: input.destZone ?? null,
+          userId: user?.id ?? "system",
+          userName: user?.name ?? "System",
+          referenceDoc: input.referenceDoc ?? null,
+          batchNumber: input.batchNumber ?? null,
+          lotNumber: input.lotNumber ?? null,
+          notes: input.notes ?? null,
+          prevQuantitySource: null,
+          newQuantitySource: null,
+          prevQuantityDest: null,
+          newQuantityDest: null,
+          prevStatusSource: null,
+          newStatusSource: null,
+          status: "COMPLETED",
+        });
       },
 
       updateTransactionStatus: (id, status, completedAt) => {
