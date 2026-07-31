@@ -6,6 +6,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useStockStore } from "@/lib/stock-store";
+import { useInvBinStore } from "@/lib/inventory-bin-store";
 
 export type WaveStatus = "DRAFT" | "RELEASED" | "IN_PROGRESS" | "PARTIAL" | "COMPLETED" | "CANCELLED" | "SHORTED";
 export type PickTaskStatus = "PENDING" | "ASSIGNED" | "IN_PROGRESS" | "PICKED" | "SHORT" | "SUBSTITUTED" | "SKIPPED";
@@ -258,6 +259,30 @@ function locationFor(skuCode: string, idx: number) {
   return { zone: ZONES[h % ZONES.length], aisle, rack, level, binCode: `${aisle}-${rack}-${level}-${bin}` };
 }
 
+// Resolve where this SKU actually sits, using the real stock ledger (populated by
+// Putaway) and the bin map. Falls back to the synthetic layout above when the SKU
+// hasn't been received into a real bin yet (e.g. demo/seed waves), so a pick task
+// always has a location, but a live order pulls from wherever stock really is.
+function realLocationFor(skuCode: string, idx: number) {
+  const stockRec = useStockStore.getState().stock[skuCode];
+  const bestBinCode = stockRec
+    ? Object.entries(stockRec.bins).sort((a, b) => b[1] - a[1])[0]?.[0]
+    : undefined;
+  const bin = bestBinCode ? useInvBinStore.getState().getBinByCode(bestBinCode) : undefined;
+  if (bin) {
+    return {
+      binId: bin.binId,
+      binCode: bin.binCode,
+      zone: bin.zoneName,
+      aisle: bin.aisleId,
+      rack: bin.rackCode,
+      level: "L1",
+    };
+  }
+  const loc = locationFor(skuCode, idx);
+  return { binId: `bin-synthetic-${idx}`, binCode: loc.binCode, zone: loc.zone, aisle: loc.aisle, rack: loc.rack, level: loc.level };
+}
+
 /** Round-robins new work to whichever picker currently has the fewest open tasks. */
 function leastLoadedPicker(waves: Wave[]): { id: string; name: string } {
   const openStatuses: PickTaskStatus[] = ["PENDING", "ASSIGNED", "IN_PROGRESS"];
@@ -375,7 +400,7 @@ export const usePickingStore = create<PickingState>()(
         const waveId = nextWaveId(get().waves);
         const now = new Date().toISOString();
         const tasks: PickTask[] = input.lines.map((l, j) => {
-          const loc = locationFor(l.skuCode, j);
+          const loc = realLocationFor(l.skuCode, j);
           return {
             id: `PICK-${waveId}-${j + 1}`,
             waveId,
@@ -387,7 +412,7 @@ export const usePickingStore = create<PickingState>()(
             qtyRequired: l.qty,
             qtyPicked: 0,
             qtyShort: 0,
-            binId: `bin-${waveId}-${j}`,
+            binId: loc.binId,
             binCode: loc.binCode,
             zone: loc.zone,
             aisle: loc.aisle,
@@ -443,7 +468,12 @@ export const usePickingStore = create<PickingState>()(
         if (qtyPicked > 0) {
           const wave = get().waves.find((w) => w.id === waveId);
           const task = wave?.tasks.find((t) => t.id === taskId);
-          if (task) useStockStore.getState().consume(task.skuCode, qtyPicked);
+          if (task) {
+            useStockStore.getState().consume(task.skuCode, qtyPicked);
+            // Mirror the withdrawal on the bin map so occupancy drops where the pick
+            // actually came from.
+            useInvBinStore.getState().withdrawFromBin(task.binCode, qtyPicked);
+          }
         }
         set((s) => ({
           waves: s.waves.map((w) => {
@@ -474,7 +504,10 @@ export const usePickingStore = create<PickingState>()(
         if (taskPre) {
           const stock = useStockStore.getState();
           // Whatever was actually found and picked leaves the ledger now.
-          if (qtyAvailable > 0) stock.consume(taskPre.skuCode, qtyAvailable);
+          if (qtyAvailable > 0) {
+            stock.consume(taskPre.skuCode, qtyAvailable);
+            useInvBinStore.getState().withdrawFromBin(taskPre.binCode, qtyAvailable);
+          }
           // The remainder was reserved for this task but will never be fulfilled from
           // this bin — release that reservation so it doesn't sit phantom-reserved.
           const shortQty = taskPre.qtyRequired - qtyAvailable;
