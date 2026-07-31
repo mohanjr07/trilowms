@@ -14,6 +14,7 @@ import {
   SKU_CATEGORIES, useSkuStore,
 } from "@/lib/sku-store";
 import { useAuthStore } from "@/lib/auth-store";
+import { useStockStore } from "@/lib/stock-store";
 
 interface Props {
   open: boolean;
@@ -89,6 +90,14 @@ export function SkuFormModal({ open, mode, sku, onClose }: Props) {
   const { addSku, updateSku } = useSkuStore();
   const { session } = useAuthStore();
   const isReadOnly = mode === "view";
+
+  // Live stock position from the real ledger (single source of truth — same
+  // numbers shown on Stock Levels, Putaway, and Picking) rather than the
+  // static seed values on the SKU record.
+  const liveStock = useStockStore((s) => (sku ? s.stock[sku.skuCode] : undefined));
+  const liveOnHand = liveStock?.onHand ?? 0;
+  const liveReserved = liveStock?.reserved ?? 0;
+  const liveAvailable = Math.max(0, liveOnHand - liveReserved);
 
   const blank: Omit<SKU, "id" | "createdAt" | "updatedAt"> = {
     skuCode: "", barcode: "", itemName: "", description: "",
@@ -489,14 +498,15 @@ export function SkuFormModal({ open, mode, sku, onClose }: Props) {
 
               {sku && (
                 <>
-                  <div className="col-span-2 border-t border-border/40 pt-4 text-xs font-bold tracking-wider text-muted-foreground mb-1">
-                    CURRENT STOCK LEVELS (READ-ONLY)
+                  <div className="col-span-2 border-t border-border/40 pt-4 text-xs font-bold tracking-wider text-muted-foreground mb-1 flex items-center justify-between">
+                    <span>CURRENT STOCK LEVELS (READ-ONLY)</span>
+                    <span className="text-[9px] normal-case tracking-normal text-muted-foreground/70">Live from stock ledger</span>
                   </div>
                   <div className="col-span-2 grid grid-cols-3 gap-3">
                     {[
-                      { label: "On Hand", value: form.onHand ?? 0, cls: "text-foreground" },
-                      { label: "Allocated", value: form.allocated ?? 0, cls: "text-warning" },
-                      { label: "Available", value: form.available ?? 0, cls: (form.available ?? 0) < (form.reorderLevel ?? 0) ? "text-destructive" : "text-success" },
+                      { label: "On Hand", value: liveOnHand, cls: "text-foreground" },
+                      { label: "Allocated", value: liveReserved, cls: "text-warning" },
+                      { label: "Available", value: liveAvailable, cls: liveAvailable < (form.reorderLevel ?? 0) ? "text-destructive" : "text-success" },
                     ].map((kpi) => (
                       <div key={kpi.label} className="p-3 rounded border border-border bg-secondary/30 text-center">
                         <div className="text-[10px] text-muted-foreground tracking-wider">{kpi.label}</div>
@@ -506,6 +516,11 @@ export function SkuFormModal({ open, mode, sku, onClose }: Props) {
                       </div>
                     ))}
                   </div>
+                  {!liveStock && (
+                    <div className="col-span-2 text-[10px] text-muted-foreground/70 -mt-1">
+                      No stock has been received against this SKU yet — levels will populate once it moves through Putaway.
+                    </div>
+                  )}
                 </>
               )}
             </div>
