@@ -9,6 +9,7 @@ import { useInboundStore } from "@/lib/inbound-store";
 import { useStockStore } from "@/lib/stock-store";
 import { useSlottingStore } from "@/lib/slotting-store";
 import { useInvBinStore } from "@/lib/inventory-bin-store";
+import { useLaborStore } from "@/lib/labor-store";
 
 export type PutawayStatus = "PENDING" | "ASSIGNED" | "IN_PROGRESS" | "COMPLETED" | "BLOCKED" | "CANCELLED";
 export type PutawayStrategy = "FIXED" | "DIRECTED" | "CHAOTIC" | "ZONE_BASED" | "FEFO" | "FIFO";
@@ -185,6 +186,9 @@ interface PutawayState {
   syncFromInbound: () => number;
   recomputeSuggestions: () => void;
   assignOperator: (taskId: string, operatorId: string, operatorName: string) => void;
+  // Picks the least-loaded clocked-in employee from Labor Management and assigns them —
+  // used instead of a hardcoded name so Putaway and Labor share one real roster.
+  autoAssignOperator: (taskId: string) => void;
   startTask: (taskId: string) => void;
   completeTask: (taskId: string, actualBinId: string, actualBinCode: string, cycleTime: number) => void;
   blockTask: (taskId: string, reason: string) => void;
@@ -218,6 +222,21 @@ interface PutawayState {
 let _seq = 200;
 function nextPtwId() {
   return `PTW-${5000 + ++_seq}`;
+}
+
+/** Round-robins new work to whichever clocked-in employee currently has the fewest open putaway tasks. */
+function leastLoadedOperator(tasks: PutawayTask[]): { id: string; name: string } | null {
+  const candidates = useLaborStore.getState().employees.filter((e) => e.status === "CLOCKED_IN");
+  if (candidates.length === 0) return null;
+  const openStatuses: PutawayStatus[] = ["PENDING", "ASSIGNED", "IN_PROGRESS"];
+  const load = new Map<string, number>(candidates.map((e) => [e.id, 0]));
+  for (const t of tasks) {
+    if (t.assignedOperatorId && openStatuses.includes(t.status) && load.has(t.assignedOperatorId)) {
+      load.set(t.assignedOperatorId, (load.get(t.assignedOperatorId) ?? 0) + 1);
+    }
+  }
+  const best = candidates.reduce((b, e) => ((load.get(e.id) ?? 0) < (load.get(b.id) ?? 0) ? e : b), candidates[0]);
+  return { id: best.id, name: best.name };
 }
 
 export const usePutawayStore = create<PutawayState>()(
@@ -303,6 +322,14 @@ export const usePutawayStore = create<PutawayState>()(
               : t
           ),
         }));
+      },
+
+      autoAssignOperator: (taskId) => {
+        const task = get().tasks.find((t) => t.id === taskId);
+        const operator = leastLoadedOperator(get().tasks);
+        if (!task || !operator) return;
+        get().assignOperator(taskId, operator.id, operator.name);
+        useLaborStore.getState().assignTask(operator.id, "PUTAWAY", taskId, task.zone);
       },
 
       startTask: (taskId) => {
