@@ -163,12 +163,29 @@ function buildSeedRMAs(): RMA[] {
 export interface RmaFilters { search: string; status: RmaStatus | ""; customer: string; priority: string; }
 const DEFAULT_FILTERS: RmaFilters = { search: "", status: "", customer: "", priority: "" };
 
+export interface RmaLineInput { skuCode: string; skuName: string; uom: string; returnQty: number; reason: ReturnReason; }
+export interface CreateRmaInput {
+  orderId: string;
+  orderDate?: string;
+  customer: string;
+  customerCode?: string;
+  carrier: string;
+  trackingNumber?: string | null;
+  priority: RMA["priority"];
+  notes?: string | null;
+  lines: RmaLineInput[];
+}
+
+let _rmaSeq = 3000;
+const nextRmaId = () => `RMA-${++_rmaSeq}`;
+
 interface ReturnsState {
   rmas: RMA[];
   filters: RmaFilters;
   page: number;
   pageSize: number;
 
+  createRma: (data: CreateRmaInput) => RMA;
   approveRma: (id: string, approvedBy: string) => void;
   receiveRma: (id: string, dockCode: string) => void;
   inspectLine: (rmaId: string, lineId: string, condition: RmaLine["condition"], disposition: DispositionType, notes?: string) => void;
@@ -195,6 +212,66 @@ export const useReturnsStore = create<ReturnsState>()(
       filters: DEFAULT_FILTERS,
       page: 1,
       pageSize: 15,
+
+      createRma: (data) => {
+        const now = new Date().toISOString();
+        const id = nextRmaId();
+        const lines: RmaLine[] = data.lines.map((l, i) => ({
+          id: `rline-${id}-${i + 1}`,
+          rmaId: id,
+          lineNo: i + 1,
+          skuCode: l.skuCode,
+          skuName: l.skuName,
+          uom: l.uom || "EA",
+          returnQty: l.returnQty,
+          receivedQty: 0,
+          approvedQty: l.returnQty,
+          reason: l.reason,
+          disposition: null,
+          condition: null,
+          creditAmount: 0,
+          batchNumber: null,
+          lotNumber: null,
+          expiryDate: null,
+          inspectionNotes: null,
+          restockBinCode: null,
+          status: "PENDING",
+        }));
+        const totalReturnQty = lines.reduce((s, l) => s + l.returnQty, 0);
+        const rma: RMA = {
+          id,
+          rmaNumber: id,
+          status: "REQUESTED",
+          orderId: data.orderId,
+          orderDate: data.orderDate ?? now,
+          customer: data.customer,
+          customerCode: data.customerCode ?? (data.customer.slice(0, 3).toUpperCase() + "-" + Math.floor(100 + Math.random() * 899)),
+          carrier: data.carrier,
+          trackingNumber: data.trackingNumber ?? null,
+          returnTrackingNumber: null,
+          lines,
+          totalLines: lines.length,
+          totalReturnQty,
+          totalReceivedQty: 0,
+          totalCreditAmount: 0,
+          creditIssued: false,
+          creditMemoNumber: null,
+          priority: data.priority,
+          requestedAt: now,
+          approvedAt: null,
+          receivedAt: null,
+          completedAt: null,
+          approvedBy: null,
+          processedBy: null,
+          warehouseId: "TRILO-DC-01",
+          receiptDockId: null,
+          receiptDockCode: null,
+          notes: data.notes ?? null,
+          images: [],
+        };
+        set((s) => ({ rmas: [rma, ...s.rmas] }));
+        return rma;
+      },
 
       approveRma: (id, approvedBy) => {
         set((s) => ({
