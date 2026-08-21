@@ -310,6 +310,10 @@ interface InboundState {
 
   // Actions
   createAsn: (data: Omit<ASN, "id" | "asnNumber" | "createdAt" | "lines" | "discrepancies">) => ASN;
+  // Without this there was no way to put a line item on a newly created ASN —
+  // receiveLine had nothing to operate on, which meant a fresh ASN could never
+  // actually be received and nothing downstream (Putaway, Stock, QC) could fire.
+  addLine: (asnId: string, input: { skuCode: string; skuName: string; poNumber: string; orderedQty: number; uom: string }) => void;
   updateAsnStatus: (id: string, status: AsnStatus) => void;
   assignDock: (asnId: string, dockId: string) => void;
   receiveLine: (
@@ -379,6 +383,38 @@ export const useInboundStore = create<InboundState>()(
         };
         set((s) => ({ asns: [asn, ...s.asns] }));
         return asn;
+      },
+
+      addLine: (asnId, input) => {
+        set((s) => ({
+          asns: s.asns.map((a) => {
+            if (a.id !== asnId) return a;
+            const line: AsnLine = {
+              id: `line-${asnId}-${a.lines.length + 1}`,
+              asnId,
+              lineNo: a.lines.length + 1,
+              skuCode: input.skuCode,
+              skuName: input.skuName,
+              poNumber: input.poNumber || (a.poNumbers[0] ?? "—"),
+              orderedQty: input.orderedQty,
+              expectedQty: input.orderedQty,
+              receivedQty: 0,
+              damagedQty: 0,
+              rejectedQty: 0,
+              uom: input.uom,
+              lotNumber: null,
+              batchNumber: null,
+              expiryDate: null,
+              status: "PENDING",
+              receivedAt: null,
+              receivedBy: null,
+              notes: null,
+              putawayTaskId: null,
+            };
+            const lines = [...a.lines, line];
+            return { ...a, lines, totalLines: lines.length, totalUnits: lines.reduce((s2, l) => s2 + l.orderedQty, 0) };
+          }),
+        }));
       },
 
       updateAsnStatus: (id, status) => {
