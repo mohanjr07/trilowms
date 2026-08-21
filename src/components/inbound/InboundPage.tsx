@@ -12,7 +12,7 @@ import {
   ArrowDownToLine, Truck, Package, AlertTriangle, Search, Plus, CheckCircle2,
   RefreshCw, X, ClipboardList, Building2, LayoutDashboard, PackageCheck,
   CalendarClock, AlertCircle, ChevronRight, Clock, Boxes, Thermometer, Flame,
-  Hash, MapPin, User, Weight, Layers, ScanLine, FileDown, TimerReset,
+  Hash, MapPin, User, Weight, Layers, ScanLine, FileDown, TimerReset, Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { useSkuStore } from "@/lib/sku-store";
 import {
   useInboundStore, ASN_STATUS_META, PRIORITY_META,
   type ASN, type AsnStatus, type AsnLine, type DockDoor, type ReceivingLineStatus,
@@ -955,21 +956,43 @@ function AsnDetailDrawer({ asnId, onClose }: { asnId: string | null; onClose: ()
 //  CREATE ASN MODAL
 // ════════════════════════════════════════════════════════════════════════════
 
+interface DraftLine { skuCode: string; skuName: string; uom: string; orderedQty: number; poNumber: string; }
+
 function CreateAsnModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const createAsn = useInboundStore((s) => s.createAsn);
+  const addLine = useInboundStore((s) => s.addLine);
+  const skus = useSkuStore((s) => s.skus);
   const [vendor, setVendor] = useState("");
   const [carrier, setCarrier] = useState("");
   const [po, setPo] = useState("");
   const [priority, setPriority] = useState<ASN["priority"]>("NORMAL");
   const [scheduled, setScheduled] = useState("");
   const [pallets, setPallets] = useState("");
+  const [lines, setLines] = useState<DraftLine[]>([]);
+  const [draftSku, setDraftSku] = useState("");
+  const [draftQty, setDraftQty] = useState("");
 
-  const reset = () => { setVendor(""); setCarrier(""); setPo(""); setPriority("NORMAL"); setScheduled(""); setPallets(""); };
-  const canSubmit = vendor.trim() && carrier.trim() && scheduled;
+  const reset = () => {
+    setVendor(""); setCarrier(""); setPo(""); setPriority("NORMAL"); setScheduled(""); setPallets("");
+    setLines([]); setDraftSku(""); setDraftQty("");
+  };
+  const canSubmit = vendor.trim() && carrier.trim() && scheduled && lines.length > 0;
+
+  const addDraftLine = () => {
+    const sku = skus.find((s) => s.skuCode === draftSku);
+    const qty = parseInt(draftQty);
+    if (!sku || !qty || qty <= 0) return;
+    setLines((prev) => [
+      ...prev,
+      { skuCode: sku.skuCode, skuName: sku.itemName, uom: sku.uom, orderedQty: qty, poNumber: po.split(",")[0]?.trim() || "—" },
+    ]);
+    setDraftSku(""); setDraftQty("");
+  };
+  const removeDraftLine = (idx: number) => setLines((prev) => prev.filter((_, i) => i !== idx));
 
   const submit = () => {
     if (!canSubmit) return;
-    createAsn({
+    const asn = createAsn({
       status: "PENDING",
       vendor: vendor.trim(),
       vendorCode: vendor.trim().slice(0, 4).toUpperCase(),
@@ -983,6 +1006,9 @@ function CreateAsnModal({ open, onClose }: { open: boolean; onClose: () => void 
       temperatureRequired: false, hazmat: false,
       palletCount: parseInt(pallets) || 0, grossWeight: 0,
     });
+    for (const l of lines) {
+      addLine(asn.id, { skuCode: l.skuCode, skuName: l.skuName, poNumber: l.poNumber, orderedQty: l.orderedQty, uom: l.uom });
+    }
     reset(); onClose();
   };
 
@@ -1023,6 +1049,46 @@ function CreateAsnModal({ open, onClose }: { open: boolean; onClose: () => void 
             </Select>
           </div>
         </div>
+
+        <div className="border-t border-border/60 pt-3">
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Line items *</span>
+          <div className="mt-1.5 grid grid-cols-[1fr_auto_auto] gap-2">
+            <Select value={draftSku} onValueChange={setDraftSku}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select SKU" /></SelectTrigger>
+              <SelectContent>
+                {skus.map((s) => (
+                  <SelectItem key={s.id} value={s.skuCode}>{s.skuCode} — {s.itemName}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              type="number" value={draftQty} onChange={(e) => setDraftQty(e.target.value)}
+              placeholder="Qty" className="h-9 w-24 text-sm"
+            />
+            <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={addDraftLine} disabled={!draftSku || !draftQty}>
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {lines.length > 0 && (
+            <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
+              {lines.map((l, i) => (
+                <div key={i} className="flex items-center justify-between rounded border border-border/60 bg-card/30 px-2 py-1 text-xs">
+                  <span className="font-mono">{l.skuCode}</span>
+                  <span className="flex-1 truncate px-2 text-muted-foreground">{l.skuName}</span>
+                  <span className="tabular-nums">{l.orderedQty} {l.uom}</span>
+                  <button type="button" onClick={() => removeDraftLine(i)} className="ml-2 text-muted-foreground hover:text-destructive">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {lines.length === 0 && (
+            <p className="mt-1.5 text-[11px] text-muted-foreground">Add at least one line item to create this ASN.</p>
+          )}
+        </div>
+
         <DialogFooter>
           <Button variant="ghost" onClick={() => { reset(); onClose(); }}>Cancel</Button>
           <Button disabled={!canSubmit} onClick={submit}>Create ASN</Button>
