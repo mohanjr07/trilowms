@@ -14,12 +14,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import {
   useReturnsStore, RMA_STATUS_META,
   type RMA, type RmaStatus, type RmaLine, type ReturnReason, type DispositionType,
 } from "@/lib/returns-store";
+import { useOrdersStore } from "@/lib/orders-store";
 import { PageHeader, KPICard } from "@/components/wms/Primitives";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { cn } from "@/lib/utils";
@@ -631,9 +633,151 @@ const TABS: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "dispositions", label: "Dispositions", icon: Recycle },
 ];
 
+// ════════════════════════════════════════════════════════════════════════════
+//  CREATE RMA MODAL
+// ════════════════════════════════════════════════════════════════════════════
+
+const RETURN_REASONS: ReturnReason[] = [
+  "DAMAGED_IN_TRANSIT", "WRONG_ITEM", "QUALITY_DEFECT", "CUSTOMER_CHANGE_MIND",
+  "OVERSHIPMENT", "EXPIRED", "WARRANTY_CLAIM", "VENDOR_RECALL",
+];
+
+interface DraftRmaLine { skuCode: string; skuName: string; uom: string; returnQty: number; reason: ReturnReason; }
+
+function CreateRmaModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const createRma = useReturnsStore((s) => s.createRma);
+  const orders = useOrdersStore((s) => s.orders).filter((o) => ["SHIPPED", "DELIVERED"].includes(o.status));
+
+  const [orderId, setOrderId] = useState("");
+  const [priority, setPriority] = useState<RMA["priority"]>("NORMAL");
+  const [notes, setNotes] = useState("");
+  const [lines, setLines] = useState<DraftRmaLine[]>([]);
+  const [draftSku, setDraftSku] = useState("");
+  const [draftQty, setDraftQty] = useState("");
+  const [draftReason, setDraftReason] = useState<ReturnReason>("DAMAGED_IN_TRANSIT");
+
+  const selectedOrder = orders.find((o) => o.id === orderId);
+
+  const reset = () => {
+    setOrderId(""); setPriority("NORMAL"); setNotes(""); setLines([]);
+    setDraftSku(""); setDraftQty(""); setDraftReason("DAMAGED_IN_TRANSIT");
+  };
+  const canSubmit = !!selectedOrder && lines.length > 0;
+
+  const addDraftLine = () => {
+    const line = selectedOrder?.lines.find((l) => l.skuCode === draftSku);
+    const qty = parseInt(draftQty);
+    if (!line || !qty || qty <= 0) return;
+    setLines((prev) => [...prev, { skuCode: line.skuCode, skuName: line.skuName, uom: line.uom, returnQty: qty, reason: draftReason }]);
+    setDraftSku(""); setDraftQty("");
+  };
+  const removeDraftLine = (idx: number) => setLines((prev) => prev.filter((_, i) => i !== idx));
+
+  const submit = () => {
+    if (!canSubmit || !selectedOrder) return;
+    createRma({
+      orderId: selectedOrder.id,
+      orderDate: selectedOrder.createdAt,
+      customer: selectedOrder.customer,
+      customerCode: selectedOrder.customerCode,
+      carrier: selectedOrder.carrier ?? "UPS",
+      priority,
+      notes: notes.trim() || null,
+      lines: lines.map((l) => ({ skuCode: l.skuCode, skuName: l.skuName, uom: l.uom, returnQty: l.returnQty, reason: l.reason })),
+    });
+    reset(); onClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) { reset(); onClose(); } }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle className="text-base">New RMA</DialogTitle></DialogHeader>
+        <div className="grid grid-cols-2 gap-3 py-1">
+          <label className="block col-span-2">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Order *</span>
+            <Select value={orderId} onValueChange={(v) => { setOrderId(v); setLines([]); }}>
+              <SelectTrigger className="h-9 mt-1 text-sm"><SelectValue placeholder="Select shipped/delivered order" /></SelectTrigger>
+              <SelectContent>
+                {orders.map((o) => (
+                  <SelectItem key={o.id} value={o.id}>{o.orderNumber} — {o.customer}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {orders.length === 0 && <p className="mt-1 text-[11px] text-muted-foreground">No shipped or delivered orders yet to return against.</p>}
+          </label>
+          <div className="block col-span-1">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Priority</span>
+            <Select value={priority} onValueChange={(v) => setPriority(v as RMA["priority"])}>
+              <SelectTrigger className="h-9 mt-1 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="NORMAL">Normal</SelectItem>
+                <SelectItem value="HIGH">High</SelectItem>
+                <SelectItem value="URGENT">Urgent</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <label className="block col-span-1">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Notes</span>
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" className="h-9 mt-1 text-sm" />
+          </label>
+        </div>
+
+        <div className="border-t border-border/60 pt-3">
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Return line items *</span>
+          <div className="mt-1.5 grid grid-cols-[1fr_auto_1fr_auto] gap-2">
+            <Select value={draftSku} onValueChange={setDraftSku} disabled={!selectedOrder}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select SKU from order" /></SelectTrigger>
+              <SelectContent>
+                {(selectedOrder?.lines ?? []).map((l) => (
+                  <SelectItem key={l.id} value={l.skuCode}>{l.skuCode} — {l.skuName}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input type="number" value={draftQty} onChange={(e) => setDraftQty(e.target.value)} placeholder="Qty" className="h-9 w-20 text-sm" />
+            <Select value={draftReason} onValueChange={(v) => setDraftReason(v as ReturnReason)}>
+              <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {RETURN_REASONS.map((r) => <SelectItem key={r} value={r}>{titleCase(r)}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={addDraftLine} disabled={!draftSku || !draftQty}>
+              <Undo2 className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {lines.length > 0 && (
+            <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
+              {lines.map((l, i) => (
+                <div key={i} className="flex items-center justify-between rounded border border-border/60 bg-card/30 px-2 py-1 text-xs">
+                  <span className="font-mono">{l.skuCode}</span>
+                  <span className="flex-1 truncate px-2 text-muted-foreground">{l.skuName}</span>
+                  <span className="tabular-nums">{l.returnQty} {l.uom}</span>
+                  <span className="ml-2 text-muted-foreground">{titleCase(l.reason)}</span>
+                  <button type="button" onClick={() => removeDraftLine(i)} className="ml-2 text-muted-foreground hover:text-destructive">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {lines.length === 0 && (
+            <p className="mt-1.5 text-[11px] text-muted-foreground">Add at least one line item to create this RMA.</p>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => { reset(); onClose(); }}>Cancel</Button>
+          <Button disabled={!canSubmit} onClick={submit}>Create RMA</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function ReturnsPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
   const kpis = useReturnsStore((s) => s.kpis)();
 
   const open = (r: RMA) => setOpenId(r.id);
@@ -647,7 +791,7 @@ export function ReturnsPage() {
         actions={
           <>
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5"><FileDown className="h-3.5 w-3.5" /> Report</Button>
-            <Button size="sm" className="h-8 text-xs gap-1.5"><Undo2 className="h-3.5 w-3.5" /> New RMA</Button>
+            <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => setCreateOpen(true)}><Undo2 className="h-3.5 w-3.5" /> New RMA</Button>
           </>
         }
       />
@@ -679,6 +823,8 @@ export function ReturnsPage() {
           <RmaDetailDrawer rmaId={openId} onClose={() => setOpenId(null)} />
         </SheetContent>
       </Sheet>
+
+      <CreateRmaModal open={createOpen} onClose={() => setCreateOpen(false)} />
     </div>
   );
 }
