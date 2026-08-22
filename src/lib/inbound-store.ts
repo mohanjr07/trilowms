@@ -730,6 +730,19 @@ export const useInboundStore = create<InboundState>()(
     {
       name: "trilowms-inbound-v2",
       partialize: (s) => ({ asns: s.asns, dockDoors: s.dockDoors }),
+      // Anyone who loaded the app before dock doors were seeded already has an empty
+      // `dockDoors: []` saved in localStorage under this key — persist's default merge
+      // would keep that empty array forever, so the Dock Door Board would stay stuck
+      // at "0 inbound doors" even after this fix ships. Backfill from the seed in that
+      // case while still preserving their real ASNs and any dock state that does exist.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<InboundState>;
+        return {
+          ...current,
+          ...p,
+          dockDoors: p.dockDoors && p.dockDoors.length > 0 ? p.dockDoors : current.dockDoors,
+        };
+      },
     }
   )
 );
