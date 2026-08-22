@@ -1052,7 +1052,7 @@ function CreateAsnModal({ open, onClose }: { open: boolean; onClose: () => void 
 
         <div className="border-t border-border/60 pt-3">
           <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Line items *</span>
-          <div className="mt-1.5 grid grid-cols-[1fr_auto_auto] gap-2">
+          <div className="mt-1.5 space-y-2">
             <Select value={draftSku} onValueChange={setDraftSku}>
               <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select SKU" /></SelectTrigger>
               <SelectContent>
@@ -1061,13 +1061,15 @@ function CreateAsnModal({ open, onClose }: { open: boolean; onClose: () => void 
                 ))}
               </SelectContent>
             </Select>
-            <Input
-              type="number" value={draftQty} onChange={(e) => setDraftQty(e.target.value)}
-              placeholder="Qty" className="h-9 w-24 text-sm"
-            />
-            <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={addDraftLine} disabled={!draftSku || !draftQty}>
-              <Plus className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number" value={draftQty} onChange={(e) => setDraftQty(e.target.value)}
+                placeholder="Qty" className="h-9 flex-1 min-w-0 text-sm"
+              />
+              <Button type="button" variant="outline" className="h-9 shrink-0 gap-1.5 text-xs" onClick={addDraftLine} disabled={!draftSku || !draftQty}>
+                <Plus className="h-4 w-4" /> Add
+              </Button>
+            </div>
           </div>
 
           {lines.length > 0 && (
