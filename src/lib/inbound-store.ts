@@ -316,6 +316,10 @@ interface InboundState {
   addLine: (asnId: string, input: { skuCode: string; skuName: string; poNumber: string; orderedQty: number; uom: string }) => void;
   updateAsnStatus: (id: string, status: AsnStatus) => void;
   assignDock: (asnId: string, dockId: string) => void;
+  // Actually occupies a dock door when a truck physically docks (ARRIVED → DOCKED),
+  // instead of the status transition happening with no real dock door ever getting
+  // marked occupied — which is why the Dock Door Board stayed empty/vacant before.
+  dockTruck: (asnId: string, dockId: string) => void;
   receiveLine: (
     asnId: string,
     lineId: string,
@@ -359,11 +363,25 @@ function nextAsnId() {
   return `ASN-${d}-${String(++_asnSeq).padStart(4, "0")}`;
 }
 
+// The 8 dock doors are real physical fixtures of the warehouse (like the bin
+// layout or the labor roster), not something derived from transactions — so
+// unlike ASNs/stock/etc. they're seeded as reference data. Seeded vacant/clean
+// (no fake occupying ASN/truck) so every occupancy from here on is real, driven
+// by dockTruck() as actual ASNs get docked.
+const SEED_DOCK_DOORS: DockDoor[] = DOCK_DOORS.map((d) => ({
+  ...d,
+  status: "AVAILABLE",
+  assignedAsnId: null,
+  assignedTruckId: null,
+  occupiedSince: null,
+  scheduledUntil: null,
+}));
+
 export const useInboundStore = create<InboundState>()(
   persist(
     (set, get) => ({
       asns: [],
-      dockDoors: [],
+      dockDoors: SEED_DOCK_DOORS,
       filters: DEFAULT_FILTERS,
       selectedAsnId: null,
       selectedLineId: null,
@@ -418,6 +436,10 @@ export const useInboundStore = create<InboundState>()(
       },
 
       updateAsnStatus: (id, status) => {
+        const asn = get().asns.find((a) => a.id === id);
+        // Free up the physical dock door once this ASN is done with it, so the
+        // Dock Door Board reflects reality instead of showing it occupied forever.
+        const releaseDock = asn?.dockId && ["RECEIVED", "CLOSED"].includes(status);
         set((s) => ({
           asns: s.asns.map((a) =>
             a.id === id
@@ -429,6 +451,13 @@ export const useInboundStore = create<InboundState>()(
                 }
               : a
           ),
+          dockDoors: releaseDock
+            ? s.dockDoors.map((d) =>
+                d.id === asn!.dockId
+                  ? { ...d, status: "AVAILABLE", assignedAsnId: null, assignedTruckId: null, occupiedSince: null, scheduledUntil: null }
+                  : d
+              )
+            : s.dockDoors,
         }));
       },
 
@@ -442,6 +471,25 @@ export const useInboundStore = create<InboundState>()(
           dockDoors: s.dockDoors.map((d) =>
             d.id === dockId
               ? { ...d, status: "RESERVED", assignedAsnId: asnId, scheduledUntil: new Date(Date.now() + 4 * 3600000).toISOString() }
+              : d
+          ),
+        }));
+      },
+
+      dockTruck: (asnId, dockId) => {
+        const dock = get().dockDoors.find((d) => d.id === dockId);
+        const asn = get().asns.find((a) => a.id === asnId);
+        if (!dock || !asn || dock.status !== "AVAILABLE" && dock.status !== "RESERVED") return;
+        const now = new Date().toISOString();
+        set((s) => ({
+          asns: s.asns.map((a) =>
+            a.id === asnId
+              ? { ...a, dockId, dockCode: dock.code, status: "DOCKED", actualArrival: a.actualArrival ?? now }
+              : a
+          ),
+          dockDoors: s.dockDoors.map((d) =>
+            d.id === dockId
+              ? { ...d, status: "OCCUPIED", assignedAsnId: asnId, assignedTruckId: asn.truckNumber, occupiedSince: now }
               : d
           ),
         }));
