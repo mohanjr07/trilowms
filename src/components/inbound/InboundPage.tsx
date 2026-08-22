@@ -831,7 +831,10 @@ function DetailRow({ icon: Icon, label, value }: { icon: typeof Hash; label: str
 function AsnDetailDrawer({ asnId, onClose }: { asnId: string | null; onClose: () => void }) {
   const asn = useInboundStore((s) => s.asns.find((a) => a.id === asnId)) ?? null;
   const updateAsnStatus = useInboundStore((s) => s.updateAsnStatus);
+  const dockTruck = useInboundStore((s) => s.dockTruck);
+  const availableDocks = useInboundStore((s) => s.availableDocks)();
   const [tab, setTab] = useState("lines");
+  const [dockPickerOpen, setDockPickerOpen] = useState(false);
 
   if (!asn) return null;
   const pct = asn.totalUnits > 0 ? Math.round((asn.receivedUnits / asn.totalUnits) * 100) : 0;
@@ -871,7 +874,23 @@ function AsnDetailDrawer({ asnId, onClose }: { asnId: string | null; onClose: ()
         <div className="flex flex-wrap gap-2">
           {asn.status === "PENDING" && <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => updateAsnStatus(asn.id, "SCHEDULED")}><CalendarClock className="h-3.5 w-3.5" /> Schedule</Button>}
           {asn.status === "SCHEDULED" && <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => updateAsnStatus(asn.id, "ARRIVED")}><Truck className="h-3.5 w-3.5" /> Mark arrived</Button>}
-          {asn.status === "ARRIVED" && <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => updateAsnStatus(asn.id, "DOCKED")}><Building2 className="h-3.5 w-3.5" /> Dock truck</Button>}
+          {asn.status === "ARRIVED" && (
+            dockPickerOpen ? (
+              <Select onValueChange={(dockId) => { dockTruck(asn.id, dockId); setDockPickerOpen(false); }}>
+                <SelectTrigger className="h-8 w-40 text-xs"><SelectValue placeholder="Select dock door" /></SelectTrigger>
+                <SelectContent>
+                  {availableDocks.map((d) => <SelectItem key={d.id} value={d.id}>{d.code}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Button
+                size="sm" variant="outline" className="h-8 text-xs gap-1"
+                onClick={() => setDockPickerOpen(true)}
+                disabled={availableDocks.length === 0}
+                title={availableDocks.length === 0 ? "No dock doors available" : undefined}
+              ><Building2 className="h-3.5 w-3.5" /> Dock truck</Button>
+            )
+          )}
           {["DOCKED", "PARTIAL"].includes(asn.status) && <Button size="sm" className="h-8 text-xs gap-1" onClick={() => updateAsnStatus(asn.id, "RECEIVING")}><ClipboardList className="h-3.5 w-3.5" /> Start receiving</Button>}
           {asn.status === "RECEIVING" && (
             <Button
