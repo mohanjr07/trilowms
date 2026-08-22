@@ -724,7 +724,7 @@ function CreateRmaModal({ open, onClose }: { open: boolean; onClose: () => void 
 
         <div className="border-t border-border/60 pt-3">
           <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Return line items *</span>
-          <div className="mt-1.5 grid grid-cols-[1fr_auto_1fr_auto] gap-2">
+          <div className="mt-1.5 space-y-2">
             <Select value={draftSku} onValueChange={setDraftSku} disabled={!selectedOrder}>
               <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select SKU from order" /></SelectTrigger>
               <SelectContent>
@@ -733,16 +733,20 @@ function CreateRmaModal({ open, onClose }: { open: boolean; onClose: () => void 
                 ))}
               </SelectContent>
             </Select>
-            <Input type="number" value={draftQty} onChange={(e) => setDraftQty(e.target.value)} placeholder="Qty" className="h-9 w-20 text-sm" />
-            <Select value={draftReason} onValueChange={(v) => setDraftReason(v as ReturnReason)}>
-              <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {RETURN_REASONS.map((r) => <SelectItem key={r} value={r}>{titleCase(r)}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={addDraftLine} disabled={!draftSku || !draftQty}>
-              <Undo2 className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Input type="number" value={draftQty} onChange={(e) => setDraftQty(e.target.value)} placeholder="Qty" className="h-9 w-20 shrink-0 text-sm" />
+              <div className="min-w-0 flex-1">
+                <Select value={draftReason} onValueChange={(v) => setDraftReason(v as ReturnReason)}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {RETURN_REASONS.map((r) => <SelectItem key={r} value={r}>{titleCase(r)}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button type="button" variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={addDraftLine} disabled={!draftSku || !draftQty}>
+                <Undo2 className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           {lines.length > 0 && (
