@@ -881,7 +881,15 @@ function AsnDetailDrawer({ asnId, onClose }: { asnId: string | null; onClose: ()
               onClick={() => updateAsnStatus(asn.id, "RECEIVED")}
             ><CheckCircle2 className="h-3.5 w-3.5" /> Complete receipt</Button>
           )}
-          {asn.status === "RECEIVED" && <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => updateAsnStatus(asn.id, "CLOSED")}>Close ASN</Button>}
+          {asn.status === "RECEIVED" && asn.receivedUnits > 0 && <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => updateAsnStatus(asn.id, "CLOSED")}>Close ASN</Button>}
+          {/* Recovery path for ASNs that got marked Received before any line was
+              actually received (possible before the Complete-receipt guard above
+              existed) — lets them be reopened instead of being permanently stuck. */}
+          {asn.status === "RECEIVED" && asn.receivedUnits <= 0 && (
+            <Button size="sm" variant="outline" className="h-8 text-xs gap-1 border-amber-500/40 text-amber-400" onClick={() => updateAsnStatus(asn.id, "RECEIVING")}>
+              <ClipboardList className="h-3.5 w-3.5" /> Reopen for receiving
+            </Button>
+          )}
         </div>
       </div>
 
