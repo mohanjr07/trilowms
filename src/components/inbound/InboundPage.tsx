@@ -590,7 +590,17 @@ function ReceivingView({ onOpenAsn }: { onOpenAsn: (a: ASN) => void }) {
             <div className="flex items-center gap-2">
               <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => onOpenAsn(active)}>Full detail</Button>
               {active.status === "DOCKED" && <Button size="sm" className="h-7 text-xs gap-1" onClick={() => updateAsnStatus(active.id, "RECEIVING")}><ClipboardList className="h-3.5 w-3.5" /> Start</Button>}
-              {["RECEIVING", "PARTIAL"].includes(active.status) && <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => updateAsnStatus(active.id, "RECEIVED")}><CheckCircle2 className="h-3.5 w-3.5" /> Complete</Button>}
+              {/* Guarded on receivedUnits > 0 — without this, an ASN could be marked
+                  "Received" (and thus eligible for Putaway) without a single unit ever
+                  actually being received on any line, silently faking a 0%-received ASN. */}
+              {["RECEIVING", "PARTIAL"].includes(active.status) && (
+                <Button
+                  size="sm" variant="outline" className="h-7 text-xs gap-1"
+                  disabled={active.receivedUnits <= 0}
+                  title={active.receivedUnits <= 0 ? "Receive at least one line before completing" : undefined}
+                  onClick={() => updateAsnStatus(active.id, "RECEIVED")}
+                ><CheckCircle2 className="h-3.5 w-3.5" /> Complete</Button>
+              )}
             </div>
           }
         >
@@ -863,7 +873,14 @@ function AsnDetailDrawer({ asnId, onClose }: { asnId: string | null; onClose: ()
           {asn.status === "SCHEDULED" && <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => updateAsnStatus(asn.id, "ARRIVED")}><Truck className="h-3.5 w-3.5" /> Mark arrived</Button>}
           {asn.status === "ARRIVED" && <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => updateAsnStatus(asn.id, "DOCKED")}><Building2 className="h-3.5 w-3.5" /> Dock truck</Button>}
           {["DOCKED", "PARTIAL"].includes(asn.status) && <Button size="sm" className="h-8 text-xs gap-1" onClick={() => updateAsnStatus(asn.id, "RECEIVING")}><ClipboardList className="h-3.5 w-3.5" /> Start receiving</Button>}
-          {asn.status === "RECEIVING" && <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => updateAsnStatus(asn.id, "RECEIVED")}><CheckCircle2 className="h-3.5 w-3.5" /> Complete receipt</Button>}
+          {asn.status === "RECEIVING" && (
+            <Button
+              size="sm" variant="outline" className="h-8 text-xs gap-1"
+              disabled={asn.receivedUnits <= 0}
+              title={asn.receivedUnits <= 0 ? "Receive at least one line (Receiving tab) before completing" : undefined}
+              onClick={() => updateAsnStatus(asn.id, "RECEIVED")}
+            ><CheckCircle2 className="h-3.5 w-3.5" /> Complete receipt</Button>
+          )}
           {asn.status === "RECEIVED" && <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => updateAsnStatus(asn.id, "CLOSED")}>Close ASN</Button>}
         </div>
       </div>
