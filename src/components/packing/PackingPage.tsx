@@ -20,6 +20,7 @@ import {
   usePackingStore, PACK_STATUS_META,
   type PackOrder, type PackOrderStatus, type PackStation, type Carton, type CartonStatus,
 } from "@/lib/packing-store";
+import { useAuthStore } from "@/lib/auth-store";
 import { PageHeader, KPICard } from "@/components/wms/Primitives";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { cn } from "@/lib/utils";
@@ -228,13 +229,32 @@ function PackQueueView({ onOpen }: { onOpen: (o: PackOrder) => void }) {
   const all = usePackingStore((s) => s.filteredOrders)();
   const stations = usePackingStore((s) => s.stations);
   const carriers = usePackingStore((s) => s.carrierList)();
+  const currentUserName = useAuthStore((s) => s.session?.user.name);
+  const myStation = stations.find((st) => st.operatorName === currentUserName);
 
   const total = Math.max(1, Math.ceil(all.length / pageSize));
   const paged = all.slice((page - 1) * pageSize, page * pageSize);
   const hasFilters = filters.search || filters.status || filters.priority || filters.carrier || filters.stationId;
 
   return (
-    <Section title="Pack Queue" sub={`${all.length} orders matched`} actions={<Button variant="ghost" size="sm" className="h-7 text-xs gap-1"><FileDown className="h-3.5 w-3.5" /> Export</Button>}>
+    <Section
+      title="Pack Queue"
+      sub={`${all.length} orders matched`}
+      actions={
+        <div className="flex items-center gap-2">
+          {myStation && (
+            <Button
+              variant={filters.stationId === myStation.id ? "default" : "outline"}
+              size="sm" className="h-7 text-xs"
+              onClick={() => setFilters({ stationId: filters.stationId === myStation.id ? "" : myStation.id })}
+            >
+              My station only
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1"><FileDown className="h-3.5 w-3.5" /> Export</Button>
+        </div>
+      }
+    >
       <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-border/60">
         <div className="relative flex-1 min-w-52">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
