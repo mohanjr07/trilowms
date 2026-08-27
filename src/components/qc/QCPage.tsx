@@ -20,6 +20,7 @@ import {
   useQCStore, QC_STATUS_META,
   type QCInspection, type InspectionStatus, type QCHold, type DispositionType, type InspectionCheckpoint,
 } from "@/lib/qc-store";
+import { useAuthStore } from "@/lib/auth-store";
 import { PageHeader, KPICard } from "@/components/wms/Primitives";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { cn } from "@/lib/utils";
@@ -227,13 +228,31 @@ function InspectionsView({ onOpen }: { onOpen: (i: QCInspection) => void }) {
   const { filters, setFilters, resetFilters, page, setPage, pageSize } = useQCStore();
   const all = useQCStore((s) => s.filteredInspections)();
   const inspectors = useQCStore((s) => s.inspectorList)();
+  const currentUserName = useAuthStore((s) => s.session?.user.name);
 
   const total = Math.max(1, Math.ceil(all.length / pageSize));
   const paged = all.slice((page - 1) * pageSize, page * pageSize);
   const hasFilters = filters.search || filters.status || filters.type || filters.inspector;
 
   return (
-    <Section title="Inspection Queue" sub={`${all.length} inspections matched`} actions={<Button variant="ghost" size="sm" className="h-7 text-xs gap-1"><FileDown className="h-3.5 w-3.5" /> Export</Button>}>
+    <Section
+      title="Inspection Queue"
+      sub={`${all.length} inspections matched`}
+      actions={
+        <div className="flex items-center gap-2">
+          {currentUserName && inspectors.includes(currentUserName) && (
+            <Button
+              variant={filters.inspector === currentUserName ? "default" : "outline"}
+              size="sm" className="h-7 text-xs"
+              onClick={() => setFilters({ inspector: filters.inspector === currentUserName ? "" : currentUserName })}
+            >
+              My inspections only
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1"><FileDown className="h-3.5 w-3.5" /> Export</Button>
+        </div>
+      }
+    >
       <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-border/60">
         <div className="relative flex-1 min-w-52">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
