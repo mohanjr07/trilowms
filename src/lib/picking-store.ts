@@ -237,12 +237,21 @@ let _waveSeq = 400;
 // to 400 on every load, but persisted waves survive the reload, so without this the
 // next created wave could re-mint an id that's already taken (e.g. two different waves
 // both becoming "WAVE-401").
+// Counting only the picking store's own current waves isn't enough — a wave that
+// was since cleared (or never made it into this browser's storage) can leave behind
+// an orphaned reference elsewhere (e.g. a Consolidation lane still pointing at
+// "WAVE-401" from months ago). A fresh wave re-minting that same short id then gets
+// silently treated as "already synced" by Consolidation and never shows up. Seeding
+// the counter from the current time (not a fixed 400) makes a same-number collision
+// effectively impossible across sessions, while still counting existing waves so a
+// long session doesn't produce out-of-order numbers.
 const nextWaveId = (existingWaves: Wave[]) => {
   const maxExisting = existingWaves.reduce((max, w) => {
     const n = parseInt(w.id.replace("WAVE-", ""), 10);
     return Number.isFinite(n) ? Math.max(max, n) : max;
   }, 400);
-  _waveSeq = Math.max(_waveSeq, maxExisting);
+  const timeSeed = Math.floor(Date.now() / 1000) % 900000; // seconds-based, resets yearly — plenty unique for this use
+  _waveSeq = Math.max(_waveSeq, maxExisting, timeSeed);
   return `WAVE-${++_waveSeq}`;
 };
 
