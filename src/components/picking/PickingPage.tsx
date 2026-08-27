@@ -23,6 +23,7 @@ import {
 } from "@/lib/picking-store";
 import { usePickPathStore, type RouteResult } from "@/lib/pickpath-store";
 import { useEditorStore } from "@/lib/wms-editor-store";
+import { useAuthStore } from "@/lib/auth-store";
 import { PageHeader, KPICard } from "@/components/wms/Primitives";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { cn } from "@/lib/utils";
@@ -367,15 +368,35 @@ function WavesView({ onOpen }: { onOpen: (w: Wave) => void }) {
 // ════════════════════════════════════════════════════════════════════════════
 
 function PickFloorView({ onOpenWave }: { onOpenWave: (w: Wave) => void }) {
-  const active = usePickingStore((s) => s.activePickTasks)();
+  const allActive = usePickingStore((s) => s.activePickTasks)();
   const waves = usePickingStore((s) => s.waves);
   const pickTask = usePickingStore((s) => s.pickTask);
   const reportShort = usePickingStore((s) => s.reportShort);
   const [pickingId, setPickingId] = useState<string | null>(null);
   const [qty, setQty] = useState("");
+  const currentUserName = useAuthStore((s) => s.session?.user.name);
+  // "My Tasks" filters to whatever's assigned to the logged-in user's name — the
+  // only link between login identity and pick-floor assignment right now, since
+  // the demo login roster and the labor roster are separate seed sources with no
+  // shared id. Defaults on for non-admin roles so a picker only sees their own work.
+  const [myTasksOnly, setMyTasksOnly] = useState(true);
+  const active = myTasksOnly && currentUserName
+    ? allActive.filter((t) => t.assignedPickerName === currentUserName)
+    : allActive;
 
   return (
-    <Section title="Pick Floor" sub={`${active.length} open pick lines across active waves · sorted by due time`}>
+    <Section
+      title="Pick Floor"
+      sub={`${active.length} open pick lines${myTasksOnly && currentUserName ? ` assigned to ${currentUserName}` : " across active waves"} · sorted by due time`}
+      actions={
+        currentUserName ? (
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+            <input type="checkbox" checked={myTasksOnly} onChange={(e) => setMyTasksOnly(e.target.checked)} className="accent-primary" />
+            My tasks only
+          </label>
+        ) : undefined
+      }
+    >
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
