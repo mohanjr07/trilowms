@@ -18,6 +18,7 @@ import {
   useConsolidationStore, LANE_STATUS_META, LINE_STATUS_META,
   type ConsolidationLane, type ConsolidationLine, type LaneStatus,
 } from "@/lib/consolidation-store";
+import { usePickingStore } from "@/lib/picking-store";
 import { PageHeader, KPICard } from "@/components/wms/Primitives";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { cn } from "@/lib/utils";
@@ -463,6 +464,9 @@ function ConsolidationCheckView({ onOpen }: { onOpen: (l: ConsolidationLane) => 
 
 function MovedView() {
   const lanes = useConsolidationStore((s) => s.lanes);
+  const cancelLane = useConsolidationStore((s) => s.cancelLane);
+  const waves = usePickingStore((s) => s.waves);
+  const waveIds = useMemo(() => new Set(waves.map((w) => w.id)), [waves]);
   const moved = useMemo(() => lanes.filter((l) => l.status === "MOVED_TO_PACKING"), [lanes]);
 
   return (
@@ -479,28 +483,51 @@ function MovedView() {
               <th className="text-left font-semibold py-2.5 px-3">Exceptions</th>
               <th className="text-left font-semibold py-2.5 px-3">Moved At</th>
               <th className="text-left font-semibold py-2.5 px-3">Status</th>
+              <th className="text-left font-semibold py-2.5 px-3">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/40">
-            {moved.map((lane) => (
-              <tr key={lane.id} className="hover:bg-accent/15">
-                <td className="py-2.5 px-3 font-mono text-xs text-primary">{lane.laneCode}</td>
-                <td className="py-2.5 px-3 font-mono text-xs text-muted-foreground">{lane.orderId}</td>
-                <td className="py-2.5 px-3 font-mono text-xs">{lane.waveNumber}</td>
-                <td className="py-2.5 px-3 text-right font-mono tabular-nums text-xs">{lane.totalLines}</td>
-                <td className="py-2.5 px-3 text-right font-mono tabular-nums text-xs">{lane.totalArrivedUnits}</td>
-                <td className="py-2.5 px-3 text-xs">
-                  {lane.hasShortage
-                    ? <span className="text-amber-400">Shortage</span>
-                    : <span className="text-muted-foreground">None</span>}
-                </td>
-                <td className="py-2.5 px-3 text-xs font-mono">{lane.movedAt ? fmtDate(lane.movedAt) + " " + fmtTime(lane.movedAt) : "—"}</td>
-                <td className="py-2.5 px-3"><LaneStatusBadge status={lane.status} /></td>
-              </tr>
-            ))}
+            {moved.map((lane) => {
+              // A lane whose wave id no longer exists in Picking is orphaned — most
+              // likely a leftover from an earlier test whose wave id got reused by a
+              // brand-new wave, which then silently fails to sync into Consolidation
+              // because this stale lane still "claims" that wave id. Surface a way to
+              // clear it instead of it blocking forever with no visible cause.
+              const orphaned = !waveIds.has(lane.waveId);
+              return (
+                <tr key={lane.id} className="hover:bg-accent/15">
+                  <td className="py-2.5 px-3 font-mono text-xs text-primary">{lane.laneCode}</td>
+                  <td className="py-2.5 px-3 font-mono text-xs text-muted-foreground">{lane.orderId}</td>
+                  <td className="py-2.5 px-3 font-mono text-xs">
+                    {lane.waveNumber}
+                    {orphaned && <span className="ml-1.5 text-[9px] text-amber-400 uppercase">stale</span>}
+                  </td>
+                  <td className="py-2.5 px-3 text-right font-mono tabular-nums text-xs">{lane.totalLines}</td>
+                  <td className="py-2.5 px-3 text-right font-mono tabular-nums text-xs">{lane.totalArrivedUnits}</td>
+                  <td className="py-2.5 px-3 text-xs">
+                    {lane.hasShortage
+                      ? <span className="text-amber-400">Shortage</span>
+                      : <span className="text-muted-foreground">None</span>}
+                  </td>
+                  <td className="py-2.5 px-3 text-xs font-mono">{lane.movedAt ? fmtDate(lane.movedAt) + " " + fmtTime(lane.movedAt) : "—"}</td>
+                  <td className="py-2.5 px-3"><LaneStatusBadge status={lane.status} /></td>
+                  <td className="py-2.5 px-3">
+                    {orphaned && (
+                      <button
+                        onClick={() => cancelLane(lane.id)}
+                        className="text-[10px] text-muted-foreground underline hover:text-destructive"
+                        title="Clear this stale lane so a new wave with the same id can sync"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
             {moved.length === 0 && (
               <tr>
-                <td colSpan={8} className="text-center py-12 text-sm text-muted-foreground">
+                <td colSpan={9} className="text-center py-12 text-sm text-muted-foreground">
                   No orders have been moved to packing yet.
                 </td>
               </tr>
