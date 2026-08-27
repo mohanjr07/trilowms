@@ -23,6 +23,7 @@ import {
   usePutawayStore, PUTAWAY_STATUS_META,
   type PutawayTask, type PutawayStatus, type PutawayStrategy,
 } from "@/lib/putaway-store";
+import { useAuthStore } from "@/lib/auth-store";
 import { useSlottingStore } from "@/lib/slotting-store";
 import { PageHeader, KPICard } from "@/components/wms/Primitives";
 import {
@@ -243,6 +244,7 @@ function TaskQueueView({ onOpen }: { onOpen: (t: PutawayTask) => void }) {
   const all = usePutawayStore((s) => s.filteredTasks)();
   const operators = usePutawayStore((s) => s.operatorList)();
   const zones = usePutawayStore((s) => s.zoneList)();
+  const currentUserName = useAuthStore((s) => s.session?.user.name);
 
   const total = Math.max(1, Math.ceil(all.length / pageSize));
   const paged = all.slice((page - 1) * pageSize, page * pageSize);
@@ -252,7 +254,23 @@ function TaskQueueView({ onOpen }: { onOpen: (t: PutawayTask) => void }) {
     <Section
       title="Putaway Task Queue"
       sub={`${all.length} tasks matched`}
-      actions={<Button variant="ghost" size="sm" className="h-7 text-xs gap-1"><FileDown className="h-3.5 w-3.5" /> Export</Button>}
+      actions={
+        <div className="flex items-center gap-2">
+          {/* Reuses the existing operator filter to surface only the logged-in
+              user's own assigned tasks — the only link between login identity
+              and task assignment, since names are matched, not ids. */}
+          {currentUserName && operators.includes(currentUserName) && (
+            <Button
+              variant={filters.operator === currentUserName ? "default" : "outline"}
+              size="sm" className="h-7 text-xs"
+              onClick={() => setFilters({ operator: filters.operator === currentUserName ? "" : currentUserName })}
+            >
+              My tasks only
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1"><FileDown className="h-3.5 w-3.5" /> Export</Button>
+        </div>
+      }
     >
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-border/60">
