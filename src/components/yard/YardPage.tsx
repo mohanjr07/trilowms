@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   useYardStore, YARD_STATUS_META,
@@ -606,12 +607,123 @@ const TABS: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "appointments", label: "Appointments", icon: CalendarClock },
 ];
 
+// ════════════════════════════════════════════════════════════════════════════
+//  GATE IN MODAL
+// ════════════════════════════════════════════════════════════════════════════
+
+function GateInModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const gateIn = useYardStore((s) => s.gateIn);
+  const [truckNumber, setTruckNumber] = useState("");
+  const [plateNumber, setPlateNumber] = useState("");
+  const [carrier, setCarrier] = useState("");
+  const [direction, setDirection] = useState<"INBOUND" | "OUTBOUND">("INBOUND");
+  const [driver, setDriver] = useState("");
+  const [driverMobile, setDriverMobile] = useState("");
+  const [hazmat, setHazmat] = useState(false);
+
+  const reset = () => {
+    setTruckNumber(""); setPlateNumber(""); setCarrier(""); setDirection("INBOUND");
+    setDriver(""); setDriverMobile(""); setHazmat(false);
+  };
+  const canSubmit = truckNumber.trim() && carrier.trim() && driver.trim();
+
+  const submit = () => {
+    if (!canSubmit) return;
+    gateIn({
+      truckNumber: truckNumber.trim(),
+      plateNumber: plateNumber.trim() || "—",
+      carrier: carrier.trim(),
+      direction,
+      driver: driver.trim(),
+      driverMobile: driverMobile.trim() || "—",
+      status: "GATE_IN",
+      yardPosition: "STAGING",
+      spotNumber: null,
+      dockId: null,
+      dockCode: null,
+      appointmentId: null,
+      asnId: null,
+      shipmentId: null,
+      dockAssignedTime: null,
+      departureTime: null,
+      dwellThresholdMinutes: 120,
+      seals: [],
+      hazmat,
+      priority: "NORMAL",
+      notes: null,
+    });
+    reset(); onClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) { reset(); onClose(); } }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle className="text-base">Gate In</DialogTitle></DialogHeader>
+        <div className="grid grid-cols-2 gap-3 py-1">
+          <label className="block col-span-1">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Truck # *</span>
+            <Input value={truckNumber} onChange={(e) => setTruckNumber(e.target.value)} placeholder="TRK-4021" className="h-9 mt-1 text-sm" />
+          </label>
+          <label className="block col-span-1">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Plate #</span>
+            <Input value={plateNumber} onChange={(e) => setPlateNumber(e.target.value)} placeholder="ABC-1234" className="h-9 mt-1 text-sm" />
+          </label>
+          <label className="block col-span-1">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Carrier *</span>
+            <Input value={carrier} onChange={(e) => setCarrier(e.target.value)} placeholder="DHL Freight" className="h-9 mt-1 text-sm" />
+          </label>
+          <div className="block col-span-1">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Direction</span>
+            <Select value={direction} onValueChange={(v) => setDirection(v as "INBOUND" | "OUTBOUND")}>
+              <SelectTrigger className="h-9 mt-1 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="INBOUND">Inbound</SelectItem>
+                <SelectItem value="OUTBOUND">Outbound</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <label className="block col-span-1">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Driver *</span>
+            <Input value={driver} onChange={(e) => setDriver(e.target.value)} placeholder="Full name" className="h-9 mt-1 text-sm" />
+          </label>
+          <label className="block col-span-1">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Driver mobile</span>
+            <Input value={driverMobile} onChange={(e) => setDriverMobile(e.target.value)} placeholder="+1 555…" className="h-9 mt-1 text-sm" />
+          </label>
+          <label className="flex items-center gap-2 col-span-2 text-sm cursor-pointer">
+            <input type="checkbox" checked={hazmat} onChange={(e) => setHazmat(e.target.checked)} className="accent-primary" />
+            Hazmat load
+          </label>
+        </div>
+        {direction === "INBOUND" && (
+          <p className="text-[11px] text-muted-foreground">An ASN will be created automatically in Inbound for this truck.</p>
+        )}
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => { reset(); onClose(); }}>Cancel</Button>
+          <Button disabled={!canSubmit} onClick={submit}>Gate In</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function YardPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [gateInOpen, setGateInOpen] = useState(false);
   const kpis = useYardStore((s) => s.kpis)();
+  const trucks = useYardStore((s) => s.trucks);
+  const gateOut = useYardStore((s) => s.gateOut);
 
   const open = (t: YardTruck) => setOpenId(t.id);
+
+  const gateOutNext = () => {
+    // "Next" = the truck that's been in the yard longest and hasn't already left.
+    const candidates = trucks
+      .filter((t) => !["GATE_OUT", "DEPARTED"].includes(t.status))
+      .sort((a, b) => (a.gateInTime ?? "").localeCompare(b.gateInTime ?? ""));
+    if (candidates[0]) gateOut(candidates[0].id);
+  };
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -621,8 +733,12 @@ export function YardPage() {
         subtitle="Gatehouse check-in · yard spotting · dock-door control · dwell monitoring"
         actions={
           <>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5"><LogOut className="h-3.5 w-3.5" /> Gate out</Button>
-            <Button size="sm" className="h-8 text-xs gap-1.5"><LogIn className="h-3.5 w-3.5" /> Gate in</Button>
+            <Button
+              variant="outline" size="sm" className="h-8 text-xs gap-1.5"
+              onClick={gateOutNext}
+              disabled={!trucks.some((t) => !["GATE_OUT", "DEPARTED"].includes(t.status))}
+            ><LogOut className="h-3.5 w-3.5" /> Gate out</Button>
+            <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => setGateInOpen(true)}><LogIn className="h-3.5 w-3.5" /> Gate in</Button>
           </>
         }
       />
@@ -655,6 +771,8 @@ export function YardPage() {
           <TruckDetailDrawer truckId={openId} onClose={() => setOpenId(null)} />
         </SheetContent>
       </Sheet>
+
+      <GateInModal open={gateInOpen} onClose={() => setGateInOpen(false)} />
     </div>
   );
 }
