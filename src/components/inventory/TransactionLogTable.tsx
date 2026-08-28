@@ -7,7 +7,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import {
   Search, Filter, X, ArrowUpDown, Download, RefreshCw,
   ChevronRight, Clock, Package, CheckCircle2, AlertCircle,
-  XCircle, Pause, ArrowRight,
+  XCircle, Pause, ArrowRight, Plus,
 } from "lucide-react";
 import {
   useTransactionStore,
@@ -215,7 +215,7 @@ function exportCSV(txns: InventoryTransaction[]) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function TransactionLogTable() {
+export function TransactionLogTable({ onNewTransaction }: { onNewTransaction?: () => void } = {}) {
   const filteredTransactions = useTransactionStore((s) => s.filteredTransactions);
   const filters = useTransactionStore((s) => s.filters);
   const setFilters = useTransactionStore((s) => s.setFilters);
@@ -301,8 +301,22 @@ export function TransactionLogTable() {
           Export
         </button>
 
-        <div className="ml-auto text-[10px] text-muted-foreground font-mono">
-          {txns.length.toLocaleString()} records
+        <div className="ml-auto flex items-center gap-3">
+          <span className="text-[10px] text-muted-foreground font-mono">
+            {txns.length.toLocaleString()} records
+          </span>
+          {/* Moved here from a floating bottom-right FAB, which could overlap
+              other fixed/absolute UI in the corner (e.g. the editor's own
+              overlay) — an inline toolbar button can't collide with anything. */}
+          {onNewTransaction && (
+            <button
+              onClick={onNewTransaction}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 active:scale-95 transition-all"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              New Transaction
+            </button>
+          )}
         </div>
       </div>
 
