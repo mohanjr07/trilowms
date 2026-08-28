@@ -12,9 +12,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { KPICard } from "@/components/wms/Primitives";
 import { useStockStore, type StockRecord } from "@/lib/stock-store";
 import { useSkuStore } from "@/lib/sku-store";
+import { useInboundStore } from "@/lib/inbound-store";
+import { useAuthStore } from "@/lib/auth-store";
 import { cn } from "@/lib/utils";
 
 const fmt = (n: number) => n.toLocaleString();
@@ -132,11 +136,109 @@ function StockLevelsView() {
   );
 }
 
+// ── Create PO ─────────────────────────────────────────────────────────────────
+// TriloWMS has no standalone Purchasing/PO module — the real mechanism by which
+// replenishment stock enters the warehouse is an Inbound ASN. So "Create PO"
+// raises a real ASN (with a generated PO number attached) pre-filled with the
+// low-stock SKU and suggested quantity, which shows up in Inbound ready to be
+// scheduled and received — rather than being a dead button with no real effect.
+let _poSeq = 5000;
+function nextPoNumber() {
+  return `PO-${++_poSeq}`;
+}
+
+function CreatePoModal({
+  open, onClose, skuCode, skuName, suggestedQty,
+}: { open: boolean; onClose: () => void; skuCode: string; skuName: string; suggestedQty: number }) {
+  const createAsn = useInboundStore((s) => s.createAsn);
+  const addLine = useInboundStore((s) => s.addLine);
+  const skus = useSkuStore((s) => s.skus);
+  const currentUserName = useAuthStore((s) => s.session?.user.name);
+  const [vendor, setVendor] = useState("Globex Industrial");
+  const [qty, setQty] = useState(String(suggestedQty));
+  const [result, setResult] = useState<string | null>(null);
+
+  const sku = skus.find((s) => s.skuCode === skuCode);
+  const uom = sku?.uom ?? "EA";
+
+  const reset = () => { setVendor("Globex Industrial"); setQty(String(suggestedQty)); setResult(null); };
+  const canSubmit = vendor.trim().length > 0 && Number(qty) > 0;
+
+  const submit = () => {
+    const poNumber = nextPoNumber();
+    const asn = createAsn({
+      status: "PENDING",
+      vendor: vendor.trim(),
+      vendorCode: vendor.trim().slice(0, 4).toUpperCase(),
+      poNumbers: [poNumber],
+      carrierName: "TBD",
+      truckNumber: null,
+      trailerNumber: null,
+      dockId: null,
+      dockCode: null,
+      scheduledArrival: new Date(Date.now() + 3 * 86400000).toISOString(),
+      actualArrival: null,
+      completedAt: null,
+      priority: "NORMAL",
+      totalLines: 0,
+      totalUnits: 0,
+      receivedUnits: 0,
+      notes: `Auto-created from Low Stock alert for ${skuCode}`,
+      createdBy: currentUserName ?? "Unknown",
+      warehouseId: "TRILO-DC-01",
+      temperatureRequired: false,
+      hazmat: false,
+      palletCount: 0,
+      grossWeight: 0,
+    });
+    addLine(asn.id, { skuCode, skuName, poNumber, orderedQty: Number(qty), uom });
+    setResult(`Created ${poNumber} on ASN ${asn.asnNumber} — visible in Inbound.`);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { reset(); onClose(); } }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader><DialogTitle>Create PO — {skuCode}</DialogTitle></DialogHeader>
+        {result ? (
+          <div className="space-y-4">
+            <p className="text-sm text-emerald-400">{result}</p>
+            <DialogFooter>
+              <Button size="sm" onClick={() => { reset(); onClose(); }}>Done</Button>
+            </DialogFooter>
+          </div>
+        ) : (
+          <>
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">{skuName}</p>
+              <div>
+                <Label className="text-xs">Vendor</Label>
+                <Input value={vendor} onChange={(e) => setVendor(e.target.value)} className="h-9" />
+              </div>
+              <div>
+                <Label className="text-xs">Order quantity ({uom})</Label>
+                <Input type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} className="h-9" />
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                This creates an ASN with a new PO number, ready to be scheduled and received in Inbound.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => { reset(); onClose(); }}>Cancel</Button>
+              <Button size="sm" disabled={!canSubmit} onClick={submit}>Create PO</Button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Low Stock ─────────────────────────────────────────────────────────────────
 
 function LowStockView() {
   const records = useStockStore((s) => s.list)();
   const reorder = useReorderMap();
+  const [poTarget, setPoTarget] = useState<{ skuCode: string; skuName: string; qty: number } | null>(null);
 
   const alerts = useMemo(() => {
     return records
@@ -184,7 +286,9 @@ function LowStockView() {
                   <td className="py-2.5 px-3 text-right font-mono tabular-nums text-xs text-muted-foreground">{r.ro}</td>
                   <td className="py-2.5 px-3 text-right font-mono tabular-nums text-xs text-red-400">-{fmt(Math.max(0, r.deficit))}</td>
                   <td className="py-2.5 px-3 text-right font-mono tabular-nums text-xs text-emerald-400">{fmt(suggested(r))}</td>
-                  <td className="py-2.5 px-3 text-right"><Button size="sm" variant="outline" className="h-7 text-xs">Create PO</Button></td>
+                  <td className="py-2.5 px-3 text-right">
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setPoTarget({ skuCode: r.skuCode, skuName: r.skuName, qty: suggested(r) })}>Create PO</Button>
+                  </td>
                 </tr>
               ))}
               {alerts.length === 0 && <tr><td colSpan={7} className="text-center py-12 text-sm text-muted-foreground"><CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-emerald-500/40" />All stock is above reorder level.</td></tr>}
@@ -192,6 +296,15 @@ function LowStockView() {
           </table>
         </div>
       </Section>
+      {poTarget && (
+        <CreatePoModal
+          open={!!poTarget}
+          onClose={() => setPoTarget(null)}
+          skuCode={poTarget.skuCode}
+          skuName={poTarget.skuName}
+          suggestedQty={poTarget.qty}
+        />
+      )}
     </div>
   );
 }
