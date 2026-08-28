@@ -24,6 +24,7 @@ import {
 import { usePickPathStore, type RouteResult } from "@/lib/pickpath-store";
 import { useEditorStore } from "@/lib/wms-editor-store";
 import { useAuthStore } from "@/lib/auth-store";
+import { useOrdersStore } from "@/lib/orders-store";
 import { PageHeader, KPICard } from "@/components/wms/Primitives";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { cn } from "@/lib/utils";
@@ -828,9 +829,38 @@ const TABS: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
 export function PickingPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [openWaveId, setOpenWaveId] = useState<string | null>(null);
+  const [planMsg, setPlanMsg] = useState<string | null>(null);
   const kpis = usePickingStore((s) => s.kpis)();
+  const waves = usePickingStore((s) => s.waves);
+  const releaseWave = usePickingStore((s) => s.releaseWave);
+  const createWaveFromOrder = usePickingStore((s) => s.createWaveFromOrder);
+  const orders = useOrdersStore((s) => s.orders);
+  const updateOrderStatus = useOrdersStore((s) => s.updateStatus);
 
   const openWave = (w: Wave) => setOpenWaveId(w.id);
+
+  const flash = (msg: string) => { setPlanMsg(msg); setTimeout(() => setPlanMsg(null), 3500); };
+
+  const releaseNext = () => {
+    const draft = [...waves].filter((w) => w.status === "DRAFT")
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
+    if (!draft) { flash("No draft waves waiting to be released."); return; }
+    releaseWave(draft.id);
+    flash(`Released ${draft.id}.`);
+  };
+
+  const planWave = () => {
+    const candidate = orders.find((o) => o.status === "ALLOCATED" && o.lines.some((l) => l.allocatedQty > 0));
+    if (!candidate) { flash("No allocated orders ready to plan into a wave."); return; }
+    const wave = createWaveFromOrder({
+      sourceOrderId: candidate.id,
+      orderNumber: candidate.orderNumber,
+      priority: "STANDARD",
+      lines: candidate.lines.filter((l) => l.allocatedQty > 0).map((l) => ({ skuCode: l.skuCode, skuName: l.skuName, uom: l.uom, qty: l.allocatedQty })),
+    });
+    updateOrderStatus(candidate.id, "PICKING");
+    flash(`Planned wave ${wave.id} from order ${candidate.orderNumber}.`);
+  };
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -840,8 +870,9 @@ export function PickingPage() {
         subtitle="Wave management · pick-floor dispatch · picker productivity · shortage resolution"
         actions={
           <>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5"><Target className="h-3.5 w-3.5" /> Plan wave</Button>
-            <Button size="sm" className="h-8 text-xs gap-1.5"><Zap className="h-3.5 w-3.5" /> Release next</Button>
+            {planMsg && <span className="text-[10px] text-muted-foreground mr-1">{planMsg}</span>}
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={planWave}><Target className="h-3.5 w-3.5" /> Plan wave</Button>
+            <Button size="sm" className="h-8 text-xs gap-1.5" onClick={releaseNext}><Zap className="h-3.5 w-3.5" /> Release next</Button>
           </>
         }
       />
