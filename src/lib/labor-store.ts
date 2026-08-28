@@ -4,6 +4,11 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+// Lazily referenced only inside autoBalance() (never at module load time), so
+// this reverse-direction import doesn't create a real circular-init problem
+// even though putaway/picking stores also reference useLaborStore.
+import { usePutawayStore } from "@/lib/putaway-store";
+import { usePickingStore } from "@/lib/picking-store";
 
 export type EmployeeStatus = "CLOCKED_IN" | "CLOCKED_OUT" | "ON_BREAK" | "ON_LEAVE" | "TRAINING" | "INACTIVE";
 export type ShiftType = "A" | "B" | "C" | "FLEX";
@@ -159,6 +164,10 @@ interface LaborState {
   endBreak: (empId: string) => void;
   assignTask: (empId: string, taskType: TaskType, taskId: string, zone: string) => void;
   updateUph: (empId: string, uph: number) => void;
+  // Sweeps the real Putaway and Picking queues for unassigned open work and
+  // hands it to whichever clocked-in employees currently have the lightest
+  // load — i.e. it actually rebalances real cross-module work, not a no-op.
+  autoBalance: () => { putawayAssigned: number; pickAssigned: number };
   setFilters: (f: Partial<LaborFilters>) => void;
   resetFilters: () => void;
   setPage: (p: number) => void;
@@ -230,6 +239,43 @@ export const useLaborStore = create<LaborState>()(
         set((s) => ({
           employees: s.employees.map((e) => e.id === empId ? { ...e, unitsPerHour: uph } : e),
         }));
+      },
+
+      autoBalance: () => {
+        // Putaway: any PENDING task with no operator gets the least-loaded
+        // clocked-in operator via the existing per-task action.
+        const putaway = usePutawayStore.getState();
+        const openPutaway = putaway.tasks.filter((t) => t.status === "PENDING" && !t.assignedOperatorId);
+        for (const t of openPutaway) putaway.autoAssignOperator(t.id);
+
+        // Picking: any PENDING task with no picker in a released wave gets
+        // round-robined across clocked-in employees, tracking load locally so
+        // a single burst of work spreads out instead of stacking one person.
+        const picking = usePickingStore.getState();
+        const roster = get().employees.filter((e) => e.status === "CLOCKED_IN");
+        const load = new Map<string, number>(roster.map((e) => [e.id, 0]));
+        for (const w of picking.waves) {
+          for (const t of w.tasks) {
+            if (t.assignedPickerId && ["PENDING", "ASSIGNED", "IN_PROGRESS"].includes(t.status)) {
+              load.set(t.assignedPickerId, (load.get(t.assignedPickerId) ?? 0) + 1);
+            }
+          }
+        }
+        let pickAssigned = 0;
+        if (roster.length > 0) {
+          for (const w of picking.waves) {
+            if (!["RELEASED", "IN_PROGRESS", "PARTIAL"].includes(w.status)) continue;
+            for (const t of w.tasks) {
+              if (t.status !== "PENDING" || t.assignedPickerId) continue;
+              const best = roster.reduce((b, e) => ((load.get(e.id) ?? 0) < (load.get(b.id) ?? 0) ? e : b), roster[0]);
+              picking.assignPicker(w.id, t.id, best.id, best.name);
+              load.set(best.id, (load.get(best.id) ?? 0) + 1);
+              pickAssigned++;
+            }
+          }
+        }
+
+        return { putawayAssigned: openPutaway.length, pickAssigned };
       },
 
       setFilters: (f) => set((s) => ({ filters: { ...s.filters, ...f }, page: 1 })),
