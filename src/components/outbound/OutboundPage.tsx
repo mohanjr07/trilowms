@@ -619,10 +619,27 @@ const TABS: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
 export function OutboundPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [dispatchMsg, setDispatchMsg] = useState<string | null>(null);
   const kpis = useOutboundStore((s) => s.kpis)();
   const syncFromPacking = useOutboundStore((s) => s.syncFromPacking);
+  const shipments = useOutboundStore((s) => s.shipments);
+  const sealAndConfirmDispatch = useOutboundStore((s) => s.sealAndConfirmDispatch);
 
   const open = (s: Shipment) => setOpenId(s.id);
+
+  const dispatchNext = () => {
+    const next = [...shipments].filter((s) => s.status === "LOADED")
+      .sort((a, b) => a.scheduledDispatch.localeCompare(b.scheduledDispatch))[0];
+    if (!next) {
+      setDispatchMsg("No fully loaded shipments ready to dispatch.");
+      setTimeout(() => setDispatchMsg(null), 3500);
+      return;
+    }
+    const seal = `SEAL-${Date.now().toString().slice(-6)}`;
+    sealAndConfirmDispatch(next.id, seal);
+    setDispatchMsg(`Dispatched ${next.shipmentNumber ?? next.id} with seal ${seal}.`);
+    setTimeout(() => setDispatchMsg(null), 3500);
+  };
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -632,8 +649,9 @@ export function OutboundPage() {
         subtitle="Shipment planning · dock staging · truck loading · dispatch & manifest"
         actions={
           <>
+            {dispatchMsg && <span className="text-[10px] text-muted-foreground mr-1">{dispatchMsg}</span>}
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => syncFromPacking()}><RefreshCw className="h-3.5 w-3.5" /> Sync from Packing</Button>
-            <Button size="sm" className="h-8 text-xs gap-1.5"><Send className="h-3.5 w-3.5" /> Dispatch next</Button>
+            <Button size="sm" className="h-8 text-xs gap-1.5" onClick={dispatchNext}><Send className="h-3.5 w-3.5" /> Dispatch next</Button>
           </>
         }
       />
