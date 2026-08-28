@@ -1162,9 +1162,19 @@ export function InboundPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [openAsnId, setOpenAsnId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const kpis = useInboundStore((s) => s.kpis)();
+  const resetFilters = useInboundStore((s) => s.resetFilters);
 
   const openAsn = (a: ASN) => setOpenAsnId(a.id);
+
+  const refresh = () => {
+    // No live backend to refetch from — this clears stale filters/pagination
+    // so the list reflects the latest local state, with a brief spin for feedback.
+    resetFilters();
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 500);
+  };
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -1174,7 +1184,7 @@ export function InboundPage() {
         subtitle="ASN management · appointment scheduling · receiving · discrepancy resolution"
         actions={
           <>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5"><RefreshCw className="h-3.5 w-3.5" /> Refresh</Button>
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={refresh}><RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} /> Refresh</Button>
             <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => setCreateOpen(true)}><Plus className="h-3.5 w-3.5" /> New ASN</Button>
           </>
         }
