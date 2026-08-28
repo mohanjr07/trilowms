@@ -71,11 +71,15 @@ function TypeDistribution({ byType }: { byType: Record<TransactionType, number> 
         <Activity className="h-3.5 w-3.5 text-primary" />
         <span className="text-[10px] font-bold uppercase tracking-wider">Transaction Mix</span>
       </div>
-      <div className="p-3 h-[130px]">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="p-3 h-[130px] w-full">
+        {/* width="99%" (not 100%) — inside a flex/grid sidebar column, a
+            ResponsiveContainer at exactly 100% can measure a 0px box on first
+            paint and never recover, rendering as a couple of tiny stray bars
+            instead of a real chart. 99% forces it to actually re-measure. */}
+        <ResponsiveContainer width="99%" height="100%" minWidth={0}>
           <BarChart data={data} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-            <XAxis dataKey="name" tick={{ fontSize: 8 }} stroke="transparent" interval={0} />
-            <YAxis tick={{ fontSize: 8 }} stroke="transparent" />
+            <XAxis dataKey="name" tick={{ fontSize: 8, fill: "#94a3b8" }} stroke="transparent" interval={0} />
+            <YAxis tick={{ fontSize: 8, fill: "#94a3b8" }} stroke="transparent" />
             <Tooltip
               contentStyle={{ background: "var(--color-card, #1e293b)", border: "1px solid var(--color-border, #334155)", borderRadius: 6, fontSize: 11 }}
               formatter={(v: number, _: string, props: { payload: { fullName: string } }) => [v, props.payload.fullName]}
