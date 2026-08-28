@@ -36,14 +36,16 @@ function TxnKPICard({
     // default min-width is "auto", which ignores the grid track's minmax(0,1fr) and
     // lets long sub-text (e.g. "100% success rate") force the whole card wider than
     // its column, spilling the card's border/background past the section.
-    <div className={`rounded-xl border px-4 py-3 flex items-start gap-3 min-w-0 overflow-hidden ${colors.bg} ${colors.border}`}>
+    <div className={`rounded-xl border px-4 py-3 flex items-center gap-3 min-w-0 overflow-hidden ${colors.bg} ${colors.border}`}>
       <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${colors.bg} border ${colors.border}`}>
         <Icon className={`h-4 w-4 ${colors.text}`} />
       </div>
-      <div className="min-w-0 flex-1">
-        <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">{label}</div>
-        <div className={`text-xl font-black tabular-nums ${colors.text}`}>{value}</div>
-        {sub && <div className="text-[10px] text-muted-foreground mt-0.5 break-words">{sub}</div>}
+      <div className="min-w-0 flex-1 flex items-baseline justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground truncate">{label}</div>
+          {sub && <div className="text-[10px] text-muted-foreground truncate">{sub}</div>}
+        </div>
+        <div className={`text-xl font-black tabular-nums shrink-0 ${colors.text}`}>{value}</div>
       </div>
     </div>
   );
@@ -168,8 +170,9 @@ export function TransactionKPIStrip() {
 
   return (
     <div className="space-y-4 p-4">
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* KPI Cards — single column: this sidebar (280px) is too narrow for two
+          columns without labels like "TOTAL TRANSACTIONS" wrapping mid-word. */}
+      <div className="grid grid-cols-1 gap-2.5">
         <TxnKPICard
           label="Total Transactions"
           value={kpis.total.toLocaleString()}
