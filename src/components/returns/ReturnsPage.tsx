@@ -778,11 +778,28 @@ function CreateRmaModal({ open, onClose }: { open: boolean; onClose: () => void 
   );
 }
 
+function exportRmaCSV(rmas: RMA[]) {
+  const headers = ["RMA", "Status", "Customer", "Order", "Priority", "Lines", "Return Qty", "Received Qty", "Credit Amount", "Requested At"];
+  const rows = rmas.map((r) => [
+    r.rmaNumber, r.status, r.customer, r.orderId, r.priority,
+    r.totalLines, r.totalReturnQty, r.totalReceivedQty, r.totalCreditAmount, r.requestedAt,
+  ]);
+  const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `rmas_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function ReturnsPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [openId, setOpenId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const kpis = useReturnsStore((s) => s.kpis)();
+  const filteredRmas = useReturnsStore((s) => s.filteredRmas)();
 
   const open = (r: RMA) => setOpenId(r.id);
 
@@ -794,7 +811,7 @@ export function ReturnsPage() {
         subtitle="RMA intake · return receipt · inspection & disposition · credit memos"
         actions={
           <>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5"><FileDown className="h-3.5 w-3.5" /> Report</Button>
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => exportRmaCSV(filteredRmas)}><FileDown className="h-3.5 w-3.5" /> Report</Button>
             <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => setCreateOpen(true)}><Undo2 className="h-3.5 w-3.5" /> New RMA</Button>
           </>
         }
