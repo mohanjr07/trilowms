@@ -181,11 +181,22 @@ interface YardState {
   carrierList: () => string[];
 }
 
+// Dock doors are real physical fixtures (same reasoning as Inbound's dock board
+// and the labor roster) — seeded vacant/clean so occupancy from here on reflects
+// real gate-ins/assignments instead of starting permanently empty.
+const SEED_YARD_DOCKS: YardDock[] = YARD_DOCKS.map((d) => ({
+  ...d,
+  status: "AVAILABLE",
+  assignedTruckId: null,
+  assignedAt: null,
+  currentWeight: 0,
+}));
+
 export const useYardStore = create<YardState>()(
   persist(
     (set, get) => ({
       trucks: [],
-      docks: [],
+      docks: SEED_YARD_DOCKS,
       appointments: [],
       filters: DEFAULT_FILTERS,
       page: 1,
@@ -315,6 +326,12 @@ export const useYardStore = create<YardState>()(
     {
       name: "trilowms-yard-v2",
       partialize: (s) => ({ trucks: s.trucks, docks: s.docks, appointments: s.appointments }),
+      // Backfill for anyone who already has an empty `docks: []` persisted from
+      // before this fix (same issue as Inbound's dock board).
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<YardState>;
+        return { ...current, ...p, docks: p.docks && p.docks.length > 0 ? p.docks : current.docks };
+      },
     }
   )
 );
