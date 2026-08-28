@@ -16,11 +16,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   useQCStore, QC_STATUS_META,
   type QCInspection, type InspectionStatus, type QCHold, type DispositionType, type InspectionCheckpoint,
+  type HoldType,
 } from "@/lib/qc-store";
 import { useAuthStore } from "@/lib/auth-store";
+import { useSkuStore } from "@/lib/sku-store";
 import { PageHeader, KPICard } from "@/components/wms/Primitives";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { cn } from "@/lib/utils";
@@ -628,9 +633,170 @@ const TABS: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "inspectors",  label: "Inspectors",  icon: Users },
 ];
 
+const INSPECTION_TYPES: QCInspection["type"][] = ["INBOUND", "PUTAWAY", "CYCLE_COUNT", "RETURNS", "OUTBOUND", "AD_HOC"];
+const HOLD_TYPES: HoldType[] = ["QC_HOLD", "VENDOR_HOLD", "RECALL_HOLD", "DAMAGE_HOLD", "EXPIRY_HOLD", "REGULATORY_HOLD"];
+
+function NewInspectionModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const createInspection = useQCStore((s) => s.createInspection);
+  const skus = useSkuStore((s) => s.skus);
+  const [skuCode, setSkuCode] = useState("");
+  const [type, setType] = useState<QCInspection["type"]>("AD_HOC");
+  const [sampleSize, setSampleSize] = useState("10");
+  const [lotNumber, setLotNumber] = useState("");
+  const [sourceRef, setSourceRef] = useState("");
+
+  const reset = () => { setSkuCode(""); setType("AD_HOC"); setSampleSize("10"); setLotNumber(""); setSourceRef(""); };
+  const selectedSku = skus.find((s) => s.skuCode === skuCode);
+  const canSubmit = !!selectedSku && Number(sampleSize) > 0;
+
+  const submit = () => {
+    if (!selectedSku) return;
+    createInspection({
+      type,
+      skuCode: selectedSku.skuCode,
+      skuName: selectedSku.itemName,
+      sampleSize: Number(sampleSize),
+      lotNumber: lotNumber || null,
+      sourceRef: sourceRef || null,
+    });
+    reset();
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { reset(); onClose(); } }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader><DialogTitle>New Inspection</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs">SKU</Label>
+            <Select value={skuCode} onValueChange={setSkuCode}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Select SKU" /></SelectTrigger>
+              <SelectContent>
+                {skus.map((s) => (
+                  <SelectItem key={s.id} value={s.skuCode}>{s.skuCode} — {s.itemName}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Inspection type</Label>
+            <Select value={type} onValueChange={(v) => setType(v as QCInspection["type"])}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {INSPECTION_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Sample size</Label>
+              <Input type="number" min={1} value={sampleSize} onChange={(e) => setSampleSize(e.target.value)} className="h-9" />
+            </div>
+            <div>
+              <Label className="text-xs">Lot number (optional)</Label>
+              <Input value={lotNumber} onChange={(e) => setLotNumber(e.target.value)} className="h-9" />
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">Source ref (optional — ASN / RMA / wave id)</Label>
+            <Input value={sourceRef} onChange={(e) => setSourceRef(e.target.value)} className="h-9" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={() => { reset(); onClose(); }}>Cancel</Button>
+          <Button size="sm" disabled={!canSubmit} onClick={submit}>Create inspection</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RaiseHoldModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const raiseHold = useQCStore((s) => s.raiseHold);
+  const currentUserName = useAuthStore((s) => s.session?.user.name);
+  const skus = useSkuStore((s) => s.skus);
+  const [skuCode, setSkuCode] = useState("");
+  const [type, setType] = useState<HoldType>("QC_HOLD");
+  const [lotNumber, setLotNumber] = useState("");
+  const [quantity, setQuantity] = useState("1");
+  const [reason, setReason] = useState("");
+
+  const reset = () => { setSkuCode(""); setType("QC_HOLD"); setLotNumber(""); setQuantity("1"); setReason(""); };
+  const selectedSku = skus.find((s) => s.skuCode === skuCode);
+  const canSubmit = !!selectedSku && Number(quantity) > 0 && reason.trim().length > 0;
+
+  const submit = () => {
+    if (!selectedSku) return;
+    raiseHold({
+      type,
+      skuCode: selectedSku.skuCode,
+      skuName: selectedSku.itemName,
+      binCode: null,
+      lotNumber: lotNumber || null,
+      quantity: Number(quantity),
+      reason: reason.trim(),
+      raisedBy: currentUserName ?? "Unknown",
+      notes: null,
+    });
+    reset();
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { reset(); onClose(); } }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader><DialogTitle>Raise Hold</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs">SKU</Label>
+            <Select value={skuCode} onValueChange={setSkuCode}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Select SKU" /></SelectTrigger>
+              <SelectContent>
+                {skus.map((s) => (
+                  <SelectItem key={s.id} value={s.skuCode}>{s.skuCode} — {s.itemName}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Hold type</Label>
+            <Select value={type} onValueChange={(v) => setType(v as HoldType)}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {HOLD_TYPES.map((t) => <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Quantity</Label>
+              <Input type="number" min={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-9" />
+            </div>
+            <div>
+              <Label className="text-xs">Lot number (optional)</Label>
+              <Input value={lotNumber} onChange={(e) => setLotNumber(e.target.value)} className="h-9" />
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">Reason</Label>
+            <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} placeholder="Why is this stock being held?" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={() => { reset(); onClose(); }}>Cancel</Button>
+          <Button size="sm" disabled={!canSubmit} onClick={submit}>Raise hold</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function QCPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [newInspectionOpen, setNewInspectionOpen] = useState(false);
+  const [raiseHoldOpen, setRaiseHoldOpen] = useState(false);
   const kpis = useQCStore((s) => s.kpis)();
 
   const open = (i: QCInspection) => setOpenId(i.id);
@@ -643,11 +809,13 @@ export function QCPage() {
         subtitle="Inspection · AQL sampling · disposition · quarantine holds · inspector QA"
         actions={
           <>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5"><Microscope className="h-3.5 w-3.5" /> New inspection</Button>
-            <Button size="sm" className="h-8 text-xs gap-1.5"><ShieldAlert className="h-3.5 w-3.5" /> Raise hold</Button>
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setNewInspectionOpen(true)}><Microscope className="h-3.5 w-3.5" /> New inspection</Button>
+            <Button size="sm" className="h-8 text-xs gap-1.5" onClick={() => setRaiseHoldOpen(true)}><ShieldAlert className="h-3.5 w-3.5" /> Raise hold</Button>
           </>
         }
       />
+      <NewInspectionModal open={newInspectionOpen} onClose={() => setNewInspectionOpen(false)} />
+      <RaiseHoldModal open={raiseHoldOpen} onClose={() => setRaiseHoldOpen(false)} />
 
       <div className="flex items-center gap-0 border-b border-border bg-sidebar shrink-0 px-2 overflow-x-auto">
         {TABS.map(({ id, label, icon: Icon }) => {
