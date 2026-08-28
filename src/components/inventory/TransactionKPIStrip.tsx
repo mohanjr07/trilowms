@@ -32,14 +32,18 @@ function TxnKPICard({
   }[tone];
 
   return (
-    <div className={`rounded-xl border px-4 py-3 flex items-start gap-3 ${colors.bg} ${colors.border}`}>
+    // min-w-0 on the card itself (not just the text wrapper) — as a grid item its
+    // default min-width is "auto", which ignores the grid track's minmax(0,1fr) and
+    // lets long sub-text (e.g. "100% success rate") force the whole card wider than
+    // its column, spilling the card's border/background past the section.
+    <div className={`rounded-xl border px-4 py-3 flex items-start gap-3 min-w-0 overflow-hidden ${colors.bg} ${colors.border}`}>
       <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${colors.bg} border ${colors.border}`}>
         <Icon className={`h-4 w-4 ${colors.text}`} />
       </div>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">{label}</div>
         <div className={`text-xl font-black tabular-nums ${colors.text}`}>{value}</div>
-        {sub && <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>}
+        {sub && <div className="text-[10px] text-muted-foreground mt-0.5 break-words">{sub}</div>}
       </div>
     </div>
   );
