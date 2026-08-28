@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import {
   useLaborStore, EMPLOYEE_STATUS_META,
@@ -532,12 +533,91 @@ const TABS: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "performance", label: "Performance", icon: Trophy },
 ];
 
+// ════════════════════════════════════════════════════════════════════════════
+//  PLAN SHIFT MODAL
+// ════════════════════════════════════════════════════════════════════════════
+
+function PlanShiftModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const employees = useLaborStore((s) => s.employees);
+  const clockIn = useLaborStore((s) => s.clockIn);
+  const [shift, setShift] = useState<ShiftType>("B");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const available = employees.filter((e) => e.shift === shift && e.status !== "CLOCKED_IN");
+
+  const toggle = (id: string) => setSelected((prev) => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+
+  const submit = () => {
+    selected.forEach((id) => clockIn(id));
+    setSelected(new Set());
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) { setSelected(new Set()); onClose(); } }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle className="text-base">Plan Shift</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <label className="block">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Shift</span>
+            <Select value={shift} onValueChange={(v) => { setShift(v as ShiftType); setSelected(new Set()); }}>
+              <SelectTrigger className="h-9 mt-1 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="A">Shift A</SelectItem>
+                <SelectItem value="B">Shift B</SelectItem>
+                <SelectItem value="C">Shift C</SelectItem>
+                <SelectItem value="FLEX">Flex</SelectItem>
+              </SelectContent>
+            </Select>
+          </label>
+
+          <div>
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              Not yet clocked in for this shift ({available.length})
+            </span>
+            <div className="mt-1.5 max-h-64 overflow-y-auto space-y-1 rounded border border-border/60 p-1.5">
+              {available.map((e) => (
+                <label key={e.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent/20 cursor-pointer text-sm">
+                  <input type="checkbox" checked={selected.has(e.id)} onChange={() => toggle(e.id)} className="accent-primary" />
+                  <span className="flex-1 truncate">{e.name}</span>
+                  <span className="text-[10px] text-muted-foreground">{e.role}</span>
+                </label>
+              ))}
+              {available.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-4">Everyone on Shift {shift} is already clocked in.</p>
+              )}
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => { setSelected(new Set()); onClose(); }}>Cancel</Button>
+          <Button disabled={selected.size === 0} onClick={submit}>Clock in {selected.size || ""} selected</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function LaborPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [planOpen, setPlanOpen] = useState(false);
+  const [balanceMsg, setBalanceMsg] = useState<string | null>(null);
   const kpis = useLaborStore((s) => s.kpis)();
+  const autoBalance = useLaborStore((s) => s.autoBalance);
 
   const open = (e: LaborEmployee) => setOpenId(e.id);
+
+  const runAutoBalance = () => {
+    const { putawayAssigned, pickAssigned } = autoBalance();
+    const total = putawayAssigned + pickAssigned;
+    setBalanceMsg(total > 0 ? `Assigned ${total} open task${total === 1 ? "" : "s"}` : "No unassigned open tasks to balance");
+    setTimeout(() => setBalanceMsg(null), 3000);
+  };
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -547,8 +627,9 @@ export function LaborPage() {
         subtitle="Workforce roster · time & attendance · task allocation · productivity & UPH"
         actions={
           <>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5"><Target className="h-3.5 w-3.5" /> Plan shift</Button>
-            <Button size="sm" className="h-8 text-xs gap-1.5"><Zap className="h-3.5 w-3.5" /> Auto-balance</Button>
+            {balanceMsg && <span className="text-[10px] text-emerald-400 font-mono">{balanceMsg}</span>}
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setPlanOpen(true)}><Target className="h-3.5 w-3.5" /> Plan shift</Button>
+            <Button size="sm" className="h-8 text-xs gap-1.5" onClick={runAutoBalance}><Zap className="h-3.5 w-3.5" /> Auto-balance</Button>
           </>
         }
       />
@@ -580,6 +661,8 @@ export function LaborPage() {
           <EmployeeDrawer empId={openId} onClose={() => setOpenId(null)} />
         </SheetContent>
       </Sheet>
+
+      <PlanShiftModal open={planOpen} onClose={() => setPlanOpen(false)} />
     </div>
   );
 }
