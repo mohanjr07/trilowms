@@ -4,7 +4,7 @@
  */
 
 import { useState } from "react";
-import { Plus, ArrowLeftRight } from "lucide-react";
+import { ArrowLeftRight } from "lucide-react";
 import { TransactionLogTable } from "./TransactionLogTable";
 import { TransactionKPIStrip } from "./TransactionKPIStrip";
 import { NewTransactionModal } from "./NewTransactionModal";
@@ -44,26 +44,10 @@ export function TransactionsPage() {
 
       {/* Main: transaction log */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
-        {/* Table */}
-        <TransactionLogTable />
-
-        {/* FAB — New Transaction */}
-        <button
-          onClick={() => setModalOpen(true)}
-          className="
-            absolute bottom-6 right-6 z-20
-            flex items-center gap-2 px-5 py-3
-            bg-primary text-primary-foreground
-            rounded-xl shadow-lg hover:shadow-xl
-            text-sm font-bold
-            hover:bg-primary/90 active:scale-95
-            transition-all duration-150
-            border border-primary/50
-          "
-        >
-          <Plus className="h-4 w-4" />
-          New Transaction
-        </button>
+        {/* Table — "New Transaction" now lives inline in its toolbar instead of a
+            floating bottom-right FAB, which could sit under/overlap other fixed
+            corner UI (e.g. the editor's own overlay banner). */}
+        <TransactionLogTable onNewTransaction={() => setModalOpen(true)} />
       </main>
 
       {/* Modal */}
