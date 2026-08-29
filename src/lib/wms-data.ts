@@ -205,16 +205,48 @@ export function makeZone(
   };
 }
 
+// Builds a closed-loop forklift path that stays in the open cross-aisle gaps
+// between rack columns/rows instead of a hand-picked (x, z) rectangle — a
+// hardcoded path desyncs the moment a zone's bounds/aisleCount/racksPerAisle
+// changes and ends up clipping straight through the rack meshes it was meant
+// to drive around (see makeZone's rack x/z placement math below, which this
+// mirrors exactly).
+function computeAislePath(
+  bounds: Zone["bounds"],
+  aisleCount: number,
+  racksPerAisle: number,
+): [number, number][] {
+  if (aisleCount < 2) return []; // no open gap between rack columns to drive through
+  // Same placement math as makeZone: side "L" is at -0.9, side "R" at +0.9 from
+  // each column's centerline, and racks are rackW=1.6 wide (see RackMesh) — so
+  // the safe gap between column `a`'s R side and column `a+1`'s L side is
+  // centered at bounds.x + 3.5 + 4*a.
+  const gapXs = Array.from({ length: aisleCount - 1 }, (_, a) => bounds.x + 3.5 + 4 * a);
+  const x1 = gapXs[0];
+  const x2 = gapXs[gapXs.length - 1];
+  // Open cross-aisle strips before the first rack row and after the last one
+  // (racks are rackD=0.6 deep, spaced 2.2 apart starting at bounds.z + 1.5).
+  const zFront = bounds.z + 0.6;
+  const lastRackZ = bounds.z + 1.5 + (racksPerAisle - 1) * 2.2;
+  const zBack = Math.max(lastRackZ + 0.6, bounds.z + bounds.d - 0.6);
+  if (x1 === x2) return [[x1, zFront], [x1, zBack]]; // only one gap — drive it back and forth
+  return [[x1, zFront], [x1, zBack], [x2, zBack], [x2, zFront]];
+}
+
+const FAST_PICK_BOUNDS = { x: -12, z: -18, w: 14, d: 16 };
+const BULK_STORAGE_BOUNDS = { x: 4, z: -18, w: 14, d: 16 };
+const RETURNS_QC_BOUNDS = { x: -28, z: -6, w: 14, d: 8 };
+
 export const warehouse: Warehouse = {
   name: "TRILO-DC-01",
   size: { w: 60, d: 40 },
   zones: [
     makeZone("Inbound Staging", "Raw Material", { x: -28, z: -18, w: 14, d: 10 }, 2, 4),
-    makeZone("Fast Pick", "Fast Moving", { x: -12, z: -18, w: 14, d: 16 }, 3, 6),
-    makeZone("Bulk Storage", "Finished Goods", { x: 4, z: -18, w: 14, d: 16 }, 3, 6),
+    makeZone("Fast Pick", "Fast Moving", FAST_PICK_BOUNDS, 3, 6),
+    makeZone("Bulk Storage", "Finished Goods", BULK_STORAGE_BOUNDS, 3, 6),
     makeZone("Cold Chain", "Cold Storage", { x: 20, z: -18, w: 8, d: 10 }, 2, 4),
     makeZone("Hazmat", "Hazardous", { x: 20, z: -6, w: 8, d: 6 }, 1, 3),
-    makeZone("Returns / QC", "QC Hold", { x: -28, z: -6, w: 14, d: 8 }, 2, 3),
+    makeZone("Returns / QC", "QC Hold", RETURNS_QC_BOUNDS, 2, 3),
     makeZone("Slow Movers", "Slow Moving", { x: 4, z: 0, w: 14, d: 10 }, 2, 4),
     makeZone("Outbound Staging", "Finished Goods", { x: -12, z: 0, w: 14, d: 10 }, 2, 4),
   ],
@@ -237,9 +269,9 @@ export const warehouse: Warehouse = {
     })),
   ],
   forklifts: [
-    { id: "fl-1", code: "FL-01", path: [[-20, -10], [-10, -10], [-10, 0], [-20, 0]], speed: 0.4 },
-    { id: "fl-2", code: "FL-02", path: [[6, -10], [16, -10], [16, 4], [6, 4]], speed: 0.3 },
-    { id: "fl-3", code: "FL-03", path: [[-4, -16], [10, -16], [10, -4], [-4, -4]], speed: 0.5 },
+    { id: "fl-1", code: "FL-01", path: computeAislePath(FAST_PICK_BOUNDS, 3, 6), speed: 0.4 },
+    { id: "fl-2", code: "FL-02", path: computeAislePath(BULK_STORAGE_BOUNDS, 3, 6), speed: 0.3 },
+    { id: "fl-3", code: "FL-03", path: computeAislePath(RETURNS_QC_BOUNDS, 2, 3), speed: 0.5 },
   ],
 };
 
