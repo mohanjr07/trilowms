@@ -362,6 +362,17 @@ export const useEditorStore = create<EditorState>()(
         warehouses: state.warehouses,
         activeId: state.activeId,
       }),
+      // Forklift paths are reference/fixture data (like the default zone layout),
+      // not something users edit — so anyone who already has the old, rack-clipping
+      // paths persisted from before that fix keeps replaying them forever unless we
+      // backfill the shipped default warehouse's forklifts here too.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<Pick<EditorState, "warehouses" | "activeId">>;
+        const warehouses = (p.warehouses ?? current.warehouses).map((w) =>
+          w.name === defaultWarehouse.name ? { ...w, forklifts: defaultWarehouse.forklifts } : w,
+        );
+        return { ...current, ...p, warehouses };
+      },
     },
   ),
 );
