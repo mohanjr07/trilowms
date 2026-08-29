@@ -158,6 +158,14 @@ export function generateBinsForRack(rack: Rack, count: number): Bin[] {
   return bins;
 }
 
+// Distance between consecutive rack-column centerlines. The forklift model is
+// 0.7 wide (see ForkliftMesh); at the old pitch of 4 the walkable gap between
+// columns worked out to only 0.6 — narrower than the forklift itself, so it
+// always looked like it was clipping through the racks no matter how its path
+// was routed. 4.6 opens that gap to 1.2, wide enough to actually drive through,
+// while still fitting inside every zone's existing bounds.w.
+export const AISLE_PITCH = 4.6;
+
 export function makeZone(
   name: string,
   type: ZoneType,
@@ -175,7 +183,7 @@ export function makeZone(
       // Two rows of racks per aisle
       for (const side of [0, 1]) {
         const rackId = `${rid}-${side === 0 ? "L" : "R"}`;
-        const x = bounds.x + 1.5 + a * 4 + (side === 0 ? -0.9 : 0.9);
+        const x = bounds.x + 1.5 + a * AISLE_PITCH + (side === 0 ? -0.9 : 0.9);
         const z = bounds.z + 1.5 + r * 2.2;
         racks.push({
           id: rackId,
@@ -220,8 +228,8 @@ function computeAislePath(
   // Same placement math as makeZone: side "L" is at -0.9, side "R" at +0.9 from
   // each column's centerline, and racks are rackW=1.6 wide (see RackMesh) — so
   // the safe gap between column `a`'s R side and column `a+1`'s L side is
-  // centered at bounds.x + 3.5 + 4*a.
-  const gapXs = Array.from({ length: aisleCount - 1 }, (_, a) => bounds.x + 3.5 + 4 * a);
+  // centered at bounds.x + 1.5 + AISLE_PITCH*(a + 0.5).
+  const gapXs = Array.from({ length: aisleCount - 1 }, (_, a) => bounds.x + 1.5 + AISLE_PITCH * (a + 0.5));
   const x1 = gapXs[0];
   const x2 = gapXs[gapXs.length - 1];
   // Open cross-aisle strips before the first rack row and after the last one
