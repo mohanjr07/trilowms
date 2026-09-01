@@ -247,23 +247,89 @@ function DockMesh({ dock }: { dock: Dock }) {
   const color = dock.kind === "Inbound" ? "#0891b2" : "#f97316";
   const [x, z] = dock.position;
   const isTop = z < 0;
+  // dir: which way the yard/apron side faces from the building wall — same
+  // sign convention as the truck's original offset (-2.6 for isTop, +2.6
+  // otherwise), so the wall/door/canopy below stay consistently on the
+  // opposite side from the parked truck.
+  const dir = isTop ? -1 : 1;
+  const wallZ = -dir * 0.75;
+
   return (
     <group position={[x, 0, z]} onClick={(e) => { e.stopPropagation(); select(dock.id, "dock"); }}>
-      <mesh position={[0, 0.05, 0]}>
-        <boxGeometry args={[3.2, 0.1, 1.4]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={isSelected ? 0.6 : 0.25} />
+      {/* apron pad */}
+      <mesh position={[0, 0.02, 0]}>
+        <boxGeometry args={[3.2, 0.04, 1.6]} />
+        <meshStandardMaterial color="#20262f" roughness={0.95} />
+      </mesh>
+      {/* hazard chevron stripes painted on the apron approach */}
+      {[-1.1, -0.55, 0, 0.55, 1.1].map((cx, i) => (
+        <mesh key={`stripe-${i}`} position={[cx, 0.045, 0]} rotation={[-Math.PI / 2, 0, Math.PI / 4]}>
+          <planeGeometry args={[0.16, 2.1]} />
+          <meshStandardMaterial color={color} transparent opacity={0.3} />
+        </mesh>
+      ))}
+      {/* building wall face the dock is set into */}
+      <mesh position={[0, 1.2, wallZ]}>
+        <boxGeometry args={[3.2, 2.4, 0.12]} />
+        <meshStandardMaterial color="#2a313c" roughness={0.9} />
+      </mesh>
+      {/* roll-up dock door, recessed into the wall */}
+      <mesh position={[0, 1.1, wallZ + dir * 0.07]}>
+        <boxGeometry args={[2.3, 1.9, 0.05]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={isSelected ? 0.55 : 0.2} metalness={0.3} roughness={0.5} />
+      </mesh>
+      {/* door slat lines */}
+      {Array.from({ length: 5 }).map((_, i) => (
+        <mesh key={`slat-${i}`} position={[0, 0.3 + i * 0.38, wallZ + dir * 0.1]}>
+          <boxGeometry args={[2.25, 0.03, 0.02]} />
+          <meshStandardMaterial color="#1e293b" />
+        </mesh>
+      ))}
+      {/* canopy over the door */}
+      <mesh position={[0, 2.28, wallZ + dir * 0.32]}>
+        <boxGeometry args={[2.6, 0.08, 0.6]} />
+        <meshStandardMaterial color="#1f2937" metalness={0.3} roughness={0.6} />
+      </mesh>
+      {/* rubber dock bumpers either side of the door */}
+      {[-1.3, 1.3].map((bx, i) => (
+        <mesh key={`bump-${i}`} position={[bx, 0.25, wallZ + dir * 0.15]}>
+          <boxGeometry args={[0.18, 0.4, 0.15]} />
+          <meshStandardMaterial color="#111827" roughness={0.9} />
+        </mesh>
+      ))}
+      {/* dock leveler plate bridging to the trailer bed */}
+      <mesh position={[0, 0.055, wallZ + dir * 0.42]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[2.1, 0.5]} />
+        <meshStandardMaterial color="#4b5563" metalness={0.4} roughness={0.5} />
       </mesh>
       {dock.occupied && (
         <group position={[0, 0, isTop ? -2.6 : 2.6]}>
-          {/* truck body */}
+          {/* trailer body */}
           <mesh position={[0, 1.1, 0]}>
             <boxGeometry args={[2.6, 1.6, 4]} />
             <meshStandardMaterial color="#e5e7eb" metalness={0.2} roughness={0.6} />
           </mesh>
+          {/* trailer wheels */}
+          {[-1.5, -0.3, 0.9].flatMap((wz, ri) =>
+            [-1.15, 1.15].map((wx, ci) => (
+              <mesh key={`tw-${ri}-${ci}`} position={[wx, 0.35, wz]} rotation={[Math.PI / 2, 0, 0]}>
+                <cylinderGeometry args={[0.35, 0.35, 0.25, 14]} />
+                <meshStandardMaterial color="#111827" roughness={0.85} />
+              </mesh>
+            )),
+          )}
+          {/* tractor cab */}
           <mesh position={[0, 1.4, isTop ? 1.6 : -1.6]}>
             <boxGeometry args={[2.4, 1, 1.2]} />
-            <meshStandardMaterial color="#9ca3af" />
+            <meshStandardMaterial color="#9ca3af" metalness={0.2} roughness={0.5} />
           </mesh>
+          {/* cab wheels */}
+          {[-1.1, 1.1].map((wx, i) => (
+            <mesh key={`cw-${i}`} position={[wx, 0.35, isTop ? 1.9 : -1.9]} rotation={[Math.PI / 2, 0, 0]}>
+              <cylinderGeometry args={[0.35, 0.35, 0.3, 14]} />
+              <meshStandardMaterial color="#111827" roughness={0.85} />
+            </mesh>
+          ))}
           {/* status light */}
           <mesh position={[0, 2.4, 0]}>
             <sphereGeometry args={[0.1, 12, 12]} />
@@ -271,7 +337,7 @@ function DockMesh({ dock }: { dock: Dock }) {
           </mesh>
         </group>
       )}
-      <Html position={[0, 0.3, 0]} center distanceFactor={18} zIndexRange={[5, 0]}>
+      <Html position={[0, 2.55, wallZ]} center distanceFactor={18} zIndexRange={[5, 0]}>
         <div className="pointer-events-none px-1.5 py-0.5 text-[9px] font-bold text-mono rounded border bg-background/80"
           style={{ color, borderColor: color + "60" }}>
           {dock.code}
