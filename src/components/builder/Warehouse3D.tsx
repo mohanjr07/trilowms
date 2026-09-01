@@ -412,6 +412,46 @@ function TruckFallback({ isTop }: { isTop: boolean }) {
   );
 }
 
+// How far out from the building edge the yard apron extends. Trucks park at
+// roughly 2.6 units past the wall and, once dispatched, drive a further
+// DEPART_DISTANCE (9 units) away before despawning — this must comfortably
+// cover the whole parked + departing travel range, or the tail end of the
+// animation runs off the edge of the apron back into the void.
+const YARD_APRON_DEPTH = 16;
+
+// The dock rows sit right at the building's z edge, so the main Floor()
+// plane (which exactly matches the building footprint) stops just short of
+// where trucks actually park and depart — leaving them floating over bare
+// void with no ground under them. This draws a separate asphalt apron
+// outside the building envelope, on the yard side of each dock row, sized to
+// cover the full parked + departure-animation range.
+function YardApron({ isTop, warehouseW, warehouseD }: { isTop: boolean; warehouseW: number; warehouseD: number }) {
+  const dir = isTop ? -1 : 1;
+  const edgeZ = dir * (warehouseD / 2);
+  const centerZ = edgeZ + dir * (YARD_APRON_DEPTH / 2);
+  const apronW = warehouseW + 6;
+  return (
+    <group>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, centerZ]} receiveShadow>
+        <planeGeometry args={[apronW, YARD_APRON_DEPTH]} />
+        <meshStandardMaterial color="#1a1e26" roughness={0.9} metalness={0.05} />
+      </mesh>
+      {/* faint painted lane-divider lines between dock bays, just cosmetic
+          texture so the apron doesn't read as a flat void either */}
+      {Array.from({ length: 5 }).map((_, i) => (
+        <mesh
+          key={i}
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[-apronW / 2 + (i + 1) * (apronW / 6), 0, edgeZ + dir * (YARD_APRON_DEPTH * 0.85)]}
+        >
+          <planeGeometry args={[0.12, YARD_APRON_DEPTH * 0.6]} />
+          <meshStandardMaterial color="#7a6a2a" roughness={0.8} transparent opacity={0.5} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 // A continuous wall running behind a whole row of docks, with a door-sized
 // gap left open at each individual dock — instead of each DockMesh only
 // drawing its own 3.2-wide wall segment, which left big open gaps between
@@ -704,6 +744,8 @@ function Scene() {
       ))}
       {showDocks && (
         <>
+          <YardApron isTop warehouseW={warehouse.size.w} warehouseD={warehouse.size.d} />
+          <YardApron isTop={false} warehouseW={warehouse.size.w} warehouseD={warehouse.size.d} />
           <DockRowWalls docks={warehouse.docks.filter((d) => d.position[1] < 0)} warehouseW={warehouse.size.w} />
           <DockRowWalls docks={warehouse.docks.filter((d) => d.position[1] >= 0)} warehouseW={warehouse.size.w} />
           {warehouse.docks.map((d) => <DockMesh key={d.id} dock={d} />)}
