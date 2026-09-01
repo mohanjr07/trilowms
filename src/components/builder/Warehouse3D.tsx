@@ -28,17 +28,17 @@ function Floor() {
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, -0.01, 0]}>
         <planeGeometry args={[w, d]} />
-        <meshStandardMaterial color="#1f2630" roughness={0.95} metalness={0.05} />
+        <meshStandardMaterial color="#12161d" roughness={0.85} metalness={0.15} />
       </mesh>
       <Grid
         args={[w, d]}
         cellSize={1}
-        cellThickness={0.4}
-        cellColor="#2c3543"
+        cellThickness={0.35}
+        cellColor="#232b38"
         sectionSize={5}
-        sectionThickness={1}
-        sectionColor="#3d4a5c"
-        fadeDistance={80}
+        sectionThickness={1.2}
+        sectionColor="#4b5d75"
+        fadeDistance={90}
         fadeStrength={1}
         infiniteGrid={false}
         position={[0, 0, 0]}
@@ -129,8 +129,23 @@ function ZoneFloor({ zone }: { zone: Zone }) {
 // (ForkliftMesh tops out at 2.0 with its mast raised) instead of the two
 // being nearly the same height.
 const RACK_LEVEL_H = 0.6;
-const RACK_FRAME_COLOR = "#ea580c"; // safety-orange upright color used on real selective racking
-const RACK_BEAM_COLOR = "#334155";
+// Dark charcoal frame instead of safety-orange — reads as a solid, moody
+// industrial silhouette against the dark floor rather than standing out.
+const RACK_FRAME_COLOR = "#1c222c";
+const RACK_BEAM_COLOR = "#0f141b";
+const BEACON_HEIGHT = 1.3;
+
+/** Sparse red/green status beacon color for a rack — red for any bin needing
+ *  attention (blocked/damaged), green for a rack that's essentially full, and
+ *  none otherwise, so beacons highlight exceptions instead of covering every
+ *  rack in the scene. */
+function rackBeaconColor(rack: Rack): string | null {
+  if (rack.bins.length === 0) return null;
+  if (rack.bins.some((b) => b.status === "Blocked" || b.status === "Damaged")) return "#ef4444";
+  const avgOcc = rack.bins.reduce((s, b) => s + b.occupancy, 0) / rack.bins.length;
+  if (avgOcc > 0.88) return "#22c55e";
+  return null;
+}
 
 function RackMesh({ rack, zoneColor }: { rack: Rack; zoneColor: string }) {
   const { selectedId, select, viewMode } = useWMSStore();
@@ -139,6 +154,7 @@ function RackMesh({ rack, zoneColor }: { rack: Rack; zoneColor: string }) {
   const levelH = RACK_LEVEL_H;
   const totalH = rack.levels * levelH;
   const corners: [number, number][] = [[-rackW / 2, -rackD / 2], [rackW / 2, -rackD / 2], [-rackW / 2, rackD / 2], [rackW / 2, rackD / 2]];
+  const beaconColor = rackBeaconColor(rack);
 
   return (
     <group position={[x, 0, z]} onClick={(e) => { e.stopPropagation(); select(rack.id, "rack"); }}>
@@ -238,6 +254,18 @@ function RackMesh({ rack, zoneColor }: { rack: Rack; zoneColor: string }) {
         <boxGeometry args={[rackW, 0.02, rackD]} />
         <meshStandardMaterial color={zoneColor} emissive={zoneColor} emissiveIntensity={0.4} />
       </mesh>
+      {beaconColor && (
+        <group position={[0, totalH, 0]}>
+          <mesh position={[0, BEACON_HEIGHT / 2, 0]}>
+            <cylinderGeometry args={[0.025, 0.025, BEACON_HEIGHT, 6]} />
+            <meshStandardMaterial color={beaconColor} emissive={beaconColor} emissiveIntensity={1.4} transparent opacity={0.85} />
+          </mesh>
+          <mesh position={[0, BEACON_HEIGHT + 0.05, 0]}>
+            <sphereGeometry args={[0.06, 8, 8]} />
+            <meshStandardMaterial color={beaconColor} emissive={beaconColor} emissiveIntensity={3} />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 }
@@ -497,6 +525,44 @@ function PathTrails() {
   );
 }
 
+// Blue conveyor-belt strips laid along the same open aisle centerlines the
+// forklifts already drive (fl.path) — reusing that data means the belts are
+// always in the actual walkable gaps between rack columns, never crossing
+// through a rack.
+function ConveyorBelts() {
+  const forklifts = useActiveWarehouse().forklifts;
+  return (
+    <>
+      {forklifts.map((fl) =>
+        fl.path.map((p, i) => {
+          if (i === fl.path.length - 1 && fl.path.length > 2) return null; // don't close the loop back to start
+          const next = fl.path[(i + 1) % fl.path.length];
+          const dx = next[0] - p[0], dz = next[1] - p[1];
+          const len = Math.hypot(dx, dz);
+          if (len < 0.05) return null;
+          const midX = (p[0] + next[0]) / 2, midZ = (p[1] + next[1]) / 2;
+          const angle = Math.atan2(dx, dz);
+          const rollerCount = Math.max(2, Math.floor(len / 0.6));
+          return (
+            <group key={`${fl.id}-belt-${i}`} position={[midX, 0.03, midZ]} rotation={[0, angle, 0]}>
+              <mesh receiveShadow>
+                <boxGeometry args={[0.9, 0.05, len]} />
+                <meshStandardMaterial color="#1d4ed8" metalness={0.5} roughness={0.35} />
+              </mesh>
+              {Array.from({ length: rollerCount }).map((_, si) => (
+                <mesh key={si} position={[0, 0.035, -len / 2 + len / rollerCount / 2 + si * (len / rollerCount)]}>
+                  <boxGeometry args={[0.84, 0.02, 0.05]} />
+                  <meshStandardMaterial color="#60a5fa" emissive="#60a5fa" emissiveIntensity={0.3} />
+                </mesh>
+              ))}
+            </group>
+          );
+        }),
+      )}
+    </>
+  );
+}
+
 function Scene() {
   const { showForklifts, showDocks } = useWMSStore();
   const warehouse = useActiveWarehouse();
@@ -508,10 +574,12 @@ function Scene() {
 
   return (
     <>
-      <ambientLight intensity={0.4} />
-      <directionalLight position={[20, 30, 20]} intensity={0.8} castShadow />
-      <directionalLight position={[-20, 25, -10]} intensity={0.3} color="#22d3ee" />
-      <hemisphereLight args={["#3b82f6", "#1f2937", 0.3]} />
+      {/* Lower ambient + tighter directional key/rim lighting for a moodier,
+          higher-contrast industrial look instead of the flat, evenly-lit scene. */}
+      <ambientLight intensity={0.22} />
+      <directionalLight position={[20, 30, 20]} intensity={1.1} castShadow />
+      <directionalLight position={[-20, 25, -10]} intensity={0.35} color="#22d3ee" />
+      <hemisphereLight args={["#3b82f6", "#0b0f14", 0.22]} />
 
       <Floor />
       {warehouse.zones.map((z) => <ZoneFloor key={z.id} zone={z} />)}
@@ -521,6 +589,7 @@ function Scene() {
       {showDocks && warehouse.docks.map((d) => <DockMesh key={d.id} dock={d} />)}
       {showForklifts && (
         <>
+          <ConveyorBelts />
           <PathTrails />
           {warehouse.forklifts.map((fl) => <ForkliftMesh key={fl.id} fl={fl} />)}
         </>
