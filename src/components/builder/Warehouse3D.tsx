@@ -96,9 +96,9 @@ function ZoneFloor({ zone }: { zone: Zone }) {
         <meshStandardMaterial
           color={color}
           transparent
-          opacity={dimmed ? 0.05 : isSelected ? Math.min(opacity + 0.25, 0.7) : opacity}
+          opacity={dimmed ? 0.12 : isSelected ? Math.min(opacity + 0.25, 0.7) : opacity}
           emissive={color}
-          emissiveIntensity={isSelected ? 0.4 : 0.1}
+          emissiveIntensity={isSelected ? 0.4 : dimmed ? 0.04 : 0.1}
         />
       </mesh>
       {/* zone border */}
