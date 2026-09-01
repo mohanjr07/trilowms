@@ -378,7 +378,16 @@ function DockMesh({ dock }: { dock: Dock }) {
   const outboundMatch = dock.kind === "Outbound"
     ? shipments.some((s) => s.dockCode && dockNum(s.dockCode) === dockNum(dock.code) && ["STAGED", "LOADING", "LOADED"].includes(s.status))
     : false;
-  const occupiedNow = dock.kind === "Outbound" ? outboundMatch : dock.occupied;
+  // A brand-new/lightly-used warehouse may not have any shipment ever
+  // assigned to a given dock code yet — in that case there's no real
+  // "departed" state to reflect, so default to a parked truck (like every
+  // other still-unused dock in real life) instead of leaving the door bare.
+  // Once a shipment genuinely occupies, then dispatches from, this dock, its
+  // real status drives the truck and the departure animation.
+  const everUsed = dock.kind === "Outbound"
+    ? shipments.some((s) => s.dockCode && dockNum(s.dockCode) === dockNum(dock.code))
+    : true;
+  const occupiedNow = dock.kind === "Outbound" ? (outboundMatch || !everUsed) : dock.occupied;
 
   return (
     <group position={[x, 0, z]} onClick={(e) => { e.stopPropagation(); select(dock.id, "dock"); }}>
