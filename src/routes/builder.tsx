@@ -7,6 +7,7 @@ import { PropertiesPanel } from "@/components/builder/PropertiesPanel";
 import { BuilderToolbar } from "@/components/builder/BuilderToolbar";
 import { useEditorStore } from "@/lib/wms-editor-store";
 import { useWMSStore } from "@/lib/wms-store";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/builder")({
   head: () => ({
@@ -34,6 +35,14 @@ function Builder() {
     }
   }, [activeId, onWarehouseSwitch]);
   const [showProperties, setShowProperties] = useState(true);
+  // Selecting anything in the 3D view (a bin, rack, dock, zone...) should
+  // reveal the Properties panel on its own if it's currently hidden, instead
+  // of the click silently doing nothing until the user notices and toggles
+  // the panel back open themselves.
+  const selectedId = useWMSStore((s) => s.selectedId);
+  useEffect(() => {
+    if (selectedId) setShowProperties(true);
+  }, [selectedId]);
   return (
     <div className="flex h-full">
       <BuilderTreePanel />
@@ -68,7 +77,12 @@ function Builder() {
           </button>
         </div>
       </div>
-      {showProperties && <PropertiesPanel />}
+      {/* Always mounted, width-animated so opening it (whether by the
+          toggle button or by selecting an object) reads as a slide-in
+          rather than an instant pop. */}
+      <div className={cn("overflow-hidden transition-[width] duration-300 ease-out", showProperties ? "w-[320px]" : "w-0")}>
+        <PropertiesPanel />
+      </div>
     </div>
   );
 }
