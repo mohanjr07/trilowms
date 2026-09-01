@@ -372,28 +372,58 @@ function DockTruck({ occupied, isTop, color }: { occupied: boolean; isTop: boole
         <boxGeometry args={[0.5, 0.18, 0.02]} />
         <meshStandardMaterial color="#f8fafc" />
       </mesh>
-      {/* trailer wheels, with lighter rim hubs */}
-      {[-1.5, -0.3, 0.9].flatMap((wz, ri) =>
+      {/* tridem axle bogie — three axles tightly clustered under the rear
+          third of the trailer, like a real container chassis, instead of
+          spread evenly along the whole length */}
+      {[rearZ + rearSign * -0.9, rearZ + rearSign * -0.5, rearZ + rearSign * -0.1].flatMap((wz, ri) =>
         [-1.15, 1.15].map((wx, ci) => (
           <group key={`tw-${ri}-${ci}`} position={[wx, 0.35, wz]}>
             <mesh rotation={[Math.PI / 2, 0, 0]}>
               <cylinderGeometry args={[0.35, 0.35, 0.25, 14]} />
               <meshStandardMaterial color="#111827" roughness={0.85} />
             </mesh>
-            <mesh position={[wx > 0 ? 0.09 : -0.09, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-              <cylinderGeometry args={[0.14, 0.14, 0.08, 12]} />
-              <meshStandardMaterial color="#94a3b8" metalness={0.7} roughness={0.3} />
+            <mesh position={[wx > 0 ? 0.1 : -0.1, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
+              <cylinderGeometry args={[0.15, 0.15, 0.06, 16]} />
+              <meshStandardMaterial color="#cbd5e1" metalness={0.8} roughness={0.25} />
+            </mesh>
+            <mesh position={[wx > 0 ? 0.14 : -0.14, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
+              <cylinderGeometry args={[0.05, 0.05, 0.03, 8]} />
+              <meshStandardMaterial color="#475569" metalness={0.6} roughness={0.4} />
             </mesh>
           </group>
         )),
       )}
-      {/* mud flaps behind the rearmost wheel pair */}
+      {/* mud flaps behind the rearmost axle */}
       {[-1.15, 1.15].map((fx, i) => (
-        <mesh key={`flap-${i}`} position={[fx, 0.28, rearZ + rearSign * -0.7]}>
+        <mesh key={`flap-${i}`} position={[fx, 0.28, rearZ + rearSign * -1.2]}>
           <boxGeometry args={[0.32, 0.4, 0.03]} />
           <meshStandardMaterial color="#0b0f14" roughness={0.9} />
         </mesh>
       ))}
+      {/* front landing gear, folded up against the chassis (retracted while
+          hitched to the tractor, unlike a parked/detached trailer) */}
+      {[-0.7, 0.7].map((gx, i) => (
+        <mesh key={`gear-${i}`} position={[gx, 0.32, -rearZ]} rotation={[0.5, 0, 0]}>
+          <boxGeometry args={[0.08, 0.5, 0.08]} />
+          <meshStandardMaterial color="#64748b" metalness={0.5} roughness={0.5} />
+        </mesh>
+      ))}
+      {/* kingpin plate near the nose, underside */}
+      <mesh position={[0, 0.24, -rearZ + rearSign * 0.35]} rotation={[-Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.16, 0.16, 0.03, 12]} />
+        <meshStandardMaterial color="#334155" metalness={0.6} roughness={0.4} />
+      </mesh>
+      {/* ISO corner castings at the container's 8 corners */}
+      {[-1.29, 1.29].flatMap((cx, xi) =>
+        [-1.99, 1.99].flatMap((cz, zi) =>
+          [0.3, 1.9].map((cy, yi) => (
+            <mesh key={`corner-${xi}-${zi}-${yi}`} position={[cx, cy, cz]}>
+              <boxGeometry args={[0.08, 0.1, 0.08]} />
+              <meshStandardMaterial color="#111827" metalness={0.5} roughness={0.5} />
+            </mesh>
+          )),
+        ),
+      )}
       {/* tractor cab */}
       <mesh position={[0, 1.4, isTop ? 1.6 : -1.6]}>
         <boxGeometry args={[2.4, 1, 1.2]} />
