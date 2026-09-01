@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronRight, ChevronLeft } from "lucide-react";
 import { Warehouse3D } from "@/components/builder/Warehouse3D";
 import { BuilderTreePanel } from "@/components/builder/BuilderTreePanel";
 import { PropertiesPanel } from "@/components/builder/PropertiesPanel";
@@ -32,6 +33,7 @@ function Builder() {
       onWarehouseSwitch(activeId);
     }
   }, [activeId, onWarehouseSwitch]);
+  const [showProperties, setShowProperties] = useState(true);
   return (
     <div className="flex h-full">
       <BuilderTreePanel />
@@ -53,9 +55,20 @@ function Builder() {
             <div>Click · Inspect</div>
           </div>
           <Legend />
+          {/* Toggle for the Properties panel — sits on the seam between the
+              3D view and the panel, flips side depending on whether the
+              panel is open so it's always reachable */}
+          <button
+            type="button"
+            onClick={() => setShowProperties((v) => !v)}
+            title={showProperties ? "Hide properties panel" : "Show properties panel"}
+            className="absolute top-3 right-3 panel rounded p-1.5 hover:bg-accent/20 transition-colors z-10"
+          >
+            {showProperties ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
         </div>
       </div>
-      <PropertiesPanel />
+      {showProperties && <PropertiesPanel />}
     </div>
   );
 }
