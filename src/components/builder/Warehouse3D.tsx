@@ -1,10 +1,11 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Grid, Html, Environment, Stats } from "@react-three/drei";
 import * as THREE from "three";
 import type { Bin, Rack, Zone, Dock, Forklift } from "@/lib/wms-data";
 import { useWMSStore } from "@/lib/wms-store";
 import { useEditorStore } from "@/lib/wms-editor-store";
+import { useOutboundStore } from "@/lib/outbound-store";
 
 const STATUS_COLOR: Record<Bin["status"], string> = {
   Empty: "#3a4452",
@@ -241,6 +242,94 @@ function RackMesh({ rack, zoneColor }: { rack: Rack; zoneColor: string }) {
   );
 }
 
+// Real outbound dockCodes ("OUT-01") don't match the builder's own dock.code
+// ("OUT-1") — this strips down to just the trailing number so "OUT-1" and
+// "OUT-01" are recognized as the same physical door.
+function dockNum(code: string) {
+  return code.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+}
+
+/** How far past its parked spot a departing trailer drives before disappearing. */
+const DEPART_DISTANCE = 9;
+const DEPART_SPEED = 4.5; // units/sec
+
+// A parked trailer + tractor that, once its backing shipment is actually
+// dispatched (status flips out of STAGED/LOADING/LOADED in the live Outbound
+// store), drives itself away from the dock instead of just popping out of
+// existence — so "Dispatch next" in Outbound visibly moves the truck here.
+function DockTruck({ occupied, isTop, color }: { occupied: boolean; isTop: boolean; color: string }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const wasOccupied = useRef(occupied);
+  const departing = useRef(false);
+  const departElapsed = useRef(0);
+  const [visible, setVisible] = useState(occupied);
+  const parkedZ = isTop ? -2.6 : 2.6;
+
+  useEffect(() => {
+    if (wasOccupied.current && !occupied) {
+      // shipment just left this dock — drive the truck away instead of
+      // instantly despawning it
+      departing.current = true;
+      departElapsed.current = 0;
+    } else if (occupied) {
+      departing.current = false;
+      departElapsed.current = 0;
+      setVisible(true);
+      groupRef.current?.position.set(0, 0, parkedZ);
+    }
+    wasOccupied.current = occupied;
+  }, [occupied, parkedZ]);
+
+  useFrame((_, dt) => {
+    if (!departing.current || !groupRef.current) return;
+    departElapsed.current += dt;
+    const traveled = Math.min(departElapsed.current * DEPART_SPEED, DEPART_DISTANCE);
+    groupRef.current.position.z = parkedZ + (isTop ? -traveled : traveled);
+    if (traveled >= DEPART_DISTANCE) {
+      departing.current = false;
+      setVisible(false);
+    }
+  });
+
+  if (!visible) return null;
+
+  return (
+    <group ref={groupRef} position={[0, 0, parkedZ]}>
+      {/* trailer body */}
+      <mesh position={[0, 1.1, 0]}>
+        <boxGeometry args={[2.6, 1.6, 4]} />
+        <meshStandardMaterial color="#e5e7eb" metalness={0.2} roughness={0.6} />
+      </mesh>
+      {/* trailer wheels */}
+      {[-1.5, -0.3, 0.9].flatMap((wz, ri) =>
+        [-1.15, 1.15].map((wx, ci) => (
+          <mesh key={`tw-${ri}-${ci}`} position={[wx, 0.35, wz]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.35, 0.35, 0.25, 14]} />
+            <meshStandardMaterial color="#111827" roughness={0.85} />
+          </mesh>
+        )),
+      )}
+      {/* tractor cab */}
+      <mesh position={[0, 1.4, isTop ? 1.6 : -1.6]}>
+        <boxGeometry args={[2.4, 1, 1.2]} />
+        <meshStandardMaterial color="#9ca3af" metalness={0.2} roughness={0.5} />
+      </mesh>
+      {/* cab wheels */}
+      {[-1.1, 1.1].map((wx, i) => (
+        <mesh key={`cw-${i}`} position={[wx, 0.35, isTop ? 1.9 : -1.9]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.35, 0.35, 0.3, 14]} />
+          <meshStandardMaterial color="#111827" roughness={0.85} />
+        </mesh>
+      ))}
+      {/* status light */}
+      <mesh position={[0, 2.4, 0]}>
+        <sphereGeometry args={[0.1, 12, 12]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} />
+      </mesh>
+    </group>
+  );
+}
+
 function DockMesh({ dock }: { dock: Dock }) {
   const { select, selectedId } = useWMSStore();
   const isSelected = selectedId === dock.id;
@@ -253,6 +342,15 @@ function DockMesh({ dock }: { dock: Dock }) {
   // opposite side from the parked truck.
   const dir = isTop ? -1 : 1;
   const wallZ = -dir * 0.75;
+
+  // Outbound docks reflect the real Outbound module instead of the static
+  // seeded dock.occupied flag, so dispatching a shipment there (Outbound's
+  // "Dispatch next"/"Confirm dispatch") actually moves the truck in this view.
+  const shipments = useOutboundStore((s) => s.shipments);
+  const outboundMatch = dock.kind === "Outbound"
+    ? shipments.some((s) => s.dockCode && dockNum(s.dockCode) === dockNum(dock.code) && ["STAGED", "LOADING", "LOADED"].includes(s.status))
+    : false;
+  const occupiedNow = dock.kind === "Outbound" ? outboundMatch : dock.occupied;
 
   return (
     <group position={[x, 0, z]} onClick={(e) => { e.stopPropagation(); select(dock.id, "dock"); }}>
@@ -302,41 +400,7 @@ function DockMesh({ dock }: { dock: Dock }) {
         <planeGeometry args={[2.1, 0.5]} />
         <meshStandardMaterial color="#4b5563" metalness={0.4} roughness={0.5} />
       </mesh>
-      {dock.occupied && (
-        <group position={[0, 0, isTop ? -2.6 : 2.6]}>
-          {/* trailer body */}
-          <mesh position={[0, 1.1, 0]}>
-            <boxGeometry args={[2.6, 1.6, 4]} />
-            <meshStandardMaterial color="#e5e7eb" metalness={0.2} roughness={0.6} />
-          </mesh>
-          {/* trailer wheels */}
-          {[-1.5, -0.3, 0.9].flatMap((wz, ri) =>
-            [-1.15, 1.15].map((wx, ci) => (
-              <mesh key={`tw-${ri}-${ci}`} position={[wx, 0.35, wz]} rotation={[Math.PI / 2, 0, 0]}>
-                <cylinderGeometry args={[0.35, 0.35, 0.25, 14]} />
-                <meshStandardMaterial color="#111827" roughness={0.85} />
-              </mesh>
-            )),
-          )}
-          {/* tractor cab */}
-          <mesh position={[0, 1.4, isTop ? 1.6 : -1.6]}>
-            <boxGeometry args={[2.4, 1, 1.2]} />
-            <meshStandardMaterial color="#9ca3af" metalness={0.2} roughness={0.5} />
-          </mesh>
-          {/* cab wheels */}
-          {[-1.1, 1.1].map((wx, i) => (
-            <mesh key={`cw-${i}`} position={[wx, 0.35, isTop ? 1.9 : -1.9]} rotation={[Math.PI / 2, 0, 0]}>
-              <cylinderGeometry args={[0.35, 0.35, 0.3, 14]} />
-              <meshStandardMaterial color="#111827" roughness={0.85} />
-            </mesh>
-          ))}
-          {/* status light */}
-          <mesh position={[0, 2.4, 0]}>
-            <sphereGeometry args={[0.1, 12, 12]} />
-            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} />
-          </mesh>
-        </group>
-      )}
+      <DockTruck occupied={occupiedNow} isTop={isTop} color={color} />
       <Html position={[0, 2.55, wallZ]} center distanceFactor={18} zIndexRange={[5, 0]}>
         <div className="pointer-events-none px-1.5 py-0.5 text-[9px] font-bold text-mono rounded border bg-background/80"
           style={{ color, borderColor: color + "60" }}>
