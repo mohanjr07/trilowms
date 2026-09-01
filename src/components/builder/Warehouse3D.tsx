@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Grid, Html, Environment, Stats } from "@react-three/drei";
+import { OrbitControls, Grid, Html, Environment, Stats, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import type { Bin, Rack, Zone, Dock, Forklift } from "@/lib/wms-data";
 import { useWMSStore } from "@/lib/wms-store";
@@ -322,126 +322,53 @@ function DockTruck({ occupied, isTop, color }: { occupied: boolean; isTop: boole
 
   if (!visible) return null;
 
-  // Rear (cargo-door) end of the trailer is whichever end the tractor cab
-  // is NOT on — that's the end that should face the dock door.
-  const rearZ = isTop ? -2 : 2;
-  const rearSign = isTop ? -1 : 1;
-
   return (
     <group ref={groupRef} position={[0, 0, parkedZ]}>
-      {/* red chassis rails running the length of the trailer, beneath the container */}
-      {[-0.95, 0.95].map((rx, i) => (
-        <mesh key={`rail-${i}`} position={[rx, 0.28, 0]}>
-          <boxGeometry args={[0.14, 0.14, 4.1]} />
-          <meshStandardMaterial color="#b91c1c" metalness={0.4} roughness={0.5} />
-        </mesh>
-      ))}
-      {/* shipping-container body */}
-      <mesh position={[0, 1.1, 0]}>
-        <boxGeometry args={[2.6, 1.6, 4]} />
-        <meshStandardMaterial color="#1d4ed8" metalness={0.25} roughness={0.55} />
-      </mesh>
-      {/* corrugated side ribs for that container-panel texture */}
-      {[-1.31, 1.31].flatMap((rx, si) =>
-        Array.from({ length: 9 }).map((_, i) => (
-          <mesh key={`rib-${si}-${i}`} position={[rx, 1.1, -1.75 + i * 0.44]}>
-            <boxGeometry args={[0.04, 1.55, 0.06]} />
-            <meshStandardMaterial color={si === 0 ? "#1e3a8a" : "#1e3a8a"} metalness={0.2} roughness={0.6} />
-          </mesh>
-        )),
-      )}
-      {/* rear cargo doors: split line + hinges + reflective warning stripe */}
-      <mesh position={[0, 1.1, rearZ + rearSign * 0.03]}>
-        <boxGeometry args={[0.04, 1.55, 0.05]} />
-        <meshStandardMaterial color="#0f1e4d" />
-      </mesh>
-      {[-1.2, 1.2].flatMap((hx, di) =>
-        [0.55, 0, -0.55].map((hy, hi) => (
-          <mesh key={`hinge-${di}-${hi}`} position={[hx, 1.1 + hy, rearZ + rearSign * 0.04]}>
-            <boxGeometry args={[0.1, 0.08, 0.04]} />
-            <meshStandardMaterial color="#1e293b" metalness={0.6} roughness={0.4} />
-          </mesh>
-        )),
-      )}
-      <mesh position={[0, 0.45, rearZ + rearSign * 0.04]}>
-        <boxGeometry args={[2.4, 0.14, 0.03]} />
-        <meshStandardMaterial color="#dc2626" emissive="#dc2626" emissiveIntensity={0.3} />
-      </mesh>
-      {/* rear license plate */}
-      <mesh position={[0, 0.28, rearZ + rearSign * 0.05]}>
-        <boxGeometry args={[0.5, 0.18, 0.02]} />
-        <meshStandardMaterial color="#f8fafc" />
-      </mesh>
-      {/* tridem axle bogie — three axles tightly clustered under the rear
-          third of the trailer, like a real container chassis, instead of
-          spread evenly along the whole length */}
-      {[rearZ + rearSign * -0.9, rearZ + rearSign * -0.5, rearZ + rearSign * -0.1].flatMap((wz, ri) =>
-        [-1.15, 1.15].map((wx, ci) => (
-          <group key={`tw-${ri}-${ci}`} position={[wx, 0.35, wz]}>
-            <mesh rotation={[Math.PI / 2, 0, 0]}>
-              <cylinderGeometry args={[0.35, 0.35, 0.25, 14]} />
-              <meshStandardMaterial color="#111827" roughness={0.85} />
-            </mesh>
-            <mesh position={[wx > 0 ? 0.1 : -0.1, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-              <cylinderGeometry args={[0.15, 0.15, 0.06, 16]} />
-              <meshStandardMaterial color="#cbd5e1" metalness={0.8} roughness={0.25} />
-            </mesh>
-            <mesh position={[wx > 0 ? 0.14 : -0.14, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-              <cylinderGeometry args={[0.05, 0.05, 0.03, 8]} />
-              <meshStandardMaterial color="#475569" metalness={0.6} roughness={0.4} />
-            </mesh>
-          </group>
-        )),
-      )}
-      {/* mud flaps behind the rearmost axle */}
-      {[-1.15, 1.15].map((fx, i) => (
-        <mesh key={`flap-${i}`} position={[fx, 0.28, rearZ + rearSign * -1.2]}>
-          <boxGeometry args={[0.32, 0.4, 0.03]} />
-          <meshStandardMaterial color="#0b0f14" roughness={0.9} />
-        </mesh>
-      ))}
-      {/* front landing gear, folded up against the chassis (retracted while
-          hitched to the tractor, unlike a parked/detached trailer) */}
-      {[-0.7, 0.7].map((gx, i) => (
-        <mesh key={`gear-${i}`} position={[gx, 0.32, -rearZ]} rotation={[0.5, 0, 0]}>
-          <boxGeometry args={[0.08, 0.5, 0.08]} />
-          <meshStandardMaterial color="#64748b" metalness={0.5} roughness={0.5} />
-        </mesh>
-      ))}
-      {/* kingpin plate near the nose, underside */}
-      <mesh position={[0, 0.24, -rearZ + rearSign * 0.35]} rotation={[-Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.16, 0.16, 0.03, 12]} />
-        <meshStandardMaterial color="#334155" metalness={0.6} roughness={0.4} />
-      </mesh>
-      {/* ISO corner castings at the container's 8 corners */}
-      {[-1.29, 1.29].flatMap((cx, xi) =>
-        [-1.99, 1.99].flatMap((cz, zi) =>
-          [0.3, 1.9].map((cy, yi) => (
-            <mesh key={`corner-${xi}-${zi}-${yi}`} position={[cx, cy, cz]}>
-              <boxGeometry args={[0.08, 0.1, 0.08]} />
-              <meshStandardMaterial color="#111827" metalness={0.5} roughness={0.5} />
-            </mesh>
-          )),
-        ),
-      )}
-      {/* tractor cab */}
-      <mesh position={[0, 1.4, isTop ? 1.6 : -1.6]}>
-        <boxGeometry args={[2.4, 1, 1.2]} />
-        <meshStandardMaterial color="#9ca3af" metalness={0.2} roughness={0.5} />
-      </mesh>
-      {/* cab wheels */}
-      {[-1.1, 1.1].map((wx, i) => (
-        <mesh key={`cw-${i}`} position={[wx, 0.35, isTop ? 1.9 : -1.9]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.35, 0.35, 0.3, 14]} />
-          <meshStandardMaterial color="#111827" roughness={0.85} />
-        </mesh>
-      ))}
-      {/* status light */}
-      <mesh position={[0, 2.4, 0]}>
+      <Suspense fallback={<TruckFallback isTop={isTop} />}>
+        <TruckModel isTop={isTop} />
+      </Suspense>
+      {/* status light marking the dock's kind (inbound/outbound), floating
+          above the model regardless of its exact real height */}
+      <mesh position={[0, 2.6, 0]}>
         <sphereGeometry args={[0.1, 12, 12]} />
         <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2} />
       </mesh>
     </group>
+  );
+}
+
+// The uploaded truck asset ("Untitled.glb", copied into public/models/heavy-truck.glb)
+// loads at ~19.4 units long in its own space, centered ~0.95 units off the
+// model's local origin — scaled/recentered here to roughly match the
+// trailer's old footprint (~4.6 long) so it sits sensibly at the dock.
+const TRUCK_MODEL_URL = "/models/heavy-truck.glb";
+const TRUCK_MODEL_LENGTH = 19.43;
+const TRUCK_TARGET_LENGTH = 4.6;
+const TRUCK_MODEL_SCALE = TRUCK_TARGET_LENGTH / TRUCK_MODEL_LENGTH;
+const TRUCK_MODEL_Z_OFFSET = -0.95 * TRUCK_MODEL_SCALE;
+
+function TruckModel({ isTop }: { isTop: boolean }) {
+  const { scene } = useGLTF(TRUCK_MODEL_URL);
+  const cloned = useMemo(() => scene.clone(true), [scene]);
+  return (
+    // If the model turns out to be facing backwards once you see it live,
+    // flip this to `isTop ? Math.PI : 0` (or vice versa) — I can't render
+    // the GLB myself to confirm which way its front faces.
+    <group rotation={[0, isTop ? 0 : Math.PI, 0]}>
+      <primitive object={cloned} scale={TRUCK_MODEL_SCALE} position={[0, 0, TRUCK_MODEL_Z_OFFSET]} />
+    </group>
+  );
+}
+useGLTF.preload(TRUCK_MODEL_URL);
+
+// Shown for the brief moment the GLB is still fetching, so a dock never
+// looks empty mid-load.
+function TruckFallback({ isTop }: { isTop: boolean }) {
+  return (
+    <mesh position={[0, 1, 0]}>
+      <boxGeometry args={[2.4, 1.8, 4.4]} />
+      <meshStandardMaterial color="#334155" transparent opacity={0.4} />
+    </mesh>
   );
 }
 
