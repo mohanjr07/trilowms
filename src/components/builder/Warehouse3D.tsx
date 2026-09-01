@@ -337,25 +337,51 @@ function DockTruck({ occupied, isTop, color }: { occupied: boolean; isTop: boole
   );
 }
 
-// The uploaded truck asset ("Untitled.glb", copied into public/models/heavy-truck.glb)
-// loads at ~19.4 units long in its own space, centered ~0.95 units off the
-// model's local origin — scaled/recentered here to roughly match the
-// trailer's old footprint (~4.6 long) so it sits sensibly at the dock.
+// The uploaded truck asset ("Untitled.glb", copied into public/models/heavy-truck.glb).
+// Earlier fixed-number scale/offset constants (derived from an offline
+// Python inspection of the file) didn't match what actually loads in the
+// browser — the truck rendered far bigger than intended and stretched
+// sideways across neighboring docks. Measuring the model's real bounding box
+// at runtime, in the same three.js/GLTFLoader pipeline that renders it, is
+// the only way to size and orient it correctly regardless of any mismatch
+// between that offline tool and the browser's loader.
 const TRUCK_MODEL_URL = "/models/heavy-truck.glb";
-const TRUCK_MODEL_LENGTH = 19.43;
 const TRUCK_TARGET_LENGTH = 6.5;
-const TRUCK_MODEL_SCALE = TRUCK_TARGET_LENGTH / TRUCK_MODEL_LENGTH;
-const TRUCK_MODEL_Z_OFFSET = -0.95 * TRUCK_MODEL_SCALE;
 
 function TruckModel({ isTop }: { isTop: boolean }) {
   const { scene } = useGLTF(TRUCK_MODEL_URL);
-  const cloned = useMemo(() => scene.clone(true), [scene]);
+  const prepared = useMemo(() => {
+    const cloned = scene.clone(true);
+    const box = new THREE.Box3().setFromObject(cloned);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    // Whichever horizontal side is longer is the truck's real front-to-back
+    // length — if that turns out to be the model's local X instead of Z, an
+    // extra 90° rotation aligns it to run lengthwise into the dock instead
+    // of stretching sideways across the neighboring bay.
+    const lengthOnX = size.x >= size.z;
+    const length = Math.max(lengthOnX ? size.x : size.z, 0.0001);
+    const scale = TRUCK_TARGET_LENGTH / length;
+    const alignY = lengthOnX ? Math.PI / 2 : 0;
+    return { cloned, scale, center, minY: box.min.y, alignY };
+  }, [scene]);
+
   return (
-    // If the model turns out to be facing backwards once you see it live,
-    // flip this to `isTop ? Math.PI : 0` (or vice versa) — I can't render
-    // the GLB myself to confirm which way its front faces.
-    <group rotation={[0, isTop ? Math.PI : 0, 0]}>
-      <primitive object={cloned} scale={TRUCK_MODEL_SCALE} position={[0, 0, TRUCK_MODEL_Z_OFFSET]} />
+    // If the model faces backwards once you see it live, add Math.PI to
+    // this rotation (or subtract it) — I can't render the GLB myself to
+    // confirm which way its front ends up facing after auto-alignment.
+    <group rotation={[0, prepared.alignY + (isTop ? Math.PI : 0), 0]}>
+      <primitive
+        object={prepared.cloned}
+        scale={prepared.scale}
+        position={[
+          -prepared.center.x * prepared.scale,
+          -prepared.minY * prepared.scale,
+          -prepared.center.z * prepared.scale,
+        ]}
+      />
     </group>
   );
 }
