@@ -21,6 +21,8 @@ function useActiveWarehouse() {
   return useEditorStore((s) => s.warehouses.find((w) => w.name === s.activeId) ?? s.warehouses[0]);
 }
 
+const PERIMETER_WALL_H = 3.4;
+
 function Floor() {
   const { size } = useActiveWarehouse();
   const w = size.w;
@@ -44,16 +46,17 @@ function Floor() {
         infiniteGrid={false}
         position={[0, 0, 0]}
       />
-      {/* perimeter walls */}
+      {/* perimeter walls — solid and full-height like a real building
+          envelope, instead of a short translucent curb */}
       {[
-        { p: [0, 1, -d / 2] as [number, number, number], s: [w, 2, 0.15] as [number, number, number] },
-        { p: [0, 1, d / 2] as [number, number, number], s: [w, 2, 0.15] as [number, number, number] },
-        { p: [-w / 2, 1, 0] as [number, number, number], s: [0.15, 2, d] as [number, number, number] },
-        { p: [w / 2, 1, 0] as [number, number, number], s: [0.15, 2, d] as [number, number, number] },
+        { p: [0, PERIMETER_WALL_H / 2, -d / 2] as [number, number, number], s: [w, PERIMETER_WALL_H, 0.2] as [number, number, number] },
+        { p: [0, PERIMETER_WALL_H / 2, d / 2] as [number, number, number], s: [w, PERIMETER_WALL_H, 0.2] as [number, number, number] },
+        { p: [-w / 2, PERIMETER_WALL_H / 2, 0] as [number, number, number], s: [0.2, PERIMETER_WALL_H, d] as [number, number, number] },
+        { p: [w / 2, PERIMETER_WALL_H / 2, 0] as [number, number, number], s: [0.2, PERIMETER_WALL_H, d] as [number, number, number] },
       ].map((wall, i) => (
         <mesh key={i} position={wall.p}>
           <boxGeometry args={wall.s} />
-          <meshStandardMaterial color="#2a313c" roughness={0.9} transparent opacity={0.5} />
+          <meshStandardMaterial color="#2d3542" roughness={0.85} />
         </mesh>
       ))}
     </group>
@@ -398,6 +401,46 @@ function TruckFallback({ isTop }: { isTop: boolean }) {
   );
 }
 
+// A continuous wall running behind a whole row of docks, with a door-sized
+// gap left open at each individual dock — instead of each DockMesh only
+// drawing its own 3.2-wide wall segment, which left big open gaps between
+// docks now that the row is spaced 12 units apart. This is what actually
+// separates the yard/truck side from the interior of the building, like a
+// real warehouse's loading-dock wall.
+function DockRowWalls({ docks, warehouseW }: { docks: Dock[]; warehouseW: number }) {
+  if (docks.length === 0) return null;
+  const sample = docks[0];
+  const isTop = sample.position[1] < 0;
+  const dir = isTop ? -1 : 1;
+  const baseZ = sample.position[1];
+  const wallZ = baseZ + -dir * 0.75;
+  const doorW = 2.3; // matches DockMesh's own door width
+  const xs = [...docks.map((d) => d.position[0])].sort((a, b) => a - b);
+  const segments: { center: number; width: number }[] = [];
+  const leftEdge = -warehouseW / 2 + 0.15;
+  const rightEdge = warehouseW / 2 - 0.15;
+  // wall from the building's side edge to the first door
+  segments.push({ center: (leftEdge + (xs[0] - doorW / 2)) / 2, width: (xs[0] - doorW / 2) - leftEdge });
+  // wall segments between each pair of doors
+  for (let i = 0; i < xs.length - 1; i++) {
+    const a = xs[i] + doorW / 2, b = xs[i + 1] - doorW / 2;
+    if (b > a) segments.push({ center: (a + b) / 2, width: b - a });
+  }
+  // wall from the last door to the building's other side edge
+  segments.push({ center: ((xs[xs.length - 1] + doorW / 2) + rightEdge) / 2, width: rightEdge - (xs[xs.length - 1] + doorW / 2) });
+
+  return (
+    <>
+      {segments.filter((s) => s.width > 0.05).map((s, i) => (
+        <mesh key={i} position={[s.center, PERIMETER_WALL_H / 2, wallZ]}>
+          <boxGeometry args={[s.width, PERIMETER_WALL_H, 0.2]} />
+          <meshStandardMaterial color="#2d3542" roughness={0.85} />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
 function DockMesh({ dock }: { dock: Dock }) {
   const { select, selectedId } = useWMSStore();
   const isSelected = selectedId === dock.id;
@@ -458,11 +501,9 @@ function DockMesh({ dock }: { dock: Dock }) {
           <meshStandardMaterial color={color} transparent opacity={0.3} />
         </mesh>
       ))}
-      {/* building wall face the dock is set into */}
-      <mesh position={[0, 1.2, wallZ]}>
-        <boxGeometry args={[3.2, 2.4, 0.12]} />
-        <meshStandardMaterial color="#2a313c" roughness={0.9} />
-      </mesh>
+      {/* Building wall itself is now drawn once per dock row by
+          DockRowWalls (a continuous wall with door gaps), not per-dock here
+          — this avoids a redundant, overlapping wall chunk at every dock. */}
       {/* roll-up dock door, recessed into the wall */}
       <mesh position={[0, 1.1, wallZ + dir * 0.07]}>
         <boxGeometry args={[2.3, 1.9, 0.05]} />
@@ -650,7 +691,13 @@ function Scene() {
       {allRacks.map(({ rack, color, zoneId }) => (
         (!filter || filter === zoneId) && <RackMesh key={rack.id} rack={rack} zoneColor={color} />
       ))}
-      {showDocks && warehouse.docks.map((d) => <DockMesh key={d.id} dock={d} />)}
+      {showDocks && (
+        <>
+          <DockRowWalls docks={warehouse.docks.filter((d) => d.position[1] < 0)} warehouseW={warehouse.size.w} />
+          <DockRowWalls docks={warehouse.docks.filter((d) => d.position[1] >= 0)} warehouseW={warehouse.size.w} />
+          {warehouse.docks.map((d) => <DockMesh key={d.id} dock={d} />)}
+        </>
+      )}
       {showForklifts && (
         <>
           <ConveyorBelts />
