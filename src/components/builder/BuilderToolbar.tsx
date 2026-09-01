@@ -79,8 +79,8 @@ export function BuilderToolbar() {
 
   return (
     <>
-    <div className="h-12 panel border-b flex items-center px-3 gap-2 text-xs">
-      <div className="flex items-center gap-1 pr-3 border-r border-border/60">
+    <div className="h-12 panel border-b flex items-center px-3 gap-2 text-xs overflow-x-auto overflow-y-hidden">
+      <div className="flex items-center gap-1 pr-3 border-r border-border/60 shrink-0">
         <span className="text-[10px] font-bold tracking-wider text-muted-foreground mr-2">VIEW MODE</span>
         {modes.map((m) => {
           const Icon = m.icon;
@@ -104,14 +104,14 @@ export function BuilderToolbar() {
         })}
       </div>
 
-      <div className="flex items-center gap-1 pr-3 border-r border-border/60">
+      <div className="flex items-center gap-1 pr-3 border-r border-border/60 shrink-0">
         <span className="text-[10px] font-bold tracking-wider text-muted-foreground mr-2">LAYERS</span>
         <ToggleBtn active={showForklifts} onClick={() => toggle("showForklifts")} icon={Forklift} label="Forklifts" />
         <ToggleBtn active={showDocks} onClick={() => toggle("showDocks")} icon={Truck} label="Docks" />
         <ToggleBtn active={showLabels} onClick={() => toggle("showLabels")} icon={Tag} label="Labels" />
       </div>
 
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-2 shrink-0">
         {/* Cloud save status pill */}
         <div className={cn(
           "flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-medium transition-all duration-500 border",
@@ -142,16 +142,16 @@ export function BuilderToolbar() {
 
         <button
           onClick={handleReset}
-          className="px-2.5 py-1.5 rounded border border-border hover:bg-secondary flex items-center gap-1.5 text-muted-foreground hover:text-destructive"
+          className="px-2.5 py-1.5 rounded border border-border hover:bg-secondary flex items-center gap-1.5 text-muted-foreground hover:text-destructive whitespace-nowrap"
         >
           <RotateCcw className="h-3.5 w-3.5" /> Reset
         </button>
-        <button className="px-2.5 py-1.5 rounded border border-border hover:bg-secondary flex items-center gap-1.5">
+        <button className="px-2.5 py-1.5 rounded border border-border hover:bg-secondary flex items-center gap-1.5 whitespace-nowrap">
           <Maximize className="h-3.5 w-3.5" /> Fullscreen
         </button>
         <button
           onClick={() => setShowEditLayout(true)}
-          className="px-2.5 py-1.5 rounded border border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 flex items-center gap-1.5 font-medium"
+          className="px-2.5 py-1.5 rounded border border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 flex items-center gap-1.5 font-medium whitespace-nowrap"
         >
           <PencilRuler className="h-3.5 w-3.5" /> Edit Layout
         </button>
@@ -159,7 +159,7 @@ export function BuilderToolbar() {
           onClick={saveNow}
           disabled={!isDirty || isSaving}
           className={cn(
-            "px-3 py-1.5 rounded font-medium flex items-center gap-1.5 transition-all",
+            "px-3 py-1.5 rounded font-medium flex items-center gap-1.5 transition-all whitespace-nowrap",
             isDirty && !isSaving
               ? "bg-primary text-primary-foreground hover:opacity-90 glow-amber cursor-pointer"
               : "bg-primary/30 text-primary-foreground/50 cursor-default",
