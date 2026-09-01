@@ -122,30 +122,72 @@ function ZoneFloor({ zone }: { zone: Zone }) {
   );
 }
 
+// Level height for the racking frame. Bumped from 0.45 to 0.6 (levels=4 →
+// 2.4 total height) both so the structure reads as real pallet racking at a
+// human/MHE scale, and so it stays clearly taller than the forklift model
+// (ForkliftMesh tops out at 2.0 with its mast raised) instead of the two
+// being nearly the same height.
+const RACK_LEVEL_H = 0.6;
+const RACK_FRAME_COLOR = "#ea580c"; // safety-orange upright color used on real selective racking
+const RACK_BEAM_COLOR = "#334155";
+
 function RackMesh({ rack, zoneColor }: { rack: Rack; zoneColor: string }) {
   const { selectedId, select, viewMode } = useWMSStore();
   const [x, z] = rack.position;
   const rackW = 1.6, rackD = 0.6;
-  const levelH = 0.45;
+  const levelH = RACK_LEVEL_H;
+  const totalH = rack.levels * levelH;
+  const corners: [number, number][] = [[-rackW / 2, -rackD / 2], [rackW / 2, -rackD / 2], [-rackW / 2, rackD / 2], [rackW / 2, rackD / 2]];
 
   return (
     <group position={[x, 0, z]} onClick={(e) => { e.stopPropagation(); select(rack.id, "rack"); }}>
-      {/* uprights */}
-      {[[-rackW / 2, -rackD / 2], [rackW / 2, -rackD / 2], [-rackW / 2, rackD / 2], [rackW / 2, rackD / 2]].map((p, i) => (
-        <mesh key={i} position={[p[0], (rack.levels * levelH) / 2, p[1]]}>
-          <boxGeometry args={[0.06, rack.levels * levelH, 0.06]} />
-          <meshStandardMaterial color="#4b5563" metalness={0.6} roughness={0.4} />
+      {/* footplates anchoring each upright to the floor */}
+      {corners.map((p, i) => (
+        <mesh key={`fp-${i}`} position={[p[0], 0.015, p[1]]}>
+          <boxGeometry args={[0.16, 0.03, 0.16]} />
+          <meshStandardMaterial color="#0f172a" metalness={0.4} roughness={0.6} />
         </mesh>
       ))}
-      {/* beams + bins */}
+      {/* uprights — taller, safety-orange selective-racking frame */}
+      {corners.map((p, i) => (
+        <mesh key={i} position={[p[0], totalH / 2, p[1]]}>
+          <boxGeometry args={[0.07, totalH, 0.07]} />
+          <meshStandardMaterial color={RACK_FRAME_COLOR} metalness={0.5} roughness={0.35} />
+        </mesh>
+      ))}
+      {/* diagonal cross-bracing on the back frame, per level — the structural
+          detail that reads visually as "real racking" rather than a stack of
+          shelves */}
+      {Array.from({ length: rack.levels }).map((_, l) => {
+        const y0 = l * levelH, y1 = (l + 1) * levelH;
+        const len = Math.hypot(rackW - 0.07, y1 - y0);
+        const angle = Math.atan2(y1 - y0, rackW - 0.07);
+        return (
+          <group key={`brace-${l}`} position={[0, (y0 + y1) / 2, -rackD / 2]}>
+            <mesh rotation={[0, 0, angle]}>
+              <boxGeometry args={[len * 0.96, 0.025, 0.025]} />
+              <meshStandardMaterial color={RACK_FRAME_COLOR} metalness={0.4} roughness={0.5} />
+            </mesh>
+            <mesh rotation={[0, 0, -angle]}>
+              <boxGeometry args={[len * 0.96, 0.025, 0.025]} />
+              <meshStandardMaterial color={RACK_FRAME_COLOR} metalness={0.4} roughness={0.5} />
+            </mesh>
+          </group>
+        );
+      })}
+      {/* beams + palletized loads */}
       {Array.from({ length: rack.levels }).map((_, l) => {
         const y = l * levelH + 0.05;
         return (
           <group key={l} position={[0, y, 0]}>
-            <mesh position={[0, levelH * 0.95, 0]}>
-              <boxGeometry args={[rackW, 0.04, rackD]} />
-              <meshStandardMaterial color="#374151" metalness={0.5} roughness={0.5} />
-            </mesh>
+            {/* front + back load beams (real racking carries the pallet on two
+                beams, not a solid shelf) */}
+            {[-rackD / 2, rackD / 2].map((bz, bi) => (
+              <mesh key={bi} position={[0, levelH * 0.9, bz]}>
+                <boxGeometry args={[rackW, 0.06, 0.06]} />
+                <meshStandardMaterial color={RACK_BEAM_COLOR} metalness={0.5} roughness={0.5} />
+              </mesh>
+            ))}
             {Array.from({ length: rack.binsPerLevel }).map((_, p) => {
               const bin = rack.bins[l * rack.binsPerLevel + p];
               if (!bin) return null;
@@ -159,30 +201,39 @@ function RackMesh({ rack, zoneColor }: { rack: Rack; zoneColor: string }) {
                 color = bin.status === "Full" || bin.status === "Partial" ? "#f97316" : "#374151";
               }
               const isSelected = selectedId === bin.id;
+              const loadH = levelH * 0.6 * Math.max(occ, 0.15);
               return (
-                <mesh
+                <group
                   key={bin.id}
-                  position={[bx, levelH * 0.45 * Math.max(occ, 0.15), 0]}
+                  position={[bx, levelH * 0.94, 0]}
                   onClick={(e) => { e.stopPropagation(); select(bin.id, "bin"); }}
                   onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = "pointer"; }}
                   onPointerOut={() => { document.body.style.cursor = "default"; }}
                 >
-                  <boxGeometry args={[binW * 0.86, levelH * 0.85 * Math.max(occ, 0.15), rackD * 0.8]} />
-                  <meshStandardMaterial
-                    color={color}
-                    emissive={isSelected ? "#fbbf24" : color}
-                    emissiveIntensity={isSelected ? 0.6 : bin.status === "Full" ? 0.18 : 0.05}
-                    metalness={0.2}
-                    roughness={0.7}
-                  />
-                </mesh>
+                  {/* pallet deck */}
+                  <mesh position={[0, 0.025, 0]}>
+                    <boxGeometry args={[binW * 0.82, 0.05, rackD * 0.78]} />
+                    <meshStandardMaterial color="#92600f" roughness={0.9} />
+                  </mesh>
+                  {/* carton/load stack on top of the pallet */}
+                  <mesh position={[0, 0.05 + loadH / 2, 0]}>
+                    <boxGeometry args={[binW * 0.7, loadH, rackD * 0.62]} />
+                    <meshStandardMaterial
+                      color={color}
+                      emissive={isSelected ? "#fbbf24" : color}
+                      emissiveIntensity={isSelected ? 0.6 : bin.status === "Full" ? 0.18 : 0.05}
+                      metalness={0.2}
+                      roughness={0.7}
+                    />
+                  </mesh>
+                </group>
               );
             })}
           </group>
         );
       })}
       {/* zone tint top cap */}
-      <mesh position={[0, rack.levels * levelH + 0.04, 0]}>
+      <mesh position={[0, totalH + 0.04, 0]}>
         <boxGeometry args={[rackW, 0.02, rackD]} />
         <meshStandardMaterial color={zoneColor} emissive={zoneColor} emissiveIntensity={0.4} />
       </mesh>
@@ -246,18 +297,51 @@ function ForkliftMesh({ fl }: { fl: Forklift }) {
     ref.current.position.set(x, 0, z);
     ref.current.rotation.y = Math.atan2(b[0] - a[0], b[1] - a[1]);
   });
+  // Mast top sits at ~2.0 — deliberately kept below RACK_LEVEL_H * levels
+  // (2.4 for a standard 4-level rack) so the forklift always reads as
+  // shorter than the racking it drives between, not the other way round.
   return (
     <group ref={ref}>
-      <mesh position={[0, 0.4, 0]}>
-        <boxGeometry args={[0.7, 0.8, 1.2]} />
-        <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={0.3} metalness={0.3} />
+      {/* chassis */}
+      <mesh position={[0, 0.3, -0.05]}>
+        <boxGeometry args={[0.7, 0.5, 1.15]} />
+        <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={0.25} metalness={0.3} roughness={0.5} />
       </mesh>
-      <mesh position={[0, 1.1, 0.3]}>
-        <boxGeometry args={[0.5, 0.6, 0.4]} />
-        <meshStandardMaterial color="#1f2937" />
+      {/* wheels */}
+      {([[-0.32, 0.42], [0.32, 0.42], [-0.32, -0.45], [0.32, -0.45]] as [number, number][]).map((p, i) => (
+        <mesh key={`wheel-${i}`} position={[p[0], 0.14, p[1]]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.14, 0.14, 0.12, 12]} />
+          <meshStandardMaterial color="#111827" roughness={0.85} />
+        </mesh>
+      ))}
+      {/* overhead guard posts + roof */}
+      {([[-0.28, 0.32], [0.28, 0.32], [-0.28, -0.18], [0.28, -0.18]] as [number, number][]).map((p, i) => (
+        <mesh key={`post-${i}`} position={[p[0], 0.95, p[1]]}>
+          <boxGeometry args={[0.05, 0.9, 0.05]} />
+          <meshStandardMaterial color="#1f2937" metalness={0.4} roughness={0.5} />
+        </mesh>
+      ))}
+      <mesh position={[0, 1.42, 0.07]}>
+        <boxGeometry args={[0.68, 0.05, 0.85]} />
+        <meshStandardMaterial color="#1f2937" metalness={0.3} roughness={0.6} />
       </mesh>
-      <mesh position={[0, 1.6, 0]}>
-        <sphereGeometry args={[0.08, 8, 8]} />
+      {/* mast rails, raised toward the load side */}
+      {[-0.26, 0.26].map((mx, i) => (
+        <mesh key={`mast-${i}`} position={[mx, 1.0, 0.62]}>
+          <boxGeometry args={[0.06, 2.0, 0.06]} />
+          <meshStandardMaterial color="#374151" metalness={0.6} roughness={0.3} />
+        </mesh>
+      ))}
+      {/* forks */}
+      {[-0.18, 0.18].map((fx, i) => (
+        <mesh key={`fork-${i}`} position={[fx, 0.1, 1.0]}>
+          <boxGeometry args={[0.1, 0.05, 0.65]} />
+          <meshStandardMaterial color="#374151" metalness={0.5} roughness={0.4} />
+        </mesh>
+      ))}
+      {/* beacon light */}
+      <mesh position={[0, 1.5, -0.05]}>
+        <sphereGeometry args={[0.07, 8, 8]} />
         <meshStandardMaterial color="#22d3ee" emissive="#22d3ee" emissiveIntensity={3} />
       </mesh>
     </group>
