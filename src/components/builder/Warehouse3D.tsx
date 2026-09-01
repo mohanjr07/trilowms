@@ -343,7 +343,7 @@ function DockTruck({ occupied, isTop, color }: { occupied: boolean; isTop: boole
 // trailer's old footprint (~4.6 long) so it sits sensibly at the dock.
 const TRUCK_MODEL_URL = "/models/heavy-truck.glb";
 const TRUCK_MODEL_LENGTH = 19.43;
-const TRUCK_TARGET_LENGTH = 4.6;
+const TRUCK_TARGET_LENGTH = 6.5;
 const TRUCK_MODEL_SCALE = TRUCK_TARGET_LENGTH / TRUCK_MODEL_LENGTH;
 const TRUCK_MODEL_Z_OFFSET = -0.95 * TRUCK_MODEL_SCALE;
 
@@ -354,7 +354,7 @@ function TruckModel({ isTop }: { isTop: boolean }) {
     // If the model turns out to be facing backwards once you see it live,
     // flip this to `isTop ? Math.PI : 0` (or vice versa) — I can't render
     // the GLB myself to confirm which way its front faces.
-    <group rotation={[0, isTop ? 0 : Math.PI, 0]}>
+    <group rotation={[0, isTop ? Math.PI : 0, 0]}>
       <primitive object={cloned} scale={TRUCK_MODEL_SCALE} position={[0, 0, TRUCK_MODEL_Z_OFFSET]} />
     </group>
   );
