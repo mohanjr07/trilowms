@@ -133,10 +133,12 @@ function ZoneFloor({ zone }: { zone: Zone }) {
 // (ForkliftMesh tops out at 2.0 with its mast raised) instead of the two
 // being nearly the same height.
 const RACK_LEVEL_H = 0.6;
-// Dark charcoal frame instead of safety-orange — reads as a solid, moody
-// industrial silhouette against the dark floor rather than standing out.
-const RACK_FRAME_COLOR = "#1c222c";
-const RACK_BEAM_COLOR = "#0f141b";
+// Matches the reference warehouse-racking photo: blue uprights + blue
+// diagonal cross-bracing on the end frames, orange horizontal load beams,
+// and light/white shelf decking — the standard heavy-duty longspan look.
+const RACK_FRAME_COLOR = "#1d4ed8";
+const RACK_BEAM_COLOR = "#f97316";
+const RACK_DECK_COLOR = "#e5e7eb";
 const BEACON_HEIGHT = 1.3;
 
 /** Sparse red/green status beacon color for a rack — red for any bin needing
@@ -169,46 +171,55 @@ function RackMesh({ rack, zoneColor }: { rack: Rack; zoneColor: string }) {
           <meshStandardMaterial color="#0f172a" metalness={0.4} roughness={0.6} />
         </mesh>
       ))}
-      {/* uprights — taller, safety-orange selective-racking frame */}
+      {/* uprights — painted-blue selective-racking frame, matching the
+          reference photo's powder-coated steel look */}
       {corners.map((p, i) => (
         <mesh key={i} position={[p[0], totalH / 2, p[1]]}>
-          <boxGeometry args={[0.07, totalH, 0.07]} />
-          <meshStandardMaterial color={RACK_FRAME_COLOR} metalness={0.5} roughness={0.35} />
+          <boxGeometry args={[0.08, totalH, 0.08]} />
+          <meshStandardMaterial color={RACK_FRAME_COLOR} metalness={0.3} roughness={0.45} />
         </mesh>
       ))}
-      {/* diagonal cross-bracing on the back frame, per level — the structural
-          detail that reads visually as "real racking" rather than a stack of
-          shelves */}
-      {Array.from({ length: rack.levels }).map((_, l) => {
-        const y0 = l * levelH, y1 = (l + 1) * levelH;
-        const len = Math.hypot(rackW - 0.07, y1 - y0);
-        const angle = Math.atan2(y1 - y0, rackW - 0.07);
-        return (
-          <group key={`brace-${l}`} position={[0, (y0 + y1) / 2, -rackD / 2]}>
-            <mesh rotation={[0, 0, angle]}>
-              <boxGeometry args={[len * 0.96, 0.025, 0.025]} />
-              <meshStandardMaterial color={RACK_FRAME_COLOR} metalness={0.4} roughness={0.5} />
-            </mesh>
-            <mesh rotation={[0, 0, -angle]}>
-              <boxGeometry args={[len * 0.96, 0.025, 0.025]} />
-              <meshStandardMaterial color={RACK_FRAME_COLOR} metalness={0.4} roughness={0.5} />
-            </mesh>
-          </group>
-        );
-      })}
-      {/* beams + palletized loads */}
+      {/* diagonal cross-bracing on both end frames (left + right sides), per
+          level — the blue X-pattern that reads as "real racking" the way the
+          reference photo's side frame does, rather than a stack of shelves */}
+      {[-rackW / 2, rackW / 2].map((ex) =>
+        Array.from({ length: rack.levels }).map((_, l) => {
+          const y0 = l * levelH, y1 = (l + 1) * levelH;
+          const len = Math.hypot(rackD - 0.08, y1 - y0);
+          const angle = Math.atan2(y1 - y0, rackD - 0.08);
+          return (
+            <group key={`brace-${ex}-${l}`} position={[ex, (y0 + y1) / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
+              <mesh rotation={[0, 0, angle]}>
+                <boxGeometry args={[len * 0.96, 0.03, 0.03]} />
+                <meshStandardMaterial color={RACK_FRAME_COLOR} metalness={0.3} roughness={0.45} />
+              </mesh>
+              <mesh rotation={[0, 0, -angle]}>
+                <boxGeometry args={[len * 0.96, 0.03, 0.03]} />
+                <meshStandardMaterial color={RACK_FRAME_COLOR} metalness={0.3} roughness={0.45} />
+              </mesh>
+            </group>
+          );
+        }),
+      )}
+      {/* beams + shelf decking + palletized loads */}
       {Array.from({ length: rack.levels }).map((_, l) => {
         const y = l * levelH + 0.05;
         return (
           <group key={l} position={[0, y, 0]}>
-            {/* front + back load beams (real racking carries the pallet on two
-                beams, not a solid shelf) */}
+            {/* front + back orange load beams, matching the reference photo's
+                horizontal orange rails */}
             {[-rackD / 2, rackD / 2].map((bz, bi) => (
-              <mesh key={bi} position={[0, levelH * 0.9, bz]}>
-                <boxGeometry args={[rackW, 0.06, 0.06]} />
-                <meshStandardMaterial color={RACK_BEAM_COLOR} metalness={0.5} roughness={0.5} />
+              <mesh key={bi} position={[0, levelH * 0.86, bz]}>
+                <boxGeometry args={[rackW, 0.09, 0.05]} />
+                <meshStandardMaterial color={RACK_BEAM_COLOR} metalness={0.3} roughness={0.4} />
               </mesh>
             ))}
+            {/* light shelf decking panel spanning the full level, resting on
+                the beams — the white perforated-look deck from the photo */}
+            <mesh position={[0, levelH * 0.9, 0]}>
+              <boxGeometry args={[rackW * 0.97, 0.03, rackD * 0.97]} />
+              <meshStandardMaterial color={RACK_DECK_COLOR} metalness={0.05} roughness={0.75} />
+            </mesh>
             {Array.from({ length: rack.binsPerLevel }).map((_, p) => {
               const bin = rack.bins[l * rack.binsPerLevel + p];
               if (!bin) return null;
