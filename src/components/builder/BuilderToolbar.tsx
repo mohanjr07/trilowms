@@ -60,7 +60,7 @@ export function BuilderToolbar() {
   const { viewMode, setViewMode, showForklifts, showDocks, showLabels, toggle } = useWMSStore();
   const { resetToDefault, warehouse } = useEditorStore();
   const [showEditLayout, setShowEditLayout] = useState(false);
-  const { isDirty, isSaving, lastSavedAt, justSaved, syncError, saveNow } = useAutoSave();
+  const { isDirty, isSaving, lastSavedAt, justSaved, syncError } = useAutoSave();
   const [, tick] = useState(0);
 
   // Re-render every 15s so "Xs ago" label stays fresh
@@ -154,18 +154,6 @@ export function BuilderToolbar() {
           className="px-2.5 py-1.5 rounded border border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 flex items-center gap-1.5 font-medium whitespace-nowrap"
         >
           <PencilRuler className="h-3.5 w-3.5" /> Edit Layout
-        </button>
-        <button
-          onClick={saveNow}
-          disabled={!isDirty || isSaving}
-          className={cn(
-            "px-3 py-1.5 rounded font-medium flex items-center gap-1.5 transition-all whitespace-nowrap",
-            isDirty && !isSaving
-              ? "bg-primary text-primary-foreground hover:opacity-90 glow-amber cursor-pointer"
-              : "bg-primary/30 text-primary-foreground/50 cursor-default",
-          )}
-        >
-          <Save className="h-3.5 w-3.5" /> Save Layout
         </button>
       </div>
     </div>
