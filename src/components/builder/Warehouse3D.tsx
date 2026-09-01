@@ -6,6 +6,7 @@ import type { Bin, Rack, Zone, Dock, Forklift } from "@/lib/wms-data";
 import { useWMSStore } from "@/lib/wms-store";
 import { useEditorStore } from "@/lib/wms-editor-store";
 import { useOutboundStore } from "@/lib/outbound-store";
+import { useInboundStore } from "@/lib/inbound-store";
 
 const STATUS_COLOR: Record<Bin["status"], string> = {
   Empty: "#3a4452",
@@ -321,22 +322,78 @@ function DockTruck({ occupied, isTop, color }: { occupied: boolean; isTop: boole
 
   if (!visible) return null;
 
+  // Rear (cargo-door) end of the trailer is whichever end the tractor cab
+  // is NOT on — that's the end that should face the dock door.
+  const rearZ = isTop ? -2 : 2;
+  const rearSign = isTop ? -1 : 1;
+
   return (
     <group ref={groupRef} position={[0, 0, parkedZ]}>
-      {/* trailer body */}
+      {/* red chassis rails running the length of the trailer, beneath the container */}
+      {[-0.95, 0.95].map((rx, i) => (
+        <mesh key={`rail-${i}`} position={[rx, 0.28, 0]}>
+          <boxGeometry args={[0.14, 0.14, 4.1]} />
+          <meshStandardMaterial color="#b91c1c" metalness={0.4} roughness={0.5} />
+        </mesh>
+      ))}
+      {/* shipping-container body */}
       <mesh position={[0, 1.1, 0]}>
         <boxGeometry args={[2.6, 1.6, 4]} />
-        <meshStandardMaterial color="#e5e7eb" metalness={0.2} roughness={0.6} />
+        <meshStandardMaterial color="#1d4ed8" metalness={0.25} roughness={0.55} />
       </mesh>
-      {/* trailer wheels */}
-      {[-1.5, -0.3, 0.9].flatMap((wz, ri) =>
-        [-1.15, 1.15].map((wx, ci) => (
-          <mesh key={`tw-${ri}-${ci}`} position={[wx, 0.35, wz]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.35, 0.35, 0.25, 14]} />
-            <meshStandardMaterial color="#111827" roughness={0.85} />
+      {/* corrugated side ribs for that container-panel texture */}
+      {[-1.31, 1.31].flatMap((rx, si) =>
+        Array.from({ length: 9 }).map((_, i) => (
+          <mesh key={`rib-${si}-${i}`} position={[rx, 1.1, -1.75 + i * 0.44]}>
+            <boxGeometry args={[0.04, 1.55, 0.06]} />
+            <meshStandardMaterial color={si === 0 ? "#1e3a8a" : "#1e3a8a"} metalness={0.2} roughness={0.6} />
           </mesh>
         )),
       )}
+      {/* rear cargo doors: split line + hinges + reflective warning stripe */}
+      <mesh position={[0, 1.1, rearZ + rearSign * 0.03]}>
+        <boxGeometry args={[0.04, 1.55, 0.05]} />
+        <meshStandardMaterial color="#0f1e4d" />
+      </mesh>
+      {[-1.2, 1.2].flatMap((hx, di) =>
+        [0.55, 0, -0.55].map((hy, hi) => (
+          <mesh key={`hinge-${di}-${hi}`} position={[hx, 1.1 + hy, rearZ + rearSign * 0.04]}>
+            <boxGeometry args={[0.1, 0.08, 0.04]} />
+            <meshStandardMaterial color="#1e293b" metalness={0.6} roughness={0.4} />
+          </mesh>
+        )),
+      )}
+      <mesh position={[0, 0.45, rearZ + rearSign * 0.04]}>
+        <boxGeometry args={[2.4, 0.14, 0.03]} />
+        <meshStandardMaterial color="#dc2626" emissive="#dc2626" emissiveIntensity={0.3} />
+      </mesh>
+      {/* rear license plate */}
+      <mesh position={[0, 0.28, rearZ + rearSign * 0.05]}>
+        <boxGeometry args={[0.5, 0.18, 0.02]} />
+        <meshStandardMaterial color="#f8fafc" />
+      </mesh>
+      {/* trailer wheels, with lighter rim hubs */}
+      {[-1.5, -0.3, 0.9].flatMap((wz, ri) =>
+        [-1.15, 1.15].map((wx, ci) => (
+          <group key={`tw-${ri}-${ci}`} position={[wx, 0.35, wz]}>
+            <mesh rotation={[Math.PI / 2, 0, 0]}>
+              <cylinderGeometry args={[0.35, 0.35, 0.25, 14]} />
+              <meshStandardMaterial color="#111827" roughness={0.85} />
+            </mesh>
+            <mesh position={[wx > 0 ? 0.09 : -0.09, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
+              <cylinderGeometry args={[0.14, 0.14, 0.08, 12]} />
+              <meshStandardMaterial color="#94a3b8" metalness={0.7} roughness={0.3} />
+            </mesh>
+          </group>
+        )),
+      )}
+      {/* mud flaps behind the rearmost wheel pair */}
+      {[-1.15, 1.15].map((fx, i) => (
+        <mesh key={`flap-${i}`} position={[fx, 0.28, rearZ + rearSign * -0.7]}>
+          <boxGeometry args={[0.32, 0.4, 0.03]} />
+          <meshStandardMaterial color="#0b0f14" roughness={0.9} />
+        </mesh>
+      ))}
       {/* tractor cab */}
       <mesh position={[0, 1.4, isTop ? 1.6 : -1.6]}>
         <boxGeometry args={[2.4, 1, 1.2]} />
@@ -378,16 +435,31 @@ function DockMesh({ dock }: { dock: Dock }) {
   const outboundMatch = dock.kind === "Outbound"
     ? shipments.some((s) => s.dockCode && dockNum(s.dockCode) === dockNum(dock.code) && ["STAGED", "LOADING", "LOADED"].includes(s.status))
     : false;
-  // A brand-new/lightly-used warehouse may not have any shipment ever
+  const outboundEverUsed = dock.kind === "Outbound"
+    ? shipments.some((s) => s.dockCode && dockNum(s.dockCode) === dockNum(dock.code))
+    : true;
+
+  // Same real-data wiring for Inbound docks, off the actual ASN queue instead
+  // of a static flag — a truck shows while its ASN is physically docked
+  // (DOCKED/RECEIVING/PARTIAL) and drives off once receiving finishes.
+  const asns = useInboundStore((s) => s.asns);
+  const inboundMatch = dock.kind === "Inbound"
+    ? asns.some((a) => a.dockCode && dockNum(a.dockCode) === dockNum(dock.code) && ["DOCKED", "RECEIVING", "PARTIAL"].includes(a.status))
+    : false;
+  const inboundEverUsed = dock.kind === "Inbound"
+    ? asns.some((a) => a.dockCode && dockNum(a.dockCode) === dockNum(dock.code))
+    : true;
+
+  // A brand-new/lightly-used warehouse may not have any ASN/shipment ever
   // assigned to a given dock code yet — in that case there's no real
   // "departed" state to reflect, so default to a parked truck (like every
   // other still-unused dock in real life) instead of leaving the door bare.
-  // Once a shipment genuinely occupies, then dispatches from, this dock, its
-  // real status drives the truck and the departure animation.
-  const everUsed = dock.kind === "Outbound"
-    ? shipments.some((s) => s.dockCode && dockNum(s.dockCode) === dockNum(dock.code))
-    : true;
-  const occupiedNow = dock.kind === "Outbound" ? (outboundMatch || !everUsed) : dock.occupied;
+  // Once real traffic occupies, then leaves, a dock, its live status takes
+  // over and drives the departure animation.
+  const occupiedNow =
+    dock.kind === "Outbound" ? (outboundMatch || !outboundEverUsed) :
+    dock.kind === "Inbound" ? (inboundMatch || !inboundEverUsed) :
+    dock.occupied;
 
   return (
     <group position={[x, 0, z]} onClick={(e) => { e.stopPropagation(); select(dock.id, "dock"); }}>
