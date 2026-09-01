@@ -165,6 +165,23 @@ export function generateBinsForRack(rack: Rack, count: number): Bin[] {
 // was routed. 4.6 opens that gap to 1.2, wide enough to actually drive through,
 // while still fitting inside every zone's existing bounds.w.
 export const AISLE_PITCH = 4.6;
+const RACK_HALF_W = 0.8;   // half of RackMesh's rackW (1.6)
+const RACK_HALF_D = 0.3;   // half of RackMesh's rackD (0.6)
+const SIDE_OFFSET = 0.9;   // L/R rack offset from a column's centerline
+const ROW_PITCH = 2.2;     // distance between rack rows along z
+
+// Where the first rack column/row should start so the whole rack block is
+// centered inside the zone, instead of hugging bounds.x/bounds.z — the old
+// fixed "+1.5" offset left the block off-center (and even overhanging the
+// zone's left edge once AISLE_PITCH grew), so racks visually didn't line up
+// with the section they belonged to.
+function rackBlockOrigin(bounds: Zone["bounds"], aisleCount: number, racksPerAisle: number) {
+  const blockW = (aisleCount - 1) * AISLE_PITCH + 2 * (SIDE_OFFSET + RACK_HALF_W);
+  const blockD = (racksPerAisle - 1) * ROW_PITCH + 2 * RACK_HALF_D;
+  const startX = bounds.x + bounds.w / 2 - blockW / 2 + (SIDE_OFFSET + RACK_HALF_W);
+  const startZ = bounds.z + bounds.d / 2 - blockD / 2 + RACK_HALF_D;
+  return { startX, startZ, blockW, blockD };
+}
 
 export function makeZone(
   name: string,
@@ -173,6 +190,7 @@ export function makeZone(
   aisleCount: number,
   racksPerAisle: number,
 ): Zone {
+  const { startX, startZ } = rackBlockOrigin(bounds, aisleCount, racksPerAisle);
   const aisles: Aisle[] = [];
   for (let a = 0; a < aisleCount; a++) {
     const racks: Rack[] = [];
@@ -183,8 +201,8 @@ export function makeZone(
       // Two rows of racks per aisle
       for (const side of [0, 1]) {
         const rackId = `${rid}-${side === 0 ? "L" : "R"}`;
-        const x = bounds.x + 1.5 + a * AISLE_PITCH + (side === 0 ? -0.9 : 0.9);
-        const z = bounds.z + 1.5 + r * 2.2;
+        const x = startX + a * AISLE_PITCH + (side === 0 ? -SIDE_OFFSET : SIDE_OFFSET);
+        const z = startZ + r * ROW_PITCH;
         racks.push({
           id: rackId,
           code: rackId,
@@ -225,18 +243,18 @@ function computeAislePath(
   racksPerAisle: number,
 ): [number, number][] {
   if (aisleCount < 2) return []; // no open gap between rack columns to drive through
-  // Same placement math as makeZone: side "L" is at -0.9, side "R" at +0.9 from
-  // each column's centerline, and racks are rackW=1.6 wide (see RackMesh) — so
-  // the safe gap between column `a`'s R side and column `a+1`'s L side is
-  // centered at bounds.x + 1.5 + AISLE_PITCH*(a + 0.5).
-  const gapXs = Array.from({ length: aisleCount - 1 }, (_, a) => bounds.x + 1.5 + AISLE_PITCH * (a + 0.5));
+  const { startX, startZ, blockD } = rackBlockOrigin(bounds, aisleCount, racksPerAisle);
+  // Gap between column `a`'s R side and column `a+1`'s L side is centered
+  // halfway between their centerlines.
+  const gapXs = Array.from({ length: aisleCount - 1 }, (_, a) => startX + AISLE_PITCH * (a + 0.5));
   const x1 = gapXs[0];
   const x2 = gapXs[gapXs.length - 1];
-  // Open cross-aisle strips before the first rack row and after the last one
-  // (racks are rackD=0.6 deep, spaced 2.2 apart starting at bounds.z + 1.5).
-  const zFront = bounds.z + 0.6;
-  const lastRackZ = bounds.z + 1.5 + (racksPerAisle - 1) * 2.2;
-  const zBack = Math.max(lastRackZ + 0.6, bounds.z + bounds.d - 0.6);
+  // Open cross-aisle strips in the margin before the first rack row and after
+  // the last one (the rack block is now centered in the zone, so these margins
+  // are symmetric).
+  const frontMargin = (bounds.d - blockD) / 2;
+  const zFront = bounds.z + frontMargin / 2;
+  const zBack = bounds.z + bounds.d - frontMargin / 2;
   if (x1 === x2) return [[x1, zFront], [x1, zBack]]; // only one gap — drive it back and forth
   return [[x1, zFront], [x1, zBack], [x2, zBack], [x2, zFront]];
 }
@@ -259,13 +277,17 @@ export const warehouse: Warehouse = {
     makeZone("Outbound Staging", "Finished Goods", { x: -12, z: 0, w: 14, d: 10 }, 2, 4),
   ],
   docks: [
+    // Pitch widened from 6 to 9 units — the real GLTF truck model at its
+    // current target size is wider than the hand-built box trailer this was
+    // originally spaced for, and 6 units let adjacent parked trucks clip
+    // into each other.
     ...Array.from({ length: 5 }, (_, i) => ({
       id: `dock-in-${i + 1}`,
       code: `IN-${i + 1}`,
       kind: "Inbound" as const,
       occupied: Math.random() > 0.4,
       truckId: Math.random() > 0.4 ? `TRK-${1000 + i}` : undefined,
-      position: [-22 + i * 6, -19.8] as [number, number],
+      position: [-28 + i * 9, -19.8] as [number, number],
     })),
     ...Array.from({ length: 5 }, (_, i) => ({
       id: `dock-out-${i + 1}`,
@@ -273,7 +295,7 @@ export const warehouse: Warehouse = {
       kind: "Outbound" as const,
       occupied: Math.random() > 0.5,
       truckId: Math.random() > 0.5 ? `TRK-${2000 + i}` : undefined,
-      position: [-22 + i * 6, 11.8] as [number, number],
+      position: [-28 + i * 9, 11.8] as [number, number],
     })),
   ],
   forklifts: [
