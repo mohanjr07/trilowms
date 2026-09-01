@@ -277,17 +277,17 @@ export const warehouse: Warehouse = {
     makeZone("Outbound Staging", "Finished Goods", { x: -12, z: 0, w: 14, d: 10 }, 2, 4),
   ],
   docks: [
-    // Pitch widened from 6 to 9 units — the real GLTF truck model at its
-    // current target size is wider than the hand-built box trailer this was
-    // originally spaced for, and 6 units let adjacent parked trucks clip
-    // into each other.
+    // Pitch widened again, 9 → 12 units — 9 still wasn't enough clearance
+    // for the real GLTF truck model at its current target size, so this
+    // gives a large safety margin (still comfortably inside the warehouse's
+    // ±30 floor bounds).
     ...Array.from({ length: 5 }, (_, i) => ({
       id: `dock-in-${i + 1}`,
       code: `IN-${i + 1}`,
       kind: "Inbound" as const,
       occupied: Math.random() > 0.4,
       truckId: Math.random() > 0.4 ? `TRK-${1000 + i}` : undefined,
-      position: [-28 + i * 9, -19.8] as [number, number],
+      position: [-24 + i * 12, -19.8] as [number, number],
     })),
     ...Array.from({ length: 5 }, (_, i) => ({
       id: `dock-out-${i + 1}`,
@@ -295,7 +295,7 @@ export const warehouse: Warehouse = {
       kind: "Outbound" as const,
       occupied: Math.random() > 0.5,
       truckId: Math.random() > 0.5 ? `TRK-${2000 + i}` : undefined,
-      position: [-28 + i * 9, 11.8] as [number, number],
+      position: [-24 + i * 12, 11.8] as [number, number],
     })),
   ],
   forklifts: [
