@@ -53,6 +53,26 @@ const PALETTE: { kind: ElementKind; label: string; sub?: string; defaultW: numbe
   { kind: "bin",  label: "Reserve Bin",      sub: "Bin",            defaultW: 1,  defaultD: 1,  color: "#0ea5e9" },
 ];
 
+// The building's outer walls are drawn (in Warehouse3D) right at the 0..W /
+// 0..D edges of this same grid, and real docks sit flush against those
+// walls with their yard/truck apron on the *outside* of the building. So
+// this strip, DOCK_MARGIN grid units deep along every wall, is where docks
+// belong — zones/racks/bins must stay clear of it so a saved layout can
+// never be wider/deeper than the building, and never crowds out the dock
+// row along the wall. Docks themselves are exempt (they're only useful
+// pinned to a wall) but are still kept inside the building envelope.
+const DOCK_MARGIN = 3;
+
+function clampPlacement(kind: ElementKind, x: number, z: number, w: number, d: number, warehouseW: number, warehouseD: number) {
+  const marginX = kind === "dock" ? 0 : DOCK_MARGIN;
+  const marginZ = kind === "dock" ? 0 : DOCK_MARGIN;
+  const cw = Math.min(w, Math.max(1, warehouseW - marginX * 2));
+  const cd = Math.min(d, Math.max(1, warehouseD - marginZ * 2));
+  const minX = marginX, maxX = Math.max(minX, warehouseW - marginX - cw);
+  const minZ = marginZ, maxZ = Math.max(minZ, warehouseD - marginZ - cd);
+  return { x: Math.min(Math.max(x, minX), maxX), z: Math.min(Math.max(z, minZ), maxZ), w: cw, d: cd };
+}
+
 function kindIcon(kind: ElementKind) {
   if (kind === "zone") return <LayoutGrid className="h-3 w-3" />;
   if (kind === "dock") return <Anchor className="h-3 w-3" />;
@@ -187,12 +207,25 @@ export function DragDropWarehouseBuilder({ warehouseName, warehouseW, warehouseD
       if (dragging.current) {
         const dx = Math.round((e.clientX - dragging.current.startMouse.x) / CELL);
         const dy = Math.round((e.clientY - dragging.current.startMouse.y) / CELL);
-        setPlaced((prev) => prev.map((el) => el.id === dragging.current!.id ? { ...el, x: dragging.current!.startPos.x + dx, z: dragging.current!.startPos.z + dy } : el));
+        setPlaced((prev) => prev.map((el) => {
+          if (el.id !== dragging.current!.id) return el;
+          const c = clampPlacement(el.kind, dragging.current!.startPos.x + dx, dragging.current!.startPos.z + dy, el.w, el.d, warehouseW, warehouseD);
+          return { ...el, x: c.x, z: c.z };
+        }));
       }
       if (resizing.current) {
         const dw = Math.round((e.clientX - resizing.current.startMouse.x) / CELL);
         const dd = Math.round((e.clientY - resizing.current.startMouse.y) / CELL);
-        setPlaced((prev) => prev.map((el) => el.id === resizing.current!.id ? { ...el, w: Math.max(4, resizing.current!.startSize.w + dw), d: Math.max(3, resizing.current!.startSize.d + dd) } : el));
+        setPlaced((prev) => prev.map((el) => {
+          if (el.id !== resizing.current!.id) return el;
+          const marginX = el.kind === "dock" ? 0 : DOCK_MARGIN;
+          const marginZ = el.kind === "dock" ? 0 : DOCK_MARGIN;
+          const maxW = Math.max(4, warehouseW - marginX - el.x);
+          const maxD = Math.max(3, warehouseD - marginZ - el.z);
+          const w = Math.min(maxW, Math.max(4, resizing.current!.startSize.w + dw));
+          const d = Math.min(maxD, Math.max(3, resizing.current!.startSize.d + dd));
+          return { ...el, w, d };
+        }));
       }
       if (panning.current) {
         setPan({ x: panning.current.startPan.x + e.clientX - panning.current.startMouse.x, y: panning.current.startPan.y + e.clientY - panning.current.startMouse.y });
@@ -208,12 +241,16 @@ export function DragDropWarehouseBuilder({ warehouseName, warehouseW, warehouseD
           const item = dragPaletteItem.current;
 
           if (item.kind === "zone" || item.kind === "dock") {
+            const c = clampPlacement(
+              item.kind,
+              gx - Math.floor(item.defaultW / 2),
+              gz - Math.floor(item.defaultD / 2),
+              item.defaultW, item.defaultD, warehouseW, warehouseD,
+            );
             const newEl: PlacedElement = {
               id: `${item.kind}-${Date.now()}`,
               kind: item.kind,
-              x: gx - Math.floor(item.defaultW / 2),
-              z: gz - Math.floor(item.defaultD / 2),
-              w: item.defaultW, d: item.defaultD,
+              x: c.x, z: c.z, w: c.w, d: c.d,
               label: item.label,
               zoneType: item.kind === "zone" ? (item.sub as ZoneType) : undefined,
               dockKind: item.kind === "dock" ? (item.sub as "Inbound" | "Outbound") : undefined,
@@ -226,12 +263,16 @@ export function DragDropWarehouseBuilder({ warehouseName, warehouseW, warehouseD
             if (!zoneEl) {
               setDropError("Racks can only be placed inside a Zone.");
             } else {
+              const c = clampPlacement(
+                item.kind,
+                gx - Math.floor(item.defaultW / 2),
+                gz - Math.floor(item.defaultD / 2),
+                item.defaultW, item.defaultD, warehouseW, warehouseD,
+              );
               const newEl: PlacedElement = {
                 id: `rack-${Date.now()}`,
                 kind: "rack",
-                x: gx - Math.floor(item.defaultW / 2),
-                z: gz - Math.floor(item.defaultD / 2),
-                w: item.defaultW, d: item.defaultD,
+                x: c.x, z: c.z, w: c.w, d: c.d,
                 label: item.label,
                 parentZoneId: zoneEl.id,
               };
