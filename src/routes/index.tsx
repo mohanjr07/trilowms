@@ -462,13 +462,20 @@ function EnterpriseDashboard() {
 
         {/* Row 6: Transaction strip + quick actions */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <Panel title="TRANSACTION THROUGHPUT" className="lg:col-span-2 h-[160px]">
+          <Panel title="TRANSACTION THROUGHPUT" className="lg:col-span-2 h-[200px]">
             <div className="px-4 py-3 space-y-2">
               <TxnMiniKPIs />
               <div className="flex justify-end"><Link to="/inventory" className="text-[10px] text-primary hover:underline font-medium">View full transaction log →</Link></div>
             </div>
           </Panel>
-          <Panel title="QUICK ACTIONS" className="h-[160px]">
+          {/* 4 rows (Create Order / Receive Inbound / New Transaction / 3D
+              Warehouse) plus the header genuinely need ~192px — at the old
+              160px the 4th button had nowhere to go and rendered spilling
+              out below the panel's own border/background (.panel has no
+              overflow clipping), looking like it wasn't part of this card
+              at all. Matches TRANSACTION THROUGHPUT's height above so the
+              two stay aligned in the same grid row. */}
+          <Panel title="QUICK ACTIONS" className="h-[200px]">
             <div className="p-3 grid grid-cols-1 gap-2">
               {[
                 { to: "/orders"    as const, label: "Create Order",     icon: ShoppingCart,    color: "text-blue-400"    },
