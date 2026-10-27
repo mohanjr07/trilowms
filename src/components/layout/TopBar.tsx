@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { Bell, Search, Activity, Wifi, LogOut, User, ChevronDown, Shield } from "lucide-react";
+import { Search, Activity, Wifi, LogOut, User, ChevronDown, Shield } from "lucide-react";
 import { useAuthStore, ROLE_DEFINITIONS } from "@/lib/auth-store";
 import { usePickingStore } from "@/lib/picking-store";
 import { useOutboundStore } from "@/lib/outbound-store";
 import { useInboundStore } from "@/lib/inbound-store";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 import { cn } from "@/lib/utils";
 
 export function TopBar() {
@@ -52,10 +53,7 @@ export function TopBar() {
         <KPIPill label="DOCK UTIL" value={`${dockUtil}%`}   tone="success" />
         <button className="p-2 rounded-md hover:bg-secondary"><Activity className="h-4 w-4" /></button>
         <button className="p-2 rounded-md hover:bg-secondary"><Wifi className="h-4 w-4" /></button>
-        <button className="p-2 rounded-md hover:bg-secondary relative">
-          <Bell className="h-4 w-4" />
-          <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-destructive" />
-        </button>
+        <NotificationBell />
 
         {/* User profile dropdown */}
         <div className="relative pl-3 border-l border-border" ref={dropRef}>
