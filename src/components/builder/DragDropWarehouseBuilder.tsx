@@ -300,7 +300,10 @@ export function DragDropWarehouseBuilder({ warehouseName, warehouseW, warehouseD
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
-  }, [mouseToGrid, ghostEl, CELL, placed]);
+    // warehouseW/warehouseD are read inside clampPlacement() in onMove/onUp
+    // above — without them here the closure would keep clamping against
+    // whatever dimensions were current the first time this effect ran.
+  }, [mouseToGrid, ghostEl, CELL, placed, warehouseW, warehouseD]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
