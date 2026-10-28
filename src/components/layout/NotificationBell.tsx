@@ -72,7 +72,13 @@ export function NotificationBell() {
   const ptlOrders = usePTLStore((s) => s.orders);
   const ptlUnassigned = ptlOrders.filter((o) => o.order.status === "WAITING_COLOR").length;
 
-  const items: NotificationItem[] = [
+  // NOTE: annotating `const items: NotificationItem[] = [...].filter(...)`
+  // does NOT contextually type the array literal here — contextual typing
+  // only flows into a bare literal, not through a chained .filter() call,
+  // so TS infers each object's own shape independently and widens the
+  // `group`/`tone` string-literal fields to plain `string`. Casting the
+  // literal itself fixes that.
+  const items = ([
     { to: "/inventory", label: "Low stock SKUs",        count: skuKpis.lowStock,     icon: AlertTriangle, group: "Inventory", tone: "warning" },
     { to: "/inventory", label: "SKUs on hold",           count: skuKpis.onHold,       icon: ShieldCheck,   group: "Inventory", tone: "warning" },
     { to: "/inventory", label: "Critical bins (≥90% full)", count: binKpis.criticalBins, icon: Boxes,      group: "Inventory", tone: "destructive" },
@@ -90,7 +96,7 @@ export function NotificationBell() {
     { to: "/ptl",       label: ptlConnected === false ? `Bridge unreachable${ptlLastError ? ` — ${ptlLastError}` : ""}` : "Bridge unreachable",
       count: ptlConnected === false ? 1 : 0, icon: Radio, group: "PTL / Picking", tone: "destructive" },
     { to: "/ptl",       label: "Orders waiting on PTL Map / picker", count: ptlUnassigned, icon: AlertTriangle, group: "PTL / Picking", tone: "warning" },
-  ].filter((i) => i.count > 0);
+  ] as NotificationItem[]).filter((i) => i.count > 0);
 
   const total = items.reduce((n, i) => n + i.count, 0);
 
