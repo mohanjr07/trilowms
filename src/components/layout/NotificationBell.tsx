@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 
 interface NotificationItem {
   to: string;
+  search?: Record<string, string>;
   label: string;
   count: number;
   icon: typeof Bell;
@@ -79,9 +80,9 @@ export function NotificationBell() {
   // `group`/`tone` string-literal fields to plain `string`. Casting the
   // literal itself fixes that.
   const items = ([
-    { to: "/inventory", label: "Low stock SKUs",        count: skuKpis.lowStock,     icon: AlertTriangle, group: "Inventory", tone: "warning" },
-    { to: "/inventory", label: "SKUs on hold",           count: skuKpis.onHold,       icon: ShieldCheck,   group: "Inventory", tone: "warning" },
-    { to: "/inventory", label: "Critical bins (≥90% full)", count: binKpis.criticalBins, icon: Boxes,      group: "Inventory", tone: "destructive" },
+    { to: "/inventory", search: { tab: "sku", filter: "lowStock" }, label: "Low stock SKUs",        count: skuKpis.lowStock,     icon: AlertTriangle, group: "Inventory", tone: "warning" },
+    { to: "/inventory", search: { tab: "sku", filter: "onHold" }, label: "SKUs on hold",           count: skuKpis.onHold,       icon: ShieldCheck,   group: "Inventory", tone: "warning" },
+    { to: "/inventory", search: { tab: "binmap", filter: "criticalBins" }, label: "Critical bins (≥90% full)", count: binKpis.criticalBins, icon: Boxes,      group: "Inventory", tone: "destructive" },
 
     { to: "/orders",    label: "New orders",             count: orderKpis.newOrders,  icon: ShoppingCart,  group: "Orders" },
     { to: "/orders",    label: "Order exceptions",        count: orderKpis.exceptions, icon: ShoppingCart,  group: "Orders", tone: "destructive" },
@@ -140,6 +141,7 @@ export function NotificationBell() {
                       <Link
                         key={i.label}
                         to={i.to}
+                        search={i.search as never}
                         onClick={() => setOpen(false)}
                         className="flex items-center gap-2.5 px-3 py-2 hover:bg-accent/20 transition-colors"
                       >
