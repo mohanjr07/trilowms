@@ -8,6 +8,7 @@
  */
 
 import { useMemo, useState } from "react";
+import { normalizeScan, skuMatches, scanBeep, useScanListener } from "@/lib/scan";
 import {
   ArrowDownToLine, Truck, Package, AlertTriangle, Search, Plus, CheckCircle2,
   RefreshCw, X, ClipboardList, Building2, LayoutDashboard, PackageCheck,
@@ -545,6 +546,49 @@ function ReceiveLineRow({ asn, line }: { asn: ASN; line: AsnLine }) {
   );
 }
 
+/**
+ * Scan-to-receive: each scan of a goods label (SKU code or EAN) receives one
+ * unit against the matching line of the ASN being received. Works with a
+ * physical scanner whether or not the field is focused.
+ */
+function ScanReceiveBar({ asn }: { asn: ASN }) {
+  const receiveLine = useInboundStore((s) => s.receiveLine);
+  const [value, setValue] = useState("");
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const live = ["RECEIVING", "PARTIAL"].includes(asn.status);
+
+  const handle = (raw: string) => {
+    const code = normalizeScan(raw);
+    if (!code) return;
+    if (!live) { scanBeep(false); setMsg({ ok: false, text: "Press Start on this ASN before scanning." }); return; }
+    const matches = asn.lines.filter((l) => skuMatches(code, l.skuCode));
+    if (matches.length === 0) { scanBeep(false); setMsg({ ok: false, text: `${code} is not on this ASN.` }); return; }
+    const line = matches.find((l) => l.receivedQty < l.expectedQty) ?? matches[0];
+    receiveLine(asn.id, line.id, 1);
+    const over = line.receivedQty + 1 > line.expectedQty;
+    scanBeep(!over);
+    setMsg({
+      ok: !over,
+      text: over
+        ? `${line.skuCode}: over receipt, ${line.receivedQty + 1} of ${line.expectedQty} expected.`
+        : `${line.skuCode} received, ${line.receivedQty + 1} of ${line.expectedQty}.`,
+    });
+  };
+  useScanListener(handle, true, false);
+
+  return (
+    <div className={cn("rounded-lg border p-3", msg ? (msg.ok ? "border-emerald-500/40 bg-emerald-500/5" : "border-red-500/40 bg-red-500/5") : "border-primary/30 bg-primary/5")}>
+      <div className="flex items-center gap-2 mb-2 text-xs font-semibold"><ScanLine className="h-4 w-4 text-primary" /> Scan to receive <span className="text-muted-foreground font-normal">one scan = one unit</span></div>
+      <Input
+        id="scan-receive" autoFocus value={value} onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") { handle(value); setValue(""); } }}
+        placeholder="Scan a goods label (SKU code or EAN)…" className="h-9 text-sm font-mono"
+      />
+      {msg && <div className={cn("text-xs mt-2", msg.ok ? "text-emerald-400" : "text-red-400")}>{msg.text}</div>}
+    </div>
+  );
+}
+
 function ReceivingView({ onOpenAsn }: { onOpenAsn: (a: ASN) => void }) {
   const worklist = useInboundStore((s) => s.receivingWorklist)();
   const updateAsnStatus = useInboundStore((s) => s.updateAsnStatus);
@@ -611,6 +655,7 @@ function ReceivingView({ onOpenAsn }: { onOpenAsn: (a: ASN) => void }) {
               <MiniStat label="Received" value={fmtNum(active.receivedUnits)} tone="text-emerald-400" />
               <MiniStat label="Pallets" value={`${active.palletCount}`} />
             </div>
+            <ScanReceiveBar asn={active} />
             <div className="space-y-2 pt-1">
               {active.lines.map((l) => <ReceiveLineRow key={l.id} asn={active} line={l} />)}
             </div>
