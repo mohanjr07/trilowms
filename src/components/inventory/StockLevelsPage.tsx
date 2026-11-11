@@ -7,7 +7,7 @@
 import { useMemo, useState } from "react";
 import {
   Boxes, Search, X, AlertTriangle, TrendingDown, ClipboardCheck, ChevronRight,
-  CheckCircle2, Package, FileDown, ScanLine, Layers, MapPin, ArrowUpDown,
+  CheckCircle2, Package, FileDown, ScanLine, Layers, MapPin, ArrowUpDown, Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import { useStockStore, type StockRecord } from "@/lib/stock-store";
 import { useSkuStore } from "@/lib/sku-store";
 import { useInboundStore } from "@/lib/inbound-store";
 import { useAuthStore } from "@/lib/auth-store";
+import { BulkStockUploadDialog } from "@/components/inventory/BulkStockUploadDialog";
 import { cn } from "@/lib/utils";
 
 const fmt = (n: number) => n.toLocaleString();
@@ -58,6 +59,7 @@ function StockLevelsView() {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"sku" | "onHand" | "available">("sku");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const rows = useMemo(() => {
     const q = search.toLowerCase();
@@ -75,6 +77,8 @@ function StockLevelsView() {
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => setSort(sort === "onHand" ? "available" : sort === "available" ? "sku" : "onHand")}><ArrowUpDown className="h-3.5 w-3.5" /> {sort === "sku" ? "SKU" : sort === "onHand" ? "On hand" : "Available"}</Button>
         <Button variant="ghost" size="sm" className="h-7 text-xs gap-1"><FileDown className="h-3.5 w-3.5" /> Export</Button>
+        <Button size="sm" className="h-7 text-xs gap-1" onClick={() => setBulkOpen(true)}><Upload className="h-3.5 w-3.5" /> Bulk upload</Button>
+        <BulkStockUploadDialog open={bulkOpen} onClose={() => setBulkOpen(false)} />
       </div>
     }>
       <div className="px-4 py-3 border-b border-border/60">
