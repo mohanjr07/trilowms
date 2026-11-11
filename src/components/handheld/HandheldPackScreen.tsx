@@ -11,6 +11,7 @@ import {
   Minus, Plus, ArrowLeft, Boxes, PartyPopper, RefreshCw, Weight, Box, ChevronRight,
 } from "lucide-react";
 import { usePackingStore, type PackOrder, type Carton } from "@/lib/packing-store";
+import { skuMatches, scanBeep } from "@/lib/scan";
 import { cn } from "@/lib/utils";
 
 type Step = "queue" | "pack" | "weigh" | "done";
@@ -67,9 +68,11 @@ export function HandheldPackScreen() {
   };
   const scanByCode = () => {
     if (!carton) return;
-    const v = scan.trim().toUpperCase();
-    const line = carton.items.find((i) => i.skuCode.toUpperCase() === v && i.qtyPacked < i.qtyRequired);
-    if (line) packLine(line.lineId); else setFlash("err");
+    const v = scan.trim();
+    // SKU code or EAN both identify the item; one scan = one unit into the box.
+    const line = carton.items.find((i) => skuMatches(v, i.skuCode) && i.qtyPacked < i.qtyRequired);
+    scanBeep(!!line);
+    if (line) packLine(line.lineId); else { setFlash("err"); setScan(""); }
   };
 
   const cartonDone = carton ? carton.items.every((i) => i.qtyPacked >= i.qtyRequired) : false;
@@ -200,7 +203,7 @@ export function HandheldPackScreen() {
       <div className="p-5 space-y-2.5 shrink-0 border-t border-neutral-900">
         <div className={cn("rounded-xl bg-neutral-900 border border-neutral-800 p-2.5 flex items-center gap-2", flashCls)}>
           <ScanLine className="h-4 w-4 text-amber-400 shrink-0" />
-          <input value={scan} onChange={(e) => setScan(e.target.value)} onKeyDown={(e) => e.key === "Enter" && scanByCode()} placeholder="Scan item barcode"
+          <input value={scan} onChange={(e) => setScan(e.target.value)} onKeyDown={(e) => e.key === "Enter" && scanByCode()} placeholder="Scan item barcode" autoFocus
             className="flex-1 bg-transparent text-white font-mono text-sm focus:outline-none placeholder:text-neutral-600" />
           <button onClick={scanByCode} className="text-amber-400 text-xs font-semibold px-2">Scan</button>
         </div>
