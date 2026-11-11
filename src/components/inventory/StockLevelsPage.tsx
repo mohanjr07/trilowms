@@ -20,6 +20,7 @@ import { useSkuStore } from "@/lib/sku-store";
 import { useInboundStore } from "@/lib/inbound-store";
 import { useAuthStore } from "@/lib/auth-store";
 import { BulkStockUploadDialog } from "@/components/inventory/BulkStockUploadDialog";
+import { findSku, normalizeScan, scanBeep, useScanListener } from "@/lib/scan";
 import { cn } from "@/lib/utils";
 
 const fmt = (n: number) => n.toLocaleString();
@@ -60,6 +61,18 @@ function StockLevelsView() {
   const [sort, setSort] = useState<"sku" | "onHand" | "available">("sku");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
+
+  // Scan any goods label (SKU code or EAN) or a bin label to jump straight to it.
+  const onScan = (raw: string) => {
+    const code = normalizeScan(raw);
+    const sku = findSku(code);
+    const bin = records.find((r) => Object.keys(r.bins).some((b) => normalizeScan(b) === code));
+    const hit = sku?.skuCode ?? bin?.skuCode ?? null;
+    scanBeep(!!hit);
+    setSearch(hit ? (sku ? sku.skuCode : code) : code);
+    if (hit) setExpanded(hit);
+  };
+  useScanListener(onScan);
 
   const rows = useMemo(() => {
     const q = search.toLowerCase();
