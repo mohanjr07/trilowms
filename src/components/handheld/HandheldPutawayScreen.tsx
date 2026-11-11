@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { usePutawayStore, type PutawayTask } from "@/lib/putaway-store";
 import { useSlottingStore } from "@/lib/slotting-store";
+import { skuMatches, binMatches, scanBeep } from "@/lib/scan";
 import { cn } from "@/lib/utils";
 
 type Step = "tasks" | "suggest" | "item" | "bin" | "qty" | "done";
@@ -68,10 +69,17 @@ export function HandheldPutawayScreen() {
     setTaskId(t.id); setTargetBin(tgt); setStep("suggest"); setScan("");
   };
 
-  const tryScan = (expected: string | undefined, next: Step) => {
-    const v = scan.trim().toUpperCase();
-    if (!expected || !v || v === expected.toUpperCase()) { setFlash("ok"); setScan(""); setTimeout(() => setStep(next), 250); }
-    else setFlash("err");
+  // A real scan is required: an empty field no longer counts as "scanned".
+  // The item step accepts the SKU code or the EAN printed on the goods; the
+  // bin step accepts the suggested bin, or any bin label when none is suggested.
+  const tryScan = (kind: "item" | "bin", next: Step) => {
+    const v = scan.trim();
+    const ok = !!v && (kind === "item"
+      ? !!task && skuMatches(v, task.skuCode)
+      : targetBin ? binMatches(v, targetBin.code) : true);
+    scanBeep(ok);
+    if (ok) { setFlash("ok"); setScan(""); setTimeout(() => setStep(next), 250); }
+    else { setFlash("err"); setScan(""); }
   };
 
   const confirmPutaway = () => {
@@ -181,9 +189,9 @@ export function HandheldPutawayScreen() {
         {step === "item" && (
           <div className={cn("rounded-2xl bg-neutral-900 border border-neutral-800 p-4", flashCls)}>
             <div className="text-neutral-300 text-sm mb-2 flex items-center gap-2"><ScanLine className="h-4 w-4 text-amber-400" /> Scan item barcode</div>
-            <input value={scan} onChange={(e) => setScan(e.target.value)} onKeyDown={(e) => e.key === "Enter" && tryScan(task.skuCode, "bin")}
-              placeholder={task.skuCode} className="w-full bg-neutral-950 border border-neutral-700 rounded-xl px-3 py-3 text-white font-mono text-center text-lg focus:outline-none focus:border-amber-400" />
-            {flash === "err" && <div className="text-red-400 text-xs mt-2 text-center">Wrong item — expected {task.skuCode}</div>}
+            <input value={scan} onChange={(e) => setScan(e.target.value)} onKeyDown={(e) => e.key === "Enter" && tryScan("item", "bin")}
+              placeholder={task.skuCode} autoFocus className="w-full bg-neutral-950 border border-neutral-700 rounded-xl px-3 py-3 text-white font-mono text-center text-lg focus:outline-none focus:border-amber-400" />
+            {flash === "err" && <div className="text-red-400 text-xs mt-2 text-center">Wrong item — scan {task.skuCode} (or its barcode)</div>}
           </div>
         )}
         {step === "bin" && (
@@ -194,8 +202,8 @@ export function HandheldPutawayScreen() {
               <div className="text-white text-2xl font-mono font-bold">{targetBin?.code ?? "—"}</div>
             </div>
             <div className="text-neutral-300 text-sm mb-2 flex items-center gap-2"><ScanLine className="h-4 w-4 text-amber-400" /> Scan bin barcode</div>
-            <input value={scan} onChange={(e) => setScan(e.target.value)} onKeyDown={(e) => e.key === "Enter" && tryScan(targetBin?.code, "qty")}
-              placeholder={targetBin?.code ?? "bin"} className="w-full bg-neutral-950 border border-neutral-700 rounded-xl px-3 py-3 text-white font-mono text-center text-lg focus:outline-none focus:border-amber-400" />
+            <input value={scan} onChange={(e) => setScan(e.target.value)} onKeyDown={(e) => e.key === "Enter" && tryScan("bin", "qty")}
+              placeholder={targetBin?.code ?? "bin"} autoFocus className="w-full bg-neutral-950 border border-neutral-700 rounded-xl px-3 py-3 text-white font-mono text-center text-lg focus:outline-none focus:border-amber-400" />
             {flash === "err" && <div className="text-red-400 text-xs mt-2 text-center">Wrong bin — expected {targetBin?.code}</div>}
           </div>
         )}
@@ -215,8 +223,8 @@ export function HandheldPutawayScreen() {
       {/* pinned actions */}
       <div className="p-5 space-y-2.5 shrink-0 border-t border-neutral-900">
         {step === "suggest" && <button onClick={() => setStep("item")} disabled={!targetBin} className={bigBtn(!targetBin ? "bg-neutral-800 text-neutral-500" : "bg-amber-400 text-neutral-950")}><Check className="h-5 w-5" /> Accept &amp; start</button>}
-        {step === "item" && <button onClick={() => tryScan(task.skuCode, "bin")} className={bigBtn("bg-amber-400 text-neutral-950")}><ScanLine className="h-5 w-5" /> {scan ? "Confirm item" : "Tap to scan"}</button>}
-        {step === "bin" && <button onClick={() => tryScan(targetBin?.code, "qty")} className={bigBtn("bg-amber-400 text-neutral-950")}><ScanLine className="h-5 w-5" /> {scan ? "Confirm bin" : "Tap to scan"}</button>}
+        {step === "item" && <button onClick={() => tryScan("item", "bin")} className={bigBtn("bg-amber-400 text-neutral-950")}><ScanLine className="h-5 w-5" /> {scan ? "Confirm item" : "Tap to scan"}</button>}
+        {step === "bin" && <button onClick={() => tryScan("bin", "qty")} className={bigBtn("bg-amber-400 text-neutral-950")}><ScanLine className="h-5 w-5" /> {scan ? "Confirm bin" : "Tap to scan"}</button>}
         {step === "qty" && <button onClick={confirmPutaway} disabled={qty <= 0} className={bigBtn(qty <= 0 ? "bg-neutral-800 text-neutral-500" : "bg-emerald-500 text-white")}><Check className="h-5 w-5" /> Confirm putaway</button>}
       </div>
     </Frame>
