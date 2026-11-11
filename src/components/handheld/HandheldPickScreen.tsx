@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { usePickingStore, type Wave, type PickTask, type Shortage } from "@/lib/picking-store";
 import { usePickPathStore } from "@/lib/pickpath-store";
+import { skuMatches, binMatches, scanBeep } from "@/lib/scan";
 import { cn } from "@/lib/utils";
 
 type Step = "waves" | "bin" | "item" | "qty" | "short" | "done";
@@ -76,10 +77,14 @@ export function HandheldPickScreen() {
     setWaveId(w.id); setStep("bin"); setScan("");
   };
 
-  const tryScan = (expected: string, next: Step) => {
-    const v = scan.trim().toUpperCase();
-    if (!v || v === expected.toUpperCase()) { setFlash("ok"); setScan(""); setTimeout(() => setStep(next), 250); }
-    else { setFlash("err"); }
+  // A real scan is required (empty no longer passes). Items match by SKU code
+  // or by the EAN printed on the goods; bins match by the bin label.
+  const tryScan = (kind: "bin" | "item", next: Step) => {
+    const v = scan.trim();
+    const ok = !!v && !!task && (kind === "bin" ? binMatches(v, task.binCode) : skuMatches(v, task.skuCode));
+    scanBeep(ok);
+    if (ok) { setFlash("ok"); setScan(""); setTimeout(() => setStep(next), 250); }
+    else { setFlash("err"); setScan(""); }
   };
 
   const confirmPick = () => {
@@ -188,8 +193,8 @@ export function HandheldPickScreen() {
         {step === "bin" && (
           <div className={cn("rounded-2xl bg-neutral-900 border border-neutral-800 p-4", flashCls)}>
             <div className="text-neutral-300 text-sm mb-2 flex items-center gap-2"><ScanLine className="h-4 w-4 text-amber-400" /> Scan bin barcode</div>
-            <input value={scan} onChange={(e) => setScan(e.target.value)} onKeyDown={(e) => e.key === "Enter" && tryScan(task.binCode, "item")}
-              placeholder={task.binCode} className="w-full bg-neutral-950 border border-neutral-700 rounded-xl px-3 py-3 text-white font-mono text-center text-lg focus:outline-none focus:border-amber-400" />
+            <input value={scan} onChange={(e) => setScan(e.target.value)} onKeyDown={(e) => e.key === "Enter" && tryScan("bin", "item")}
+              placeholder={task.binCode} autoFocus className="w-full bg-neutral-950 border border-neutral-700 rounded-xl px-3 py-3 text-white font-mono text-center text-lg focus:outline-none focus:border-amber-400" />
             {flash === "err" && <div className="text-red-400 text-xs mt-2 text-center">Wrong bin — expected {task.binCode}</div>}
           </div>
         )}
@@ -197,9 +202,9 @@ export function HandheldPickScreen() {
           <div className={cn("rounded-2xl bg-neutral-900 border border-neutral-800 p-4", flashCls)}>
             <div className="text-emerald-400 text-xs mb-2 flex items-center gap-1"><Check className="h-4 w-4" /> Bin confirmed</div>
             <div className="text-neutral-300 text-sm mb-2 flex items-center gap-2"><ScanLine className="h-4 w-4 text-amber-400" /> Scan item barcode</div>
-            <input value={scan} onChange={(e) => setScan(e.target.value)} onKeyDown={(e) => e.key === "Enter" && tryScan(task.skuCode, "qty")}
-              placeholder={task.skuCode} className="w-full bg-neutral-950 border border-neutral-700 rounded-xl px-3 py-3 text-white font-mono text-center text-lg focus:outline-none focus:border-amber-400" />
-            {flash === "err" && <div className="text-red-400 text-xs mt-2 text-center">Wrong item — expected {task.skuCode}</div>}
+            <input value={scan} onChange={(e) => setScan(e.target.value)} onKeyDown={(e) => e.key === "Enter" && tryScan("item", "qty")}
+              placeholder={task.skuCode} autoFocus className="w-full bg-neutral-950 border border-neutral-700 rounded-xl px-3 py-3 text-white font-mono text-center text-lg focus:outline-none focus:border-amber-400" />
+            {flash === "err" && <div className="text-red-400 text-xs mt-2 text-center">Wrong item — scan {task.skuCode} (or its barcode)</div>}
           </div>
         )}
         {step === "qty" && (
@@ -228,10 +233,10 @@ export function HandheldPickScreen() {
       {/* pinned actions */}
       <div className="p-5 space-y-2.5 shrink-0 border-t border-neutral-900">
         {step === "bin" && (
-          <button onClick={() => tryScan(task.binCode, "item")} className={bigBtn("bg-amber-400 text-neutral-950")}><ScanLine className="h-5 w-5" /> {scan ? "Confirm bin" : "Tap to scan"}</button>
+          <button onClick={() => tryScan("bin", "item")} className={bigBtn("bg-amber-400 text-neutral-950")}><ScanLine className="h-5 w-5" /> {scan ? "Confirm bin" : "Tap to scan"}</button>
         )}
         {step === "item" && (
-          <button onClick={() => tryScan(task.skuCode, "qty")} className={bigBtn("bg-amber-400 text-neutral-950")}><ScanLine className="h-5 w-5" /> {scan ? "Confirm item" : "Tap to scan"}</button>
+          <button onClick={() => tryScan("item", "qty")} className={bigBtn("bg-amber-400 text-neutral-950")}><ScanLine className="h-5 w-5" /> {scan ? "Confirm item" : "Tap to scan"}</button>
         )}
         {step === "qty" && (
           <button onClick={confirmPick} disabled={qty <= 0} className={bigBtn(qty <= 0 ? "bg-neutral-800 text-neutral-500" : "bg-emerald-500 text-white")}><Check className="h-5 w-5" /> Confirm pick</button>
