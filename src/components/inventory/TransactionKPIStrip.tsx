@@ -88,7 +88,10 @@ function TypeDistribution({ byType }: { byType: Record<TransactionType, number> 
             <YAxis tick={{ fontSize: 8, fill: "#94a3b8" }} stroke="transparent" />
             <Tooltip
               contentStyle={{ background: "var(--color-card, #1e293b)", border: "1px solid var(--color-border, #334155)", borderRadius: 6, fontSize: 11 }}
-              formatter={(v: number, _: string, props: { payload: { fullName: string } }) => [v, props.payload.fullName]}
+              formatter={(value, _name, item) => {
+                const transaction = item.payload as (typeof data)[number] | undefined;
+                return [value, transaction?.fullName ?? ""];
+              }}
             />
             <Bar dataKey="count" radius={[3, 3, 0, 0]}>
               {data.map((d, i) => <Cell key={i} fill={d.color} />)}

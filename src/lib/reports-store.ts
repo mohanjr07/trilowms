@@ -153,8 +153,8 @@ function buildKPIs(): WarehouseKPIs {
     .filter((s) => s.actualDispatch?.startsWith(today))
     .reduce((s, sh) => s + sh.totalCartons, 0);
   const unitsPackedToday = usePackingStore.getState().orders
-    .filter((o) => o.packedAt?.startsWith(today))
-    .reduce((s, o) => s + o.cartons.length, 0);
+    .flatMap((order) => order.cartons)
+    .filter((carton) => carton.packedAt?.startsWith(today)).length;
 
   // Receiving accuracy: share of received ASNs that closed with zero discrepancies.
   const receivedAsns = asns.filter((a) => a.receivedUnits > 0);
