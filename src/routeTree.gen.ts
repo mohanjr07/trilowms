@@ -9,115 +9,30 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as YardRouteImport } from './routes/yard'
-import { Route as ScanPutawayRouteImport } from './routes/scan-putaway'
-import { Route as ScanPickRouteImport } from './routes/scan-pick'
-import { Route as ScanPackRouteImport } from './routes/scan-pack'
-import { Route as ReturnsRouteImport } from './routes/returns'
-import { Route as ReportsRouteImport } from './routes/reports'
-import { Route as QcRouteImport } from './routes/qc'
-import { Route as PutawayRouteImport } from './routes/putaway'
-import { Route as PtlRouteImport } from './routes/ptl'
-import { Route as PickingRouteImport } from './routes/picking'
-import { Route as PackingRouteImport } from './routes/packing'
-import { Route as OutboundRouteImport } from './routes/outbound'
-import { Route as OrdersRouteImport } from './routes/orders'
-import { Route as LaborRouteImport } from './routes/labor'
-import { Route as InventoryRouteImport } from './routes/inventory'
-import { Route as InboundRouteImport } from './routes/inbound'
-import { Route as ConsolidationRouteImport } from './routes/consolidation'
-import { Route as BuilderRouteImport } from './routes/builder'
-import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as BuilderRouteImport } from './routes/builder'
+import { Route as ConsolidationRouteImport } from './routes/consolidation'
+import { Route as InboundRouteImport } from './routes/inbound'
+import { Route as InventoryRouteImport } from './routes/inventory'
+import { Route as LaborRouteImport } from './routes/labor'
+import { Route as OrdersRouteImport } from './routes/orders'
+import { Route as OutboundRouteImport } from './routes/outbound'
+import { Route as PackingRouteImport } from './routes/packing'
+import { Route as PickingRouteImport } from './routes/picking'
+import { Route as PtlRouteImport } from './routes/ptl'
+import { Route as PutawayRouteImport } from './routes/putaway'
+import { Route as QcRouteImport } from './routes/qc'
+import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as ReturnsRouteImport } from './routes/returns'
+import { Route as ScanPackRouteImport } from './routes/scan-pack'
+import { Route as ScanPickRouteImport } from './routes/scan-pick'
+import { Route as ScanPutawayRouteImport } from './routes/scan-putaway'
+import { Route as YardRouteImport } from './routes/yard'
 
-const YardRoute = YardRouteImport.update({
-  id: '/yard',
-  path: '/yard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ScanPutawayRoute = ScanPutawayRouteImport.update({
-  id: '/scan-putaway',
-  path: '/scan-putaway',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ScanPickRoute = ScanPickRouteImport.update({
-  id: '/scan-pick',
-  path: '/scan-pick',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ScanPackRoute = ScanPackRouteImport.update({
-  id: '/scan-pack',
-  path: '/scan-pack',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReturnsRoute = ReturnsRouteImport.update({
-  id: '/returns',
-  path: '/returns',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReportsRoute = ReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const QcRoute = QcRouteImport.update({
-  id: '/qc',
-  path: '/qc',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PutawayRoute = PutawayRouteImport.update({
-  id: '/putaway',
-  path: '/putaway',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PtlRoute = PtlRouteImport.update({
-  id: '/ptl',
-  path: '/ptl',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PickingRoute = PickingRouteImport.update({
-  id: '/picking',
-  path: '/picking',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PackingRoute = PackingRouteImport.update({
-  id: '/packing',
-  path: '/packing',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OutboundRoute = OutboundRouteImport.update({
-  id: '/outbound',
-  path: '/outbound',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OrdersRoute = OrdersRouteImport.update({
-  id: '/orders',
-  path: '/orders',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LaborRoute = LaborRouteImport.update({
-  id: '/labor',
-  path: '/labor',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InventoryRoute = InventoryRouteImport.update({
-  id: '/inventory',
-  path: '/inventory',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InboundRoute = InboundRouteImport.update({
-  id: '/inbound',
-  path: '/inbound',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ConsolidationRoute = ConsolidationRouteImport.update({
-  id: '/consolidation',
-  path: '/consolidation',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BuilderRoute = BuilderRouteImport.update({
-  id: '/builder',
-  path: '/builder',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -125,9 +40,94 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const BuilderRoute = BuilderRouteImport.update({
+  id: '/builder',
+  path: '/builder',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConsolidationRoute = ConsolidationRouteImport.update({
+  id: '/consolidation',
+  path: '/consolidation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InboundRoute = InboundRouteImport.update({
+  id: '/inbound',
+  path: '/inbound',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InventoryRoute = InventoryRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaborRoute = LaborRouteImport.update({
+  id: '/labor',
+  path: '/labor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrdersRoute = OrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OutboundRoute = OutboundRouteImport.update({
+  id: '/outbound',
+  path: '/outbound',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PackingRoute = PackingRouteImport.update({
+  id: '/packing',
+  path: '/packing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PickingRoute = PickingRouteImport.update({
+  id: '/picking',
+  path: '/picking',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PtlRoute = PtlRouteImport.update({
+  id: '/ptl',
+  path: '/ptl',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PutawayRoute = PutawayRouteImport.update({
+  id: '/putaway',
+  path: '/putaway',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QcRoute = QcRouteImport.update({
+  id: '/qc',
+  path: '/qc',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReturnsRoute = ReturnsRouteImport.update({
+  id: '/returns',
+  path: '/returns',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScanPackRoute = ScanPackRouteImport.update({
+  id: '/scan-pack',
+  path: '/scan-pack',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScanPickRoute = ScanPickRouteImport.update({
+  id: '/scan-pick',
+  path: '/scan-pick',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScanPutawayRoute = ScanPutawayRouteImport.update({
+  id: '/scan-putaway',
+  path: '/scan-putaway',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const YardRoute = YardRouteImport.update({
+  id: '/yard',
+  path: '/yard',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -292,130 +292,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/yard': {
-      id: '/yard'
-      path: '/yard'
-      fullPath: '/yard'
-      preLoaderRoute: typeof YardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/scan-putaway': {
-      id: '/scan-putaway'
-      path: '/scan-putaway'
-      fullPath: '/scan-putaway'
-      preLoaderRoute: typeof ScanPutawayRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/scan-pick': {
-      id: '/scan-pick'
-      path: '/scan-pick'
-      fullPath: '/scan-pick'
-      preLoaderRoute: typeof ScanPickRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/scan-pack': {
-      id: '/scan-pack'
-      path: '/scan-pack'
-      fullPath: '/scan-pack'
-      preLoaderRoute: typeof ScanPackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/returns': {
-      id: '/returns'
-      path: '/returns'
-      fullPath: '/returns'
-      preLoaderRoute: typeof ReturnsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reports': {
-      id: '/reports'
-      path: '/reports'
-      fullPath: '/reports'
-      preLoaderRoute: typeof ReportsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/qc': {
-      id: '/qc'
-      path: '/qc'
-      fullPath: '/qc'
-      preLoaderRoute: typeof QcRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/putaway': {
-      id: '/putaway'
-      path: '/putaway'
-      fullPath: '/putaway'
-      preLoaderRoute: typeof PutawayRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/ptl': {
-      id: '/ptl'
-      path: '/ptl'
-      fullPath: '/ptl'
-      preLoaderRoute: typeof PtlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/picking': {
-      id: '/picking'
-      path: '/picking'
-      fullPath: '/picking'
-      preLoaderRoute: typeof PickingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/packing': {
-      id: '/packing'
-      path: '/packing'
-      fullPath: '/packing'
-      preLoaderRoute: typeof PackingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/outbound': {
-      id: '/outbound'
-      path: '/outbound'
-      fullPath: '/outbound'
-      preLoaderRoute: typeof OutboundRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/orders': {
-      id: '/orders'
-      path: '/orders'
-      fullPath: '/orders'
-      preLoaderRoute: typeof OrdersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/labor': {
-      id: '/labor'
-      path: '/labor'
-      fullPath: '/labor'
-      preLoaderRoute: typeof LaborRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/inventory': {
-      id: '/inventory'
-      path: '/inventory'
-      fullPath: '/inventory'
-      preLoaderRoute: typeof InventoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/inbound': {
-      id: '/inbound'
-      path: '/inbound'
-      fullPath: '/inbound'
-      preLoaderRoute: typeof InboundRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/consolidation': {
-      id: '/consolidation'
-      path: '/consolidation'
-      fullPath: '/consolidation'
-      preLoaderRoute: typeof ConsolidationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/builder': {
-      id: '/builder'
-      path: '/builder'
-      fullPath: '/builder'
-      preLoaderRoute: typeof BuilderRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -425,11 +306,130 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/builder': {
+      id: '/builder'
+      path: '/builder'
+      fullPath: '/builder'
+      preLoaderRoute: typeof BuilderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/consolidation': {
+      id: '/consolidation'
+      path: '/consolidation'
+      fullPath: '/consolidation'
+      preLoaderRoute: typeof ConsolidationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inbound': {
+      id: '/inbound'
+      path: '/inbound'
+      fullPath: '/inbound'
+      preLoaderRoute: typeof InboundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inventory': {
+      id: '/inventory'
+      path: '/inventory'
+      fullPath: '/inventory'
+      preLoaderRoute: typeof InventoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/labor': {
+      id: '/labor'
+      path: '/labor'
+      fullPath: '/labor'
+      preLoaderRoute: typeof LaborRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orders': {
+      id: '/orders'
+      path: '/orders'
+      fullPath: '/orders'
+      preLoaderRoute: typeof OrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/outbound': {
+      id: '/outbound'
+      path: '/outbound'
+      fullPath: '/outbound'
+      preLoaderRoute: typeof OutboundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/packing': {
+      id: '/packing'
+      path: '/packing'
+      fullPath: '/packing'
+      preLoaderRoute: typeof PackingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/picking': {
+      id: '/picking'
+      path: '/picking'
+      fullPath: '/picking'
+      preLoaderRoute: typeof PickingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ptl': {
+      id: '/ptl'
+      path: '/ptl'
+      fullPath: '/ptl'
+      preLoaderRoute: typeof PtlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/putaway': {
+      id: '/putaway'
+      path: '/putaway'
+      fullPath: '/putaway'
+      preLoaderRoute: typeof PutawayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/qc': {
+      id: '/qc'
+      path: '/qc'
+      fullPath: '/qc'
+      preLoaderRoute: typeof QcRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/returns': {
+      id: '/returns'
+      path: '/returns'
+      fullPath: '/returns'
+      preLoaderRoute: typeof ReturnsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scan-pack': {
+      id: '/scan-pack'
+      path: '/scan-pack'
+      fullPath: '/scan-pack'
+      preLoaderRoute: typeof ScanPackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scan-pick': {
+      id: '/scan-pick'
+      path: '/scan-pick'
+      fullPath: '/scan-pick'
+      preLoaderRoute: typeof ScanPickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scan-putaway': {
+      id: '/scan-putaway'
+      path: '/scan-putaway'
+      fullPath: '/scan-putaway'
+      preLoaderRoute: typeof ScanPutawayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/yard': {
+      id: '/yard'
+      path: '/yard'
+      fullPath: '/yard'
+      preLoaderRoute: typeof YardRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
