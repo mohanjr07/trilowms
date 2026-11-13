@@ -10,10 +10,14 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as YardRouteImport } from './routes/yard'
+import { Route as ScanPutawayRouteImport } from './routes/scan-putaway'
+import { Route as ScanPickRouteImport } from './routes/scan-pick'
+import { Route as ScanPackRouteImport } from './routes/scan-pack'
 import { Route as ReturnsRouteImport } from './routes/returns'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as QcRouteImport } from './routes/qc'
 import { Route as PutawayRouteImport } from './routes/putaway'
+import { Route as PtlRouteImport } from './routes/ptl'
 import { Route as PickingRouteImport } from './routes/picking'
 import { Route as PackingRouteImport } from './routes/packing'
 import { Route as OutboundRouteImport } from './routes/outbound'
@@ -29,6 +33,21 @@ import { Route as IndexRouteImport } from './routes/index'
 const YardRoute = YardRouteImport.update({
   id: '/yard',
   path: '/yard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScanPutawayRoute = ScanPutawayRouteImport.update({
+  id: '/scan-putaway',
+  path: '/scan-putaway',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScanPickRoute = ScanPickRouteImport.update({
+  id: '/scan-pick',
+  path: '/scan-pick',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScanPackRoute = ScanPackRouteImport.update({
+  id: '/scan-pack',
+  path: '/scan-pack',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReturnsRoute = ReturnsRouteImport.update({
@@ -49,6 +68,11 @@ const QcRoute = QcRouteImport.update({
 const PutawayRoute = PutawayRouteImport.update({
   id: '/putaway',
   path: '/putaway',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PtlRoute = PtlRouteImport.update({
+  id: '/ptl',
+  path: '/ptl',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PickingRoute = PickingRouteImport.update({
@@ -119,10 +143,14 @@ export interface FileRoutesByFullPath {
   '/outbound': typeof OutboundRoute
   '/packing': typeof PackingRoute
   '/picking': typeof PickingRoute
+  '/ptl': typeof PtlRoute
   '/putaway': typeof PutawayRoute
   '/qc': typeof QcRoute
   '/reports': typeof ReportsRoute
   '/returns': typeof ReturnsRoute
+  '/scan-pack': typeof ScanPackRoute
+  '/scan-pick': typeof ScanPickRoute
+  '/scan-putaway': typeof ScanPutawayRoute
   '/yard': typeof YardRoute
 }
 export interface FileRoutesByTo {
@@ -137,10 +165,14 @@ export interface FileRoutesByTo {
   '/outbound': typeof OutboundRoute
   '/packing': typeof PackingRoute
   '/picking': typeof PickingRoute
+  '/ptl': typeof PtlRoute
   '/putaway': typeof PutawayRoute
   '/qc': typeof QcRoute
   '/reports': typeof ReportsRoute
   '/returns': typeof ReturnsRoute
+  '/scan-pack': typeof ScanPackRoute
+  '/scan-pick': typeof ScanPickRoute
+  '/scan-putaway': typeof ScanPutawayRoute
   '/yard': typeof YardRoute
 }
 export interface FileRoutesById {
@@ -156,10 +188,14 @@ export interface FileRoutesById {
   '/outbound': typeof OutboundRoute
   '/packing': typeof PackingRoute
   '/picking': typeof PickingRoute
+  '/ptl': typeof PtlRoute
   '/putaway': typeof PutawayRoute
   '/qc': typeof QcRoute
   '/reports': typeof ReportsRoute
   '/returns': typeof ReturnsRoute
+  '/scan-pack': typeof ScanPackRoute
+  '/scan-pick': typeof ScanPickRoute
+  '/scan-putaway': typeof ScanPutawayRoute
   '/yard': typeof YardRoute
 }
 export interface FileRouteTypes {
@@ -176,10 +212,14 @@ export interface FileRouteTypes {
     | '/outbound'
     | '/packing'
     | '/picking'
+    | '/ptl'
     | '/putaway'
     | '/qc'
     | '/reports'
     | '/returns'
+    | '/scan-pack'
+    | '/scan-pick'
+    | '/scan-putaway'
     | '/yard'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -194,10 +234,14 @@ export interface FileRouteTypes {
     | '/outbound'
     | '/packing'
     | '/picking'
+    | '/ptl'
     | '/putaway'
     | '/qc'
     | '/reports'
     | '/returns'
+    | '/scan-pack'
+    | '/scan-pick'
+    | '/scan-putaway'
     | '/yard'
   id:
     | '__root__'
@@ -212,10 +256,14 @@ export interface FileRouteTypes {
     | '/outbound'
     | '/packing'
     | '/picking'
+    | '/ptl'
     | '/putaway'
     | '/qc'
     | '/reports'
     | '/returns'
+    | '/scan-pack'
+    | '/scan-pick'
+    | '/scan-putaway'
     | '/yard'
   fileRoutesById: FileRoutesById
 }
@@ -231,10 +279,14 @@ export interface RootRouteChildren {
   OutboundRoute: typeof OutboundRoute
   PackingRoute: typeof PackingRoute
   PickingRoute: typeof PickingRoute
+  PtlRoute: typeof PtlRoute
   PutawayRoute: typeof PutawayRoute
   QcRoute: typeof QcRoute
   ReportsRoute: typeof ReportsRoute
   ReturnsRoute: typeof ReturnsRoute
+  ScanPackRoute: typeof ScanPackRoute
+  ScanPickRoute: typeof ScanPickRoute
+  ScanPutawayRoute: typeof ScanPutawayRoute
   YardRoute: typeof YardRoute
 }
 
@@ -245,6 +297,27 @@ declare module '@tanstack/react-router' {
       path: '/yard'
       fullPath: '/yard'
       preLoaderRoute: typeof YardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scan-putaway': {
+      id: '/scan-putaway'
+      path: '/scan-putaway'
+      fullPath: '/scan-putaway'
+      preLoaderRoute: typeof ScanPutawayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scan-pick': {
+      id: '/scan-pick'
+      path: '/scan-pick'
+      fullPath: '/scan-pick'
+      preLoaderRoute: typeof ScanPickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scan-pack': {
+      id: '/scan-pack'
+      path: '/scan-pack'
+      fullPath: '/scan-pack'
+      preLoaderRoute: typeof ScanPackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/returns': {
@@ -273,6 +346,13 @@ declare module '@tanstack/react-router' {
       path: '/putaway'
       fullPath: '/putaway'
       preLoaderRoute: typeof PutawayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ptl': {
+      id: '/ptl'
+      path: '/ptl'
+      fullPath: '/ptl'
+      preLoaderRoute: typeof PtlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/picking': {
@@ -367,10 +447,14 @@ const rootRouteChildren: RootRouteChildren = {
   OutboundRoute: OutboundRoute,
   PackingRoute: PackingRoute,
   PickingRoute: PickingRoute,
+  PtlRoute: PtlRoute,
   PutawayRoute: PutawayRoute,
   QcRoute: QcRoute,
   ReportsRoute: ReportsRoute,
   ReturnsRoute: ReturnsRoute,
+  ScanPackRoute: ScanPackRoute,
+  ScanPickRoute: ScanPickRoute,
+  ScanPutawayRoute: ScanPutawayRoute,
   YardRoute: YardRoute,
 }
 export const routeTree = rootRouteImport
