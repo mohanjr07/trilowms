@@ -137,7 +137,7 @@ function ReturnsTrendChart() {
 }
 
 function ReasonMixCard() {
-  const mix = useReturnsStore((s) => s.reasonMix)();
+  const mix = useReturnsStore().reasonMix();
   const total = mix.reduce((s, m) => s + m.count, 0) || 1;
   return (
     <Section title="Return Reasons" sub="Lines by reason code" className="h-[240px]">
@@ -162,7 +162,7 @@ function ReasonMixCard() {
 }
 
 function DispositionMixChart() {
-  const mix = useReturnsStore((s) => s.dispositionMix)();
+  const mix = useReturnsStore().dispositionMix();
   const data = mix.map((m) => ({ name: DISPOSITION_META[m.disposition].label, count: m.count }));
   return (
     <Section title="Disposition Outcomes" sub="Inspected lines by disposition" className="h-[240px]">
@@ -182,7 +182,7 @@ function DispositionMixChart() {
 }
 
 function InspectionAlerts({ onOpen }: { onOpen: (r: RMA) => void }) {
-  const worklist = useReturnsStore((s) => s.inspectionWorklist)();
+  const worklist = useReturnsStore().inspectionWorklist();
   return (
     <Section title="Awaiting Inspection" sub={`${worklist.length} returns received & queued`} className="h-full">
       <div className="divide-y divide-border/40 overflow-y-auto max-h-[300px]">
@@ -205,7 +205,7 @@ function InspectionAlerts({ onOpen }: { onOpen: (r: RMA) => void }) {
 }
 
 function OverviewView({ onOpen }: { onOpen: (r: RMA) => void }) {
-  const kpis = useReturnsStore((s) => s.kpis)();
+  const kpis = useReturnsStore().kpis();
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
@@ -235,8 +235,8 @@ function OverviewView({ onOpen }: { onOpen: (r: RMA) => void }) {
 
 function RmaQueueView({ onOpen }: { onOpen: (r: RMA) => void }) {
   const { filters, setFilters, resetFilters, page, setPage, pageSize } = useReturnsStore();
-  const all = useReturnsStore((s) => s.filteredRmas)();
-  const customers = useReturnsStore((s) => s.customerList)();
+  const all = useReturnsStore().filteredRmas();
+  const customers = useReturnsStore().customerList();
 
   const total = Math.max(1, Math.ceil(all.length / pageSize));
   const paged = all.slice((page - 1) * pageSize, page * pageSize);
@@ -386,7 +386,7 @@ function InspectLineRow({ rmaId, line }: { rmaId: string; line: RmaLine }) {
 }
 
 function InspectionView({ onOpen }: { onOpen: (r: RMA) => void }) {
-  const worklist = useReturnsStore((s) => s.inspectionWorklist)();
+  const worklist = useReturnsStore().inspectionWorklist();
   const completeRma = useReturnsStore((s) => s.completeRma);
   const [activeId, setActiveId] = useState<string | null>(worklist[0]?.id ?? null);
   const active = worklist.find((r) => r.id === activeId) ?? worklist[0] ?? null;
@@ -447,7 +447,7 @@ function DispositionsView() {
     [rmas],
   );
   const filtered = lines.filter((l) => filter === "all" || l.disposition === filter);
-  const mix = useReturnsStore((s) => s.dispositionMix)();
+  const mix = useReturnsStore().dispositionMix();
   const totalCredit = lines.reduce((s, l) => s + l.creditAmount, 0);
 
   return (
@@ -798,8 +798,8 @@ export function ReturnsPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [openId, setOpenId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const kpis = useReturnsStore((s) => s.kpis)();
-  const filteredRmas = useReturnsStore((s) => s.filteredRmas)();
+  const kpis = useReturnsStore().kpis();
+  const filteredRmas = useReturnsStore().filteredRmas();
 
   const open = (r: RMA) => setOpenId(r.id);
 

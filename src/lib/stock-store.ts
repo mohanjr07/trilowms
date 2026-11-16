@@ -38,7 +38,7 @@ interface StockState {
   available: (skuCode: string) => number;
   reserve: (skuCode: string, qty: number) => number;   // returns qty actually reserved
   release: (skuCode: string, qty: number) => void;
-  consume: (skuCode: string, qty: number) => void;       // ship/pick: remove from onHand + reserved
+  consume: (skuCode: string, qty: number, binCode?: string | null) => void;       // ship/pick: remove from onHand + reserved
   applyCount: (skuCode: string, countedQty: number, reason: string, binCode?: string | null, by?: string) => void;
 
   list: () => StockRecord[];
@@ -86,10 +86,12 @@ export const useStockStore = create<StockState>()(
         set((s) => ({ stock: { ...s.stock, [skuCode]: { ...r, reserved: Math.max(0, r.reserved - qty), updatedAt: new Date().toISOString() } } }));
       },
 
-      consume: (skuCode, qty) => {
+      consume: (skuCode, qty, binCode) => {
         const r = get().stock[skuCode];
         if (!r || qty <= 0) return;
-        set((s) => ({ stock: { ...s.stock, [skuCode]: { ...r, onHand: Math.max(0, r.onHand - qty), reserved: Math.max(0, r.reserved - qty), updatedAt: new Date().toISOString() } } }));
+        const bins = { ...r.bins };
+        if (binCode && bins[binCode] !== undefined) bins[binCode] = Math.max(0, bins[binCode] - qty);
+        set((s) => ({ stock: { ...s.stock, [skuCode]: { ...r, bins, onHand: Math.max(0, r.onHand - qty), reserved: Math.max(0, r.reserved - qty), updatedAt: new Date().toISOString() } } }));
       },
 
       applyCount: (skuCode, countedQty, reason, binCode, by = "Current User") => {

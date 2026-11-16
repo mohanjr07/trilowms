@@ -291,6 +291,7 @@ function realLocationFor(skuCode: string, idx: number) {
     };
   }
   const loc = locationFor(skuCode, idx);
+  if (bestBinCode) return { binId: `bin-${bestBinCode}`, binCode: bestBinCode, zone: loc.zone, aisle: loc.aisle, rack: loc.rack, level: loc.level };
   return { binId: `bin-synthetic-${idx}`, binCode: loc.binCode, zone: loc.zone, aisle: loc.aisle, rack: loc.rack, level: loc.level };
 }
 
@@ -381,8 +382,8 @@ const _seedWaves = buildSeedWaves();
 export const usePickingStore = create<PickingState>()(
   persist(
     (set, get) => ({
-      waves: [],
-      shortages: [],
+      waves: _seedWaves,
+      shortages: buildSeedShortages(_seedWaves),
       filters: DEFAULT_FILTERS,
       selectedWaveId: null,
       page: 1,
@@ -484,7 +485,7 @@ export const usePickingStore = create<PickingState>()(
           const wave = get().waves.find((w) => w.id === waveId);
           const task = wave?.tasks.find((t) => t.id === taskId);
           if (task) {
-            useStockStore.getState().consume(task.skuCode, qtyPicked);
+            useStockStore.getState().consume(task.skuCode, qtyPicked, task.binCode);
             // Mirror the withdrawal on the bin map so occupancy drops where the pick
             // actually came from.
             useInvBinStore.getState().withdrawFromBin(task.binCode, qtyPicked);
@@ -534,7 +535,7 @@ export const usePickingStore = create<PickingState>()(
           const stock = useStockStore.getState();
           // Whatever was actually found and picked leaves the ledger now.
           if (qtyAvailable > 0) {
-            stock.consume(taskPre.skuCode, qtyAvailable);
+            stock.consume(taskPre.skuCode, qtyAvailable, taskPre.binCode);
             useInvBinStore.getState().withdrawFromBin(taskPre.binCode, qtyAvailable);
             useTransactionStore.getState().logMovement({
               type: "MOVED",

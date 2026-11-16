@@ -55,7 +55,7 @@ function useReorderMap() {
 // ── Stock Levels ──────────────────────────────────────────────────────────────
 
 function StockLevelsView() {
-  const records = useStockStore((s) => s.list)();
+  const records = useStockStore().list();
   const reorder = useReorderMap();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"sku" | "onHand" | "available">("sku");
@@ -253,7 +253,7 @@ function CreatePoModal({
 // ── Low Stock ─────────────────────────────────────────────────────────────────
 
 function LowStockView() {
-  const records = useStockStore((s) => s.list)();
+  const records = useStockStore().list();
   const reorder = useReorderMap();
   const [poTarget, setPoTarget] = useState<{ skuCode: string; skuName: string; qty: number } | null>(null);
 
@@ -329,7 +329,7 @@ function LowStockView() {
 // ── Cycle Count ───────────────────────────────────────────────────────────────
 
 function CycleCountView() {
-  const records = useStockStore((s) => s.list)();
+  const records = useStockStore().list();
   const adjustments = useStockStore((s) => s.adjustments);
   const applyCount = useStockStore((s) => s.applyCount);
 
@@ -445,8 +445,8 @@ const SUBS: { id: Sub; label: string; icon: typeof Boxes }[] = [
 
 export function StockLevelsPage() {
   const [sub, setSub] = useState<Sub>("levels");
-  const kpis = useStockStore((s) => s.kpis)();
-  const records = useStockStore((s) => s.list)();
+  const kpis = useStockStore().kpis();
+  const records = useStockStore().list();
   const reorder = useReorderMap();
   const lowCount = records.filter((r) => Math.max(0, r.onHand - r.reserved) <= (reorder.get(r.skuCode) ?? DEFAULT_REORDER)).length;
 

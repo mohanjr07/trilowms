@@ -13,9 +13,9 @@ export function TopBar() {
   const dropRef = useRef<HTMLDivElement>(null);
   const roleDef = role();
 
-  const openPicks = usePickingStore((s) => s.kpis)().openPicks;
+  const openPicks = usePickingStore().kpis().openPicks;
   const orders = useOutboundStore((s) => s.shipments).length;
-  const dockUtil = useInboundStore((s) => s.dockUtilization)().pct;
+  const dockUtil = useInboundStore().dockUtilization().pct;
 
   // Close dropdown on outside click
   useEffect(() => {

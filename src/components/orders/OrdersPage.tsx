@@ -86,7 +86,7 @@ function MiniStat({ label, value, tone }: { label: string; value: string; tone?:
 }
 
 function StatusFunnelChart() {
-  const funnel = useOrdersStore((s) => s.statusFunnel)();
+  const funnel = useOrdersStore().statusFunnel();
   const data = funnel.map((f) => ({ status: ORDER_STATUS_META[f.status].label, count: f.count }));
   return (
     <Section title="Order Funnel" sub="Orders across the fulfillment flow" className="lg:col-span-2 h-[240px]">
@@ -128,7 +128,7 @@ function RecentOrders({ onOpen }: { onOpen: (o: Order) => void }) {
 }
 
 function OverviewView({ onOpen }: { onOpen: (o: Order) => void }) {
-  const kpis = useOrdersStore((s) => s.kpis)();
+  const kpis = useOrdersStore().kpis();
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
@@ -150,8 +150,8 @@ function OverviewView({ onOpen }: { onOpen: (o: Order) => void }) {
 
 function OrderQueueView({ onOpen }: { onOpen: (o: Order) => void }) {
   const { filters, setFilters, resetFilters, page, setPage, pageSize } = useOrdersStore();
-  const all = useOrdersStore((s) => s.filteredOrders)();
-  const customers = useOrdersStore((s) => s.customerList)();
+  const all = useOrdersStore().filteredOrders();
+  const customers = useOrdersStore().customerList();
   const bulkAllocate = useOrdersStore((s) => s.bulkAllocate);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -575,7 +575,7 @@ const TABS: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
 export function OrdersPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [openId, setOpenId] = useState<string | null>(null);
-  const kpis = useOrdersStore((s) => s.kpis)();
+  const kpis = useOrdersStore().kpis();
   const open = (o: Order) => setOpenId(o.id);
 
   return (

@@ -127,7 +127,7 @@ function TxnMiniKPIs() {
 // ─── Low Stock Alerts panel ───────────────────────────────────────────────────
 
 function LowStockPanel({ height = 280 }: { height?: number }) {
-  const stockList = useStockStore((s) => s.list)();
+  const stockList = useStockStore().list();
   const skusFn = useSkuStore((s) => s.skus);
   const skus = skusFn;
 
@@ -305,15 +305,15 @@ function InventoryOverviewPanel() {
 function EnterpriseDashboard() {
   const k = totalKPIs(warehouse);
 
-  const inbound = useInboundStore((s) => s.kpis)();
-  const putaway = usePutawayStore((s) => s.kpis)();
-  const picking = usePickingStore((s) => s.kpis)();
-  const packing = usePackingStore((s) => s.kpis)();
-  const outbound = useOutboundStore((s) => s.kpis)();
-  const yard = useYardStore((s) => s.kpis)();
-  const qc = useQCStore((s) => s.kpis)();
-  const returns_ = useReturnsStore((s) => s.kpis)();
-  const labor = useLaborStore((s) => s.kpis)();
+  const inbound = useInboundStore().kpis();
+  const putaway = usePutawayStore().kpis();
+  const picking = usePickingStore().kpis();
+  const packing = usePackingStore().kpis();
+  const outbound = useOutboundStore().kpis();
+  const yard = useYardStore().kpis();
+  const qc = useQCStore().kpis();
+  const returns_ = useReturnsStore().kpis();
+  const labor = useLaborStore().kpis();
 
   const orderKpisFn = useOrdersStore((s) => s.kpis);
   const orders = useOrdersStore((s) => s.orders);
@@ -602,7 +602,7 @@ function InventoryDashboard() {
 
 // ─── Inbound Supervisor ───────────────────────────────────────────────────────
 function InboundDashboard() {
-  const kpis = useInboundStore((s) => s.kpis)();
+  const kpis = useInboundStore().kpis();
   return (
     <div className="flex flex-col h-full overflow-y-auto">
       <PageHeader icon={ArrowDownToLine} title="Inbound Operations" subtitle="ASN tracking · dock scheduling · receiving"
@@ -622,7 +622,7 @@ function InboundDashboard() {
 
 // ─── Outbound Supervisor ──────────────────────────────────────────────────────
 function OutboundDashboard() {
-  const kpis = useOutboundStore((s) => s.kpis)();
+  const kpis = useOutboundStore().kpis();
   const orderKpisFn = useOrdersStore((s) => s.kpis);
   const orders = useOrdersStore((s) => s.orders);
   const orderKpis = useMemo(() => orderKpisFn(), [orders]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -649,7 +649,7 @@ function OutboundDashboard() {
 
 // ─── Picker ───────────────────────────────────────────────────────────────────
 function PickerDashboard({ name }: { name: string }) {
-  const kpis = usePickingStore((s) => s.kpis)();
+  const kpis = usePickingStore().kpis();
   const activePickTasksFn = usePickingStore((s) => s.activePickTasks);
   const waves = usePickingStore((s) => s.waves);
   const myTasks = useMemo(() => activePickTasksFn().slice(0, 6), [waves]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -702,7 +702,7 @@ function PickerDashboard({ name }: { name: string }) {
 
 // ─── Forklift ─────────────────────────────────────────────────────────────────
 function ForkliftDashboard({ name }: { name: string }) {
-  const kpis = usePutawayStore((s) => s.kpis)();
+  const kpis = usePutawayStore().kpis();
   return (
     <div className="flex flex-col h-full overflow-y-auto">
       <PageHeader icon={Forklift} title={`Forklift — ${name}`} subtitle="Putaway & transfer tasks"
@@ -728,7 +728,7 @@ function ForkliftDashboard({ name }: { name: string }) {
 
 // ─── QC Inspector ─────────────────────────────────────────────────────────────
 function QCDashboard() {
-  const kpis = useQCStore((s) => s.kpis)();
+  const kpis = useQCStore().kpis();
   return (
     <div className="flex flex-col h-full overflow-y-auto">
       <PageHeader icon={ShieldCheck} title="Quality Control" subtitle="Inspection queue · holds management"
@@ -748,7 +748,7 @@ function QCDashboard() {
 
 // ─── Packing Operator ─────────────────────────────────────────────────────────
 function PackingDashboard({ name }: { name: string }) {
-  const kpis = usePackingStore((s) => s.kpis)();
+  const kpis = usePackingStore().kpis();
   return (
     <div className="flex flex-col h-full overflow-y-auto">
       <PageHeader icon={PackageCheck} title={`Packing — ${name}`} subtitle="Pack station tasks"
@@ -774,7 +774,7 @@ function PackingDashboard({ name }: { name: string }) {
 
 // ─── Yard Manager ─────────────────────────────────────────────────────────────
 function YardDashboard() {
-  const kpis = useYardStore((s) => s.kpis)();
+  const kpis = useYardStore().kpis();
   return (
     <div className="flex flex-col h-full overflow-y-auto">
       <PageHeader icon={Container} title="Yard Management" subtitle="Truck scheduling · dock assignments · dwell"

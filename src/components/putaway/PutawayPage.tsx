@@ -133,7 +133,7 @@ function ThroughputChart() {
 }
 
 function StrategyMixCard() {
-  const mix = usePutawayStore((s) => s.strategyMix)();
+  const mix = usePutawayStore().strategyMix();
   const totalCount = mix.reduce((s, m) => s + m.count, 0) || 1;
   return (
     <Section title="Strategy Mix" sub="Active tasks by routing strategy" className="h-[240px]">
@@ -159,7 +159,7 @@ function StrategyMixCard() {
 }
 
 function ZoneLoadChart() {
-  const dist = usePutawayStore((s) => s.zoneDistribution)();
+  const dist = usePutawayStore().zoneDistribution();
   const data = dist.map((d) => ({ zone: zoneShort(d.zone), open: d.open, completed: d.completed }));
   return (
     <Section title="Zone Load" sub="Open vs completed putaway by storage zone" className="h-[240px]">
@@ -180,7 +180,7 @@ function ZoneLoadChart() {
 }
 
 function BlockedAlerts({ onOpen }: { onOpen: (t: PutawayTask) => void }) {
-  const blocked = usePutawayStore((s) => s.blockedTasks)();
+  const blocked = usePutawayStore().blockedTasks();
   return (
     <Section title="Exceptions" sub={`${blocked.length} blocked tasks need attention`} className="h-full">
       <div className="divide-y divide-border/40 overflow-y-auto max-h-[300px]">
@@ -209,7 +209,7 @@ function BlockedAlerts({ onOpen }: { onOpen: (t: PutawayTask) => void }) {
 }
 
 function OverviewView({ onOpen }: { onOpen: (t: PutawayTask) => void }) {
-  const kpis = usePutawayStore((s) => s.kpis)();
+  const kpis = usePutawayStore().kpis();
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
@@ -241,9 +241,9 @@ function OverviewView({ onOpen }: { onOpen: (t: PutawayTask) => void }) {
 
 function TaskQueueView({ onOpen }: { onOpen: (t: PutawayTask) => void }) {
   const { filters, setFilters, resetFilters, page, setPage, pageSize } = usePutawayStore();
-  const all = usePutawayStore((s) => s.filteredTasks)();
-  const operators = usePutawayStore((s) => s.operatorList)();
-  const zones = usePutawayStore((s) => s.zoneList)();
+  const all = usePutawayStore().filteredTasks();
+  const operators = usePutawayStore().operatorList();
+  const zones = usePutawayStore().zoneList();
   const currentUserName = useAuthStore((s) => s.session?.user.name);
 
   const total = Math.max(1, Math.ceil(all.length / pageSize));
@@ -374,7 +374,7 @@ function TaskQueueView({ onOpen }: { onOpen: (t: PutawayTask) => void }) {
 // ════════════════════════════════════════════════════════════════════════════
 
 function OperatorsView() {
-  const workloads = usePutawayStore((s) => s.operatorWorkloads)();
+  const workloads = usePutawayStore().operatorWorkloads();
   const tasks = usePutawayStore((s) => s.tasks);
   const maxLoad = Math.max(1, ...workloads.map((w) => w.assigned + w.inProgress + w.completed));
 
@@ -680,7 +680,7 @@ const TABS: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
 export function PutawayPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
-  const kpis = usePutawayStore((s) => s.kpis)();
+  const kpis = usePutawayStore().kpis();
   const syncFromInbound = usePutawayStore((s) => s.syncFromInbound);
 
   const open = (t: PutawayTask) => setOpenTaskId(t.id);

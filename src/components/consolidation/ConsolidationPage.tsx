@@ -130,7 +130,7 @@ function StatusFunnelChart() {
 }
 
 function ReadyLanesAlert({ onOpen }: { onOpen: (l: ConsolidationLane) => void }) {
-  const readyLanes = useConsolidationStore((s) => s.readyLanes)();
+  const readyLanes = useConsolidationStore().readyLanes();
   return (
     <Section title="Ready for Consolidation Check" sub={`${readyLanes.length} orders fully staged`} className="h-[240px]">
       <div className="divide-y divide-border/40 overflow-y-auto max-h-[200px]">
@@ -165,7 +165,7 @@ function ReadyLanesAlert({ onOpen }: { onOpen: (l: ConsolidationLane) => void })
 }
 
 function OverviewView({ onOpen }: { onOpen: (l: ConsolidationLane) => void }) {
-  const kpis = useConsolidationStore((s) => s.kpis)();
+  const kpis = useConsolidationStore().kpis();
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -189,7 +189,7 @@ function OverviewView({ onOpen }: { onOpen: (l: ConsolidationLane) => void }) {
 // ════════════════════════════════════════════════════════════════════════════
 
 function LaneCard({ lane, onClick }: { lane: ConsolidationLane; onClick: () => void }) {
-  const progress = useConsolidationStore((s) => s.laneProgress)(lane);
+  const progress = useConsolidationStore().laneProgress(lane);
   const m = LANE_STATUS_META[lane.status];
 
   return (
@@ -360,12 +360,12 @@ function CheckLineRow({ laneId, line }: { laneId: string; line: ConsolidationLin
 }
 
 function ConsolidationCheckView({ onOpen }: { onOpen: (l: ConsolidationLane) => void }) {
-  const readyLanes = useConsolidationStore((s) => s.readyLanes)();
-  const stagingLanes = useConsolidationStore((s) => s.stagingLanes)();
+  const readyLanes = useConsolidationStore().readyLanes();
+  const stagingLanes = useConsolidationStore().stagingLanes();
   const allActionable = [...readyLanes, ...stagingLanes];
   const [activeId, setActiveId] = useState<string | null>(allActionable[0]?.id ?? null);
   const lane = allActionable.find((l) => l.id === activeId) ?? allActionable[0] ?? null;
-  const progress = useConsolidationStore((s) => s.laneProgress)(lane ?? { totalLines: 0, lines: [] } as unknown as ConsolidationLane);
+  const progress = useConsolidationStore().laneProgress(lane ?? { totalLines: 0, lines: [] } as unknown as ConsolidationLane);
   const moveToPacking = useConsolidationStore((s) => s.moveToPacking);
 
   const allSettled = lane ? lane.lines.every((l) => l.status !== "PENDING") : false;
@@ -547,7 +547,7 @@ function LaneDetailDrawer({ laneId, onClose }: { laneId: string | null; onClose:
   const lane = useConsolidationStore((s) => s.lanes.find((l) => l.id === laneId)) ?? null;
   const scanArrival = useConsolidationStore((s) => s.scanArrival);
   const moveToPacking = useConsolidationStore((s) => s.moveToPacking);
-  const progress = useConsolidationStore((s) => s.laneProgress)(lane ?? { totalLines: 0, lines: [] } as unknown as ConsolidationLane);
+  const progress = useConsolidationStore().laneProgress(lane ?? { totalLines: 0, lines: [] } as unknown as ConsolidationLane);
 
   if (!lane) return null;
 
@@ -620,7 +620,7 @@ const TABS: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
 export function ConsolidationPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [openLaneId, setOpenLaneId] = useState<string | null>(null);
-  const kpis = useConsolidationStore((s) => s.kpis)();
+  const kpis = useConsolidationStore().kpis();
 
   const open = (l: ConsolidationLane) => setOpenLaneId(l.id);
 

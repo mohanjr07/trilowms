@@ -134,7 +134,7 @@ function GateActivityChart() {
 }
 
 function YardOccupancyCard() {
-  const occ = useYardStore((s) => s.yardOccupancy)();
+  const occ = useYardStore().yardOccupancy();
   const total = occ.reduce((s, o) => s + o.count, 0) || 1;
   const colors = ["var(--color-primary)", "var(--color-info)", "var(--color-success)", "var(--color-warning)", "#a78bfa", "var(--color-destructive)"];
   return (
@@ -157,7 +157,7 @@ function YardOccupancyCard() {
 }
 
 function StatusFunnelChart() {
-  const funnel = useYardStore((s) => s.statusFunnel)();
+  const funnel = useYardStore().statusFunnel();
   const data = funnel.map((f) => ({ status: YARD_STATUS_META[f.status].label, count: f.count }));
   return (
     <Section title="Truck Status Mix" sub="Trucks by current yard stage" className="h-[240px]">
@@ -177,7 +177,7 @@ function StatusFunnelChart() {
 }
 
 function DwellAlerts({ onOpen }: { onOpen: (t: YardTruck) => void }) {
-  const dwell = useYardStore((s) => s.dwellTrucks)();
+  const dwell = useYardStore().dwellTrucks();
   return (
     <Section title="Dwell Alerts" sub={`${dwell.length} trucks over threshold`} className="h-full">
       <div className="divide-y divide-border/40 overflow-y-auto max-h-[300px]">
@@ -202,7 +202,7 @@ function DwellAlerts({ onOpen }: { onOpen: (t: YardTruck) => void }) {
 }
 
 function OverviewView({ onOpen }: { onOpen: (t: YardTruck) => void }) {
-  const kpis = useYardStore((s) => s.kpis)();
+  const kpis = useYardStore().kpis();
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
@@ -285,7 +285,7 @@ function YardMapView({ onOpen }: { onOpen: (t: YardTruck) => void }) {
 
 function TrucksView({ onOpen }: { onOpen: (t: YardTruck) => void }) {
   const { filters, setFilters, resetFilters, page, setPage } = useYardStore();
-  const all = useYardStore((s) => s.filteredTrucks)();
+  const all = useYardStore().filteredTrucks();
   const pageSize = 14;
   const total = Math.max(1, Math.ceil(all.length / pageSize));
   const paged = all.slice((page - 1) * pageSize, page * pageSize);
@@ -711,7 +711,7 @@ export function YardPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [openId, setOpenId] = useState<string | null>(null);
   const [gateInOpen, setGateInOpen] = useState(false);
-  const kpis = useYardStore((s) => s.kpis)();
+  const kpis = useYardStore().kpis();
   const trucks = useYardStore((s) => s.trucks);
   const gateOut = useYardStore((s) => s.gateOut);
 

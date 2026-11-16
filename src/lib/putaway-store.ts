@@ -6,6 +6,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useInboundStore } from "@/lib/inbound-store";
+import { useSkuStore } from "@/lib/sku-store";
 import { useStockStore } from "@/lib/stock-store";
 import { useSlottingStore } from "@/lib/slotting-store";
 import { useInvBinStore } from "@/lib/inventory-bin-store";
@@ -243,8 +244,8 @@ function leastLoadedOperator(tasks: PutawayTask[]): { id: string; name: string }
 export const usePutawayStore = create<PutawayState>()(
   persist(
     (set, get) => ({
-      tasks: [],
-      rules: [],
+      tasks: buildSeedTasks(),
+      rules: SEED_RULES,
       filters: DEFAULT_FILTERS,
       selectedTaskId: null,
       page: 1,
@@ -271,6 +272,7 @@ export const usePutawayStore = create<PutawayState>()(
             skuCode: r.line.skuCode,
             skuName: r.line.skuName,
             quantity: good,
+            weight: Math.round(good * (useSkuStore.getState().skus.find((k) => k.skuCode === r.line.skuCode)?.weight ?? 0) * 10) / 10,
             uom: r.line.uom,
             lotNumber: r.line.lotNumber,
             batchNumber: r.line.batchNumber,

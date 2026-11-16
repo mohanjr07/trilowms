@@ -134,7 +134,7 @@ function PackThroughputChart() {
 }
 
 function CarrierMixCard() {
-  const mix = usePackingStore((s) => s.carrierMix)();
+  const mix = usePackingStore().carrierMix();
   const total = mix.reduce((s, m) => s + m.count, 0) || 1;
   const colors = ["var(--color-primary)", "var(--color-info)", "var(--color-success)", "var(--color-warning)", "#a78bfa"];
   return (
@@ -157,7 +157,7 @@ function CarrierMixCard() {
 }
 
 function StatusFunnelChart() {
-  const funnel = usePackingStore((s) => s.statusFunnel)();
+  const funnel = usePackingStore().statusFunnel();
   const data = funnel.map((f) => ({ status: PACK_STATUS_META[f.status].label, count: f.count }));
   return (
     <Section title="Order Status Funnel" sub="Orders across the pack-to-dispatch flow" className="h-[240px]">
@@ -197,7 +197,7 @@ function StationStrip() {
 }
 
 function OverviewView() {
-  const kpis = usePackingStore((s) => s.kpis)();
+  const kpis = usePackingStore().kpis();
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -226,9 +226,9 @@ function OverviewView() {
 
 function PackQueueView({ onOpen }: { onOpen: (o: PackOrder) => void }) {
   const { filters, setFilters, resetFilters, page, setPage, pageSize } = usePackingStore();
-  const all = usePackingStore((s) => s.filteredOrders)();
+  const all = usePackingStore().filteredOrders();
   const stations = usePackingStore((s) => s.stations);
-  const carriers = usePackingStore((s) => s.carrierList)();
+  const carriers = usePackingStore().carrierList();
   const currentUserName = useAuthStore((s) => s.session?.user.name);
   const myStation = stations.find((st) => st.operatorName === currentUserName);
 
@@ -403,7 +403,7 @@ function StationsView() {
 // ════════════════════════════════════════════════════════════════════════════
 
 function CartonsView() {
-  const cartons = usePackingStore((s) => s.allCartons)();
+  const cartons = usePackingStore().allCartons();
   const [filter, setFilter] = useState("all");
   const filtered = cartons.filter((c) => filter === "all" || c.status === filter);
 
@@ -724,7 +724,7 @@ const TABS: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
 export function PackingPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [openOrderId, setOpenOrderId] = useState<string | null>(null);
-  const kpis = usePackingStore((s) => s.kpis)();
+  const kpis = usePackingStore().kpis();
   const orders = usePackingStore((s) => s.orders);
   const syncFromConsolidation = usePackingStore((s) => s.syncFromConsolidation);
   const exceptionCount = orders.filter((o) => o.status === "EXCEPTION").length;

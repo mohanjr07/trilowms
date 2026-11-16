@@ -380,7 +380,7 @@ const SEED_DOCK_DOORS: DockDoor[] = DOCK_DOORS.map((d) => ({
 export const useInboundStore = create<InboundState>()(
   persist(
     (set, get) => ({
-      asns: [],
+      asns: buildSeedAsns(),
       dockDoors: SEED_DOCK_DOORS,
       filters: DEFAULT_FILTERS,
       selectedAsnId: null,
@@ -498,6 +498,13 @@ export const useInboundStore = create<InboundState>()(
       receiveLine: (asnId, lineId, qty, opts = {}) => {
         const { damagedQty = 0, rejectedQty = 0, lotNumber, expiryDate, notes = null, receivedBy = "Current User" } = opts;
         const lineBefore = get().asns.find((a) => a.id === asnId)?.lines.find((l) => l.id === lineId) ?? null;
+        // Never receive more than the ASN expects — the excess stays on the truck and has
+        // to be raised as a discrepancy, otherwise the line is stuck as OVER_RECEIPT.
+        if (lineBefore) {
+          const room = Math.max(0, lineBefore.expectedQty - lineBefore.receivedQty);
+          qty = Math.min(qty, room);
+          if (qty <= 0 && damagedQty <= 0 && rejectedQty <= 0) return;
+        }
         set((s) => {
           const asns = s.asns.map((a) => {
             if (a.id !== asnId) return a;
@@ -665,7 +672,7 @@ export const useInboundStore = create<InboundState>()(
           if (!["PARTIAL", "RECEIVED", "DISCREPANCY", "CLOSED"].includes(a.status)) continue;
           for (const l of a.lines) {
             const good = l.receivedQty - l.damagedQty - l.rejectedQty;
-            if (l.status === "RECEIVED" && good > 0 && !isHeld(l.skuCode, l.lotNumber)) {
+            if (["RECEIVED", "OVER_RECEIPT"].includes(l.status) && good > 0 && !isHeld(l.skuCode, l.lotNumber)) {
               out.push({ line: l, asnNumber: a.asnNumber, sourceDock: a.dockCode ?? null });
             }
           }

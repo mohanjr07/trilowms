@@ -153,7 +153,7 @@ function ReceivingVolumeChart() {
 }
 
 function DockUtilizationCard() {
-  const util = useInboundStore((s) => s.dockUtilization)();
+  const util = useInboundStore().dockUtilization();
   const segs = [
     { label: "Occupied", n: util.occupied, c: "bg-amber-500" },
     { label: "Reserved", n: util.reserved, c: "bg-blue-500" },
@@ -188,7 +188,7 @@ function DockUtilizationCard() {
 }
 
 function AppointmentAgingChart() {
-  const buckets = useInboundStore((s) => s.agingBuckets)();
+  const buckets = useInboundStore().agingBuckets();
   const colors = ["var(--color-success)", "var(--color-warning)", "#fb923c", "var(--color-destructive)"];
   return (
     <Section title="Appointment Aging" sub="Open ASNs vs. scheduled arrival" className="h-[240px]">
@@ -245,8 +245,8 @@ function ActivityFeed() {
 }
 
 function OverviewView({ onOpenAsn }: { onOpenAsn: (a: ASN) => void }) {
-  const kpis = useInboundStore((s) => s.kpis)();
-  const worklist = useInboundStore((s) => s.receivingWorklist)();
+  const kpis = useInboundStore().kpis();
+  const worklist = useInboundStore().receivingWorklist();
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
@@ -311,9 +311,9 @@ const STATUS_OPTIONS: AsnStatus[] = ["PENDING","SCHEDULED","ARRIVED","DOCKED","R
 
 function AsnQueueView({ onOpenAsn }: { onOpenAsn: (a: ASN) => void }) {
   const { filters, setFilters, resetFilters, page, setPage } = useInboundStore();
-  const filtered = useInboundStore((s) => s.filteredAsns)();
-  const vendors = useInboundStore((s) => s.vendorList)();
-  const carriers = useInboundStore((s) => s.carrierList)();
+  const filtered = useInboundStore().filteredAsns();
+  const vendors = useInboundStore().vendorList();
+  const carriers = useInboundStore().carrierList();
 
   const pageSize = 14;
   const total = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -468,6 +468,7 @@ function ReceiveLineRow({ asn, line }: { asn: ASN; line: AsnLine }) {
   const [damaged, setDamaged] = useState("");
   const [lot, setLot] = useState(line.lotNumber ?? "");
   const [expiry, setExpiry] = useState(line.expiryDate ?? "");
+  const [err, setErr] = useState<string | null>(null);
 
   const remaining = Math.max(0, line.expectedQty - line.receivedQty);
   const pct = line.expectedQty > 0 ? Math.min(100, Math.round((line.receivedQty / line.expectedQty) * 100)) : 0;
@@ -477,6 +478,8 @@ function ReceiveLineRow({ asn, line }: { asn: ASN; line: AsnLine }) {
     const g = parseInt(good) || 0;
     const d = parseInt(damaged) || 0;
     if (g + d <= 0) return;
+    if (g > remaining) { setErr(`Only ${remaining} ${line.uom} left to receive on this line.`); return; }
+    setErr(null);
     receiveLine(asn.id, line.id, g, { damagedQty: d, lotNumber: lot || null, expiryDate: expiry || null });
     setOpen(false); setGood(""); setDamaged("");
   };
@@ -531,6 +534,7 @@ function ReceiveLineRow({ asn, line }: { asn: ASN; line: AsnLine }) {
                 <Input type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} className="h-8 text-sm mt-1" />
               </label>
             </div>
+            {err && <div className="text-xs text-red-400">{err}</div>}
             <div className="flex justify-end gap-2 pt-1">
               <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setOpen(false)}>Cancel</Button>
               <Button size="sm" className="h-7 text-xs gap-1" onClick={submit}><ScanLine className="h-3.5 w-3.5" /> Confirm receipt</Button>
@@ -564,15 +568,14 @@ function ScanReceiveBar({ asn }: { asn: ASN }) {
     const matches = asn.lines.filter((l) => skuMatches(code, l.skuCode));
     if (matches.length === 0) { scanBeep(false); setMsg({ ok: false, text: `${code} is not on this ASN.` }); return; }
     const line = matches.find((l) => l.receivedQty < l.expectedQty) ?? matches[0];
+    if (line.receivedQty >= line.expectedQty) {
+      scanBeep(false);
+      setMsg({ ok: false, text: `${line.skuCode} is already fully received (${line.expectedQty}). Extra units were not counted.` });
+      return;
+    }
     receiveLine(asn.id, line.id, 1);
-    const over = line.receivedQty + 1 > line.expectedQty;
-    scanBeep(!over);
-    setMsg({
-      ok: !over,
-      text: over
-        ? `${line.skuCode}: over receipt, ${line.receivedQty + 1} of ${line.expectedQty} expected.`
-        : `${line.skuCode} received, ${line.receivedQty + 1} of ${line.expectedQty}.`,
-    });
+    scanBeep(true);
+    setMsg({ ok: true, text: `${line.skuCode} received, ${line.receivedQty + 1} of ${line.expectedQty}.` });
   };
   useScanListener(handle, true, false);
 
@@ -590,7 +593,7 @@ function ScanReceiveBar({ asn }: { asn: ASN }) {
 }
 
 function ReceivingView({ onOpenAsn }: { onOpenAsn: (a: ASN) => void }) {
-  const worklist = useInboundStore((s) => s.receivingWorklist)();
+  const worklist = useInboundStore().receivingWorklist();
   const updateAsnStatus = useInboundStore((s) => s.updateAsnStatus);
   const [activeId, setActiveId] = useState<string | null>(worklist[0]?.id ?? null);
   const active = worklist.find((a) => a.id === activeId) ?? worklist[0] ?? null;
@@ -765,7 +768,7 @@ function DocksView({ onOpenAsn }: { onOpenAsn: (a: ASN) => void }) {
 // ════════════════════════════════════════════════════════════════════════════
 
 function DiscrepanciesView({ onOpenAsn }: { onOpenAsn: (a: ASN) => void }) {
-  const all = useInboundStore((s) => s.allDiscrepancies)();
+  const all = useInboundStore().allDiscrepancies();
   const asns = useInboundStore((s) => s.asns);
   const resolveDiscrepancy = useInboundStore((s) => s.resolveDiscrepancy);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -877,7 +880,7 @@ function AsnDetailDrawer({ asnId, onClose }: { asnId: string | null; onClose: ()
   const asn = useInboundStore((s) => s.asns.find((a) => a.id === asnId)) ?? null;
   const updateAsnStatus = useInboundStore((s) => s.updateAsnStatus);
   const dockTruck = useInboundStore((s) => s.dockTruck);
-  const availableDocks = useInboundStore((s) => s.availableDocks)();
+  const availableDocks = useInboundStore().availableDocks();
   const [tab, setTab] = useState("lines");
   const [dockPickerOpen, setDockPickerOpen] = useState(false);
 
@@ -1208,7 +1211,7 @@ export function InboundPage() {
   const [openAsnId, setOpenAsnId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const kpis = useInboundStore((s) => s.kpis)();
+  const kpis = useInboundStore().kpis();
   const resetFilters = useInboundStore((s) => s.resetFilters);
 
   const openAsn = (a: ASN) => setOpenAsnId(a.id);

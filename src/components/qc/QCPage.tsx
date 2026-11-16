@@ -133,7 +133,7 @@ function PassFailChart() {
 }
 
 function TypeMixCard() {
-  const mix = useQCStore((s) => s.typeMix)();
+  const mix = useQCStore().typeMix();
   const total = mix.reduce((s, m) => s + m.count, 0) || 1;
   return (
     <Section title="Inspection Types" sub="Inspections by trigger source" className="h-[240px]">
@@ -158,7 +158,7 @@ function TypeMixCard() {
 }
 
 function StatusFunnelChart() {
-  const funnel = useQCStore((s) => s.statusFunnel)();
+  const funnel = useQCStore().statusFunnel();
   const data = funnel.map((f) => ({ status: QC_STATUS_META[f.status].label, count: f.count }));
   return (
     <Section title="Inspection Funnel" sub="Inspections by status" className="h-[240px]">
@@ -178,7 +178,7 @@ function StatusFunnelChart() {
 }
 
 function HoldAlerts() {
-  const holds = useQCStore((s) => s.activeHolds)();
+  const holds = useQCStore().activeHolds();
   return (
     <Section title="Active Holds" sub={`${holds.length} lots in quarantine / hold`} className="h-full">
       <div className="divide-y divide-border/40 overflow-y-auto max-h-[300px]">
@@ -201,7 +201,7 @@ function HoldAlerts() {
 }
 
 function OverviewView() {
-  const kpis = useQCStore((s) => s.kpis)();
+  const kpis = useQCStore().kpis();
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
@@ -231,8 +231,8 @@ function OverviewView() {
 
 function InspectionsView({ onOpen }: { onOpen: (i: QCInspection) => void }) {
   const { filters, setFilters, resetFilters, page, setPage, pageSize } = useQCStore();
-  const all = useQCStore((s) => s.filteredInspections)();
-  const inspectors = useQCStore((s) => s.inspectorList)();
+  const all = useQCStore().filteredInspections();
+  const inspectors = useQCStore().inspectorList();
   const currentUserName = useAuthStore((s) => s.session?.user.name);
 
   const total = Math.max(1, Math.ceil(all.length / pageSize));
@@ -434,7 +434,7 @@ function HoldsView() {
 // ════════════════════════════════════════════════════════════════════════════
 
 function InspectorsView() {
-  const workload = useQCStore((s) => s.inspectorWorkload)();
+  const workload = useQCStore().inspectorWorkload();
   const maxTotal = Math.max(1, ...workload.map((w) => w.total));
   return (
     <div className="space-y-5">
@@ -797,7 +797,7 @@ export function QCPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [newInspectionOpen, setNewInspectionOpen] = useState(false);
   const [raiseHoldOpen, setRaiseHoldOpen] = useState(false);
-  const kpis = useQCStore((s) => s.kpis)();
+  const kpis = useQCStore().kpis();
 
   const open = (i: QCInspection) => setOpenId(i.id);
 

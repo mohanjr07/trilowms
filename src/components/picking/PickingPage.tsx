@@ -149,7 +149,7 @@ function PickThroughputChart() {
 }
 
 function MethodMixCard() {
-  const mix = usePickingStore((s) => s.methodMix)();
+  const mix = usePickingStore().methodMix();
   const total = mix.reduce((s, m) => s + m.count, 0) || 1;
   return (
     <Section title="Pick Method Mix" sub="Active waves by strategy" className="h-[240px]">
@@ -175,7 +175,7 @@ function MethodMixCard() {
 }
 
 function ZoneLoadChart() {
-  const dist = usePickingStore((s) => s.zoneLoad)();
+  const dist = usePickingStore().zoneLoad();
   const data = dist.map((d) => ({ zone: d.zone, open: d.open, picked: d.picked }));
   return (
     <Section title="Zone Pick Load" sub="Open vs picked lines by zone" className="h-[240px]">
@@ -224,7 +224,7 @@ function ShortageAlerts() {
 }
 
 function OverviewView() {
-  const kpis = usePickingStore((s) => s.kpis)();
+  const kpis = usePickingStore().kpis();
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
@@ -254,8 +254,8 @@ function OverviewView() {
 
 function WavesView({ onOpen }: { onOpen: (w: Wave) => void }) {
   const { filters, setFilters, resetFilters, page, setPage, pageSize } = usePickingStore();
-  const all = usePickingStore((s) => s.filteredWaves)();
-  const zones = usePickingStore((s) => s.zoneList)();
+  const all = usePickingStore().filteredWaves();
+  const zones = usePickingStore().zoneList();
 
   const total = Math.max(1, Math.ceil(all.length / pageSize));
   const paged = all.slice((page - 1) * pageSize, page * pageSize);
@@ -369,7 +369,7 @@ function WavesView({ onOpen }: { onOpen: (w: Wave) => void }) {
 // ════════════════════════════════════════════════════════════════════════════
 
 function PickFloorView({ onOpenWave }: { onOpenWave: (w: Wave) => void }) {
-  const allActive = usePickingStore((s) => s.activePickTasks)();
+  const allActive = usePickingStore().activePickTasks();
   const waves = usePickingStore((s) => s.waves);
   const pickTask = usePickingStore((s) => s.pickTask);
   const reportShort = usePickingStore((s) => s.reportShort);
@@ -473,7 +473,7 @@ function PickFloorView({ onOpenWave }: { onOpenWave: (w: Wave) => void }) {
 // ════════════════════════════════════════════════════════════════════════════
 
 function PickersView() {
-  const prod = usePickingStore((s) => s.pickerProductivity)();
+  const prod = usePickingStore().pickerProductivity();
   const sorted = [...prod].sort((a, b) => b.picked - a.picked);
   const maxPicked = Math.max(1, ...prod.map((p) => p.picked));
   return (
@@ -830,7 +830,7 @@ export function PickingPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [openWaveId, setOpenWaveId] = useState<string | null>(null);
   const [planMsg, setPlanMsg] = useState<string | null>(null);
-  const kpis = usePickingStore((s) => s.kpis)();
+  const kpis = usePickingStore().kpis();
   const waves = usePickingStore((s) => s.waves);
   const releaseWave = usePickingStore((s) => s.releaseWave);
   const createWaveFromOrder = usePickingStore((s) => s.createWaveFromOrder);

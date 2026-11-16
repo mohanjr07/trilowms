@@ -125,7 +125,7 @@ function UphTrendChart() {
 }
 
 function ShiftBreakdownCard() {
-  const shifts = useLaborStore((s) => s.shiftBreakdown)();
+  const shifts = useLaborStore().shiftBreakdown();
   const maxCount = Math.max(1, ...shifts.map((s) => s.count));
   return (
     <Section title="Shift Headcount" sub="Clocked-in staff & avg UPH by shift" className="h-[240px]">
@@ -150,7 +150,7 @@ function ShiftBreakdownCard() {
 }
 
 function TaskMixChart() {
-  const mix = useLaborStore((s) => s.taskTypeMix)();
+  const mix = useLaborStore().taskTypeMix();
   const data = mix.map((m) => ({ name: TASK_META[m.type].label, count: m.count }));
   return (
     <Section title="Task Allocation" sub="Active workers by task type" className="h-[240px]">
@@ -170,7 +170,7 @@ function TaskMixChart() {
 }
 
 function DepartmentCard() {
-  const depts = useLaborStore((s) => s.departmentStats)();
+  const depts = useLaborStore().departmentStats();
   return (
     <Section title="Department Performance" sub="Headcount, UPH and accuracy by department" className="h-full">
       <div className="divide-y divide-border/40 overflow-y-auto max-h-[300px]">
@@ -189,7 +189,7 @@ function DepartmentCard() {
 }
 
 function OverviewView() {
-  const kpis = useLaborStore((s) => s.kpis)();
+  const kpis = useLaborStore().kpis();
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
@@ -219,9 +219,9 @@ function OverviewView() {
 
 function WorkforceView({ onOpen }: { onOpen: (e: LaborEmployee) => void }) {
   const { filters, setFilters, resetFilters, page, setPage, pageSize } = useLaborStore();
-  const all = useLaborStore((s) => s.filteredEmployees)();
-  const roles = useLaborStore((s) => s.roleList)();
-  const depts = useLaborStore((s) => s.departmentList)();
+  const all = useLaborStore().filteredEmployees();
+  const roles = useLaborStore().roleList();
+  const depts = useLaborStore().departmentList();
 
   const total = Math.max(1, Math.ceil(all.length / pageSize));
   const paged = all.slice((page - 1) * pageSize, page * pageSize);
@@ -396,7 +396,7 @@ function LiveFloorView({ onOpen }: { onOpen: (e: LaborEmployee) => void }) {
 // ════════════════════════════════════════════════════════════════════════════
 
 function PerformanceView({ onOpen }: { onOpen: (e: LaborEmployee) => void }) {
-  const top = useLaborStore((s) => s.topPerformers)();
+  const top = useLaborStore().topPerformers();
   const maxUph = Math.max(1, ...top.map((e) => e.unitsPerHour));
   const avgUph = top.length > 0 ? Math.round(top.reduce((s, e) => s + e.unitsPerHour, 0) / top.length) : 0;
 
@@ -607,7 +607,7 @@ export function LaborPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
   const [balanceMsg, setBalanceMsg] = useState<string | null>(null);
-  const kpis = useLaborStore((s) => s.kpis)();
+  const kpis = useLaborStore().kpis();
   const autoBalance = useLaborStore((s) => s.autoBalance);
 
   const open = (e: LaborEmployee) => setOpenId(e.id);

@@ -82,7 +82,7 @@ function MiniStat({ label, value, tone }: { label: string; value: string; tone?:
 // ════════════════════════════════════════════════════════════════════════════
 
 function DispatchChart() {
-  const funnel = useOutboundStore((s) => s.statusFunnel)();
+  const funnel = useOutboundStore().statusFunnel();
   const data = funnel.map((f) => ({ name: SHIPMENT_STATUS_META[f.status].label, count: f.count }));
   return (
     <Section title="Dispatch Pipeline" sub="Shipments by stage — plan to delivered" className="lg:col-span-2 h-[240px]">
@@ -102,7 +102,7 @@ function DispatchChart() {
 }
 
 function CarrierMixCard() {
-  const mix = useOutboundStore((s) => s.carrierMix)();
+  const mix = useOutboundStore().carrierMix();
   const total = mix.reduce((s, m) => s + m.count, 0) || 1;
   const colors = ["var(--color-primary)", "var(--color-info)", "var(--color-success)", "var(--color-warning)", "#a78bfa", "#fb923c"];
   return (
@@ -125,7 +125,7 @@ function CarrierMixCard() {
 }
 
 function StatusFunnelChart() {
-  const funnel = useOutboundStore((s) => s.statusFunnel)();
+  const funnel = useOutboundStore().statusFunnel();
   const data = funnel.map((f) => ({ status: SHIPMENT_STATUS_META[f.status].label, count: f.count }));
   return (
     <Section title="Shipment Funnel" sub="Shipments across plan-to-deliver flow" className="h-[240px]">
@@ -175,7 +175,7 @@ function DockBoard({ onOpen }: { onOpen: (s: Shipment) => void }) {
 }
 
 function OverviewView({ onOpen }: { onOpen: (s: Shipment) => void }) {
-  const kpis = useOutboundStore((s) => s.kpis)();
+  const kpis = useOutboundStore().kpis();
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
@@ -205,8 +205,8 @@ function OverviewView({ onOpen }: { onOpen: (s: Shipment) => void }) {
 
 function ShipmentsView({ onOpen }: { onOpen: (s: Shipment) => void }) {
   const { filters, setFilters, resetFilters, page, setPage, pageSize } = useOutboundStore();
-  const all = useOutboundStore((s) => s.filteredShipments)();
-  const carriers = useOutboundStore((s) => s.carrierList)();
+  const all = useOutboundStore().filteredShipments();
+  const carriers = useOutboundStore().carrierList();
 
   const total = Math.max(1, Math.ceil(all.length / pageSize));
   const paged = all.slice((page - 1) * pageSize, page * pageSize);
@@ -307,7 +307,7 @@ function ShipmentsView({ onOpen }: { onOpen: (s: Shipment) => void }) {
 // ════════════════════════════════════════════════════════════════════════════
 
 function DispatchView({ onOpen }: { onOpen: (s: Shipment) => void }) {
-  const schedule = useOutboundStore((s) => s.dispatchSchedule)();
+  const schedule = useOutboundStore().dispatchSchedule();
   const { updateStatus } = useOutboundStore();
   return (
     <Section title="Dispatch Schedule" sub={`${schedule.length} shipments planned or staging · earliest first`}>
@@ -361,7 +361,7 @@ function DispatchView({ onOpen }: { onOpen: (s: Shipment) => void }) {
 // ════════════════════════════════════════════════════════════════════════════
 
 function CarriersView() {
-  const perf = useOutboundStore((s) => s.carrierPerformance)();
+  const perf = useOutboundStore().carrierPerformance();
   const maxShip = Math.max(1, ...perf.map((p) => p.shipments));
   return (
     <div className="space-y-5">
@@ -620,7 +620,7 @@ export function OutboundPage() {
   const [tab, setTab] = useState<Tab>("overview");
   const [openId, setOpenId] = useState<string | null>(null);
   const [dispatchMsg, setDispatchMsg] = useState<string | null>(null);
-  const kpis = useOutboundStore((s) => s.kpis)();
+  const kpis = useOutboundStore().kpis();
   const syncFromPacking = useOutboundStore((s) => s.syncFromPacking);
   const shipments = useOutboundStore((s) => s.shipments);
   const sealAndConfirmDispatch = useOutboundStore((s) => s.sealAndConfirmDispatch);

@@ -32,7 +32,6 @@ import { cn } from "@/lib/utils";
 
 interface NotificationItem {
   to: string;
-  search?: Record<string, string>;
   label: string;
   count: number;
   icon: typeof Bell;
@@ -53,19 +52,19 @@ export function NotificationBell() {
   }, []);
 
   // ---- Inventory alerts ----
-  const skuKpis = useSkuStore((s) => s.kpis)();
-  const binKpis = useInvBinStore((s) => s.kpis)();
+  const skuKpis = useSkuStore().kpis();
+  const binKpis = useInvBinStore().kpis();
 
   // ---- Order / module exceptions (same source as the Dashboard's
   // EXCEPTION CENTER panel) ----
-  const inbound = useInboundStore((s) => s.kpis)();
-  const putaway = usePutawayStore((s) => s.kpis)();
-  const picking = usePickingStore((s) => s.kpis)();
-  const packing = usePackingStore((s) => s.kpis)();
-  const outbound = useOutboundStore((s) => s.kpis)();
-  const yard = useYardStore((s) => s.kpis)();
-  const qc = useQCStore((s) => s.kpis)();
-  const orderKpis = useOrdersStore((s) => s.kpis)();
+  const inbound = useInboundStore().kpis();
+  const putaway = usePutawayStore().kpis();
+  const picking = usePickingStore().kpis();
+  const packing = usePackingStore().kpis();
+  const outbound = useOutboundStore().kpis();
+  const yard = useYardStore().kpis();
+  const qc = useQCStore().kpis();
+  const orderKpis = useOrdersStore().kpis();
 
   // ---- PTL / picking ----
   const ptlConnected = usePTLStore((s) => s.connected);
@@ -80,9 +79,9 @@ export function NotificationBell() {
   // `group`/`tone` string-literal fields to plain `string`. Casting the
   // literal itself fixes that.
   const items = ([
-    { to: "/inventory", search: { tab: "sku", filter: "lowStock" }, label: "Low stock SKUs",        count: skuKpis.lowStock,     icon: AlertTriangle, group: "Inventory", tone: "warning" },
-    { to: "/inventory", search: { tab: "sku", filter: "onHold" }, label: "SKUs on hold",           count: skuKpis.onHold,       icon: ShieldCheck,   group: "Inventory", tone: "warning" },
-    { to: "/inventory", search: { tab: "binmap", filter: "criticalBins" }, label: "Critical bins (≥90% full)", count: binKpis.criticalBins, icon: Boxes,      group: "Inventory", tone: "destructive" },
+    { to: "/inventory", label: "Low stock SKUs",        count: skuKpis.lowStock,     icon: AlertTriangle, group: "Inventory", tone: "warning" },
+    { to: "/inventory", label: "SKUs on hold",           count: skuKpis.onHold,       icon: ShieldCheck,   group: "Inventory", tone: "warning" },
+    { to: "/inventory", label: "Critical bins (≥90% full)", count: binKpis.criticalBins, icon: Boxes,      group: "Inventory", tone: "destructive" },
 
     { to: "/orders",    label: "New orders",             count: orderKpis.newOrders,  icon: ShoppingCart,  group: "Orders" },
     { to: "/orders",    label: "Order exceptions",        count: orderKpis.exceptions, icon: ShoppingCart,  group: "Orders", tone: "destructive" },
@@ -141,7 +140,6 @@ export function NotificationBell() {
                       <Link
                         key={i.label}
                         to={i.to}
-                        search={i.search as never}
                         onClick={() => setOpen(false)}
                         className="flex items-center gap-2.5 px-3 py-2 hover:bg-accent/20 transition-colors"
                       >

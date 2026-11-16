@@ -195,9 +195,9 @@ const SEED_YARD_DOCKS: YardDock[] = YARD_DOCKS.map((d) => ({
 export const useYardStore = create<YardState>()(
   persist(
     (set, get) => ({
-      trucks: [],
+      trucks: buildSeedTrucks(),
       docks: SEED_YARD_DOCKS,
-      appointments: [],
+      appointments: buildSeedAppointments(),
       filters: DEFAULT_FILTERS,
       page: 1,
 
@@ -206,6 +206,20 @@ export const useYardStore = create<YardState>()(
         // Inbound trucks register an arrival in the Inbound module so receiving sees them.
         if (truck.direction === "INBOUND") {
           const inbound = useInboundStore.getState();
+          // Reuse the pre-booked ASN for this carrier (one with lines, not yet docked) rather
+          // than creating a second, empty ASN for the same truck.
+          if (!truck.asnId) {
+            const booked = inbound.asns.find(
+              (a) => ["PENDING", "SCHEDULED"].includes(a.status) && !a.dockId && a.lines.length > 0 &&
+                a.carrierName.trim().toLowerCase() === truck.carrier.trim().toLowerCase()
+            );
+            if (booked) {
+              truck.asnId = booked.id;
+              useInboundStore.setState((st) => ({
+                asns: st.asns.map((a) => a.id === booked.id ? { ...a, truckNumber: truck.truckNumber, trailerNumber: truck.plateNumber } : a),
+              }));
+            }
+          }
           if (truck.asnId) {
             inbound.updateAsnStatus(truck.asnId, "ARRIVED");
           } else {
@@ -240,7 +254,10 @@ export const useYardStore = create<YardState>()(
         if (!dock) return;
         const truck = get().trucks.find((t) => t.id === truckId);
         if (truck?.direction === "INBOUND" && truck.asnId) {
-          useInboundStore.getState().updateAsnStatus(truck.asnId, "DOCKED");
+          const inb = useInboundStore.getState();
+          const door = inb.dockDoors.find((d) => d.code === dock.code);
+          if (door && door.status === "AVAILABLE") inb.dockTruck(truck.asnId, door.id);
+          else inb.updateAsnStatus(truck.asnId, "DOCKED");
         }
         set((s) => ({
           trucks: s.trucks.map((t) =>
