@@ -228,6 +228,8 @@ interface QCState {
 
 let _qcSeq = 1000;
 function nextInspectionId() {
+  const max = useQCStore.getState().inspections.reduce((m, i) => Math.max(m, parseInt(i.id.replace(/\D/g, ""), 10) || 0), 0);
+  _qcSeq = Math.max(_qcSeq, max);
   return `QC-${++_qcSeq}`;
 }
 
@@ -252,8 +254,8 @@ function pickInspector(inspections: QCInspection[]): { id: string; name: string 
 export const useQCStore = create<QCState>()(
   persist(
     (set, get) => ({
-      inspections: [],
-      holds: [],
+      inspections: buildSeedInspections(),
+      holds: buildSeedHolds(),
       filters: DEFAULT_FILTERS,
       page: 1,
       pageSize: 15,

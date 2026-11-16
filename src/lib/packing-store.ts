@@ -112,9 +112,18 @@ const SERVICE_LEVEL_BY_PRIORITY: Record<PackPriority, string> = {
 };
 
 let _cartonSeq = 1;
-const nextCartonCode = () => `CTN-${String(_cartonSeq++).padStart(5, "0")}`;
+const nextCartonCode = () => {
+  const max = usePackingStore.getState().orders.reduce(
+    (m, o) => o.cartons.reduce((mm, c) => Math.max(mm, parseInt(c.cartonCode.replace(/\D/g, ""), 10) || 0), m), 0);
+  _cartonSeq = Math.max(_cartonSeq, max + 1);
+  return `CTN-${String(_cartonSeq++).padStart(5, "0")}`;
+};
 let _packingSlipSeq = 1;
-const nextPackingSlip = () => `PS-${String(_packingSlipSeq++).padStart(5, "0")}`;
+const nextPackingSlip = () => {
+  const max = usePackingStore.getState().orders.reduce((m, o) => Math.max(m, parseInt((o.packingSlip ?? "").replace(/\D/g, ""), 10) || 0), 0);
+  _packingSlipSeq = Math.max(_packingSlipSeq, max + 1);
+  return `PS-${String(_packingSlipSeq++).padStart(5, "0")}`;
+};
 
 // ─── Store ────────────────────────────────────────────────────────────────────
 

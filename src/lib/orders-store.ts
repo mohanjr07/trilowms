@@ -79,7 +79,13 @@ export interface OrderFilters { search: string; status: OrderStatus | ""; custom
 const DEFAULT_FILTERS: OrderFilters = { search: "", status: "", customer: "", priority: "" };
 
 let _seq = 1000;
-const nextOrderNo = () => `ORD-${(++_seq).toString().padStart(5, "0")}`;
+// Counters live in memory but orders are persisted, so after a reload derive the next number
+// from what already exists — otherwise a new order re-uses ORD-01001.
+const nextOrderNo = () => {
+  const max = useOrdersStore.getState().orders.reduce((m, o) => Math.max(m, parseInt(o.orderNumber.replace(/\D/g, ""), 10) || 0), 0);
+  _seq = Math.max(_seq, max);
+  return `ORD-${(++_seq).toString().padStart(5, "0")}`;
+};
 
 interface OrdersState {
   orders: Order[];

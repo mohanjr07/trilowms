@@ -177,7 +177,11 @@ export interface CreateRmaInput {
 }
 
 let _rmaSeq = 3000;
-const nextRmaId = () => `RMA-${++_rmaSeq}`;
+const nextRmaId = () => {
+  const max = useReturnsStore.getState().rmas.reduce((m, r) => Math.max(m, parseInt(r.id.replace(/\D/g, ""), 10) || 0), 0);
+  _rmaSeq = Math.max(_rmaSeq, max);
+  return `RMA-${++_rmaSeq}`;
+};
 
 interface ReturnsState {
   rmas: RMA[];
@@ -208,7 +212,7 @@ interface ReturnsState {
 export const useReturnsStore = create<ReturnsState>()(
   persist(
     (set, get) => ({
-      rmas: [],
+      rmas: buildSeedRMAs(),
       filters: DEFAULT_FILTERS,
       page: 1,
       pageSize: 15,

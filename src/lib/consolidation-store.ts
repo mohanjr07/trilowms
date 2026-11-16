@@ -66,7 +66,11 @@ export const LINE_STATUS_META: Record<LineStatus, { label: string; color: string
 // ─── Lane code generator ──────────────────────────────────────────────────────
 
 let _laneSeq = 1;
-const nextLaneCode = () => `LANE-${String(_laneSeq++).padStart(3, "0")}`;
+const nextLaneCode = () => {
+  const max = useConsolidationStore.getState().lanes.reduce((m, l) => Math.max(m, parseInt(l.laneCode.replace(/\D/g, ""), 10) || 0), 0);
+  _laneSeq = Math.max(_laneSeq, max + 1);
+  return `LANE-${String(_laneSeq++).padStart(3, "0")}`;
+};
 
 // ─── Derive lines from pick tasks ─────────────────────────────────────────────
 

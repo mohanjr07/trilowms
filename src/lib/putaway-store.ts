@@ -223,6 +223,8 @@ interface PutawayState {
 
 let _seq = 200;
 function nextPtwId() {
+  const max = usePutawayStore.getState().tasks.reduce((m, t) => Math.max(m, (parseInt(t.id.replace(/\D/g, ""), 10) || 5000) - 5000), 0);
+  _seq = Math.max(_seq, max);
   return `PTW-${5000 + ++_seq}`;
 }
 

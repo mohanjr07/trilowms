@@ -360,6 +360,8 @@ interface InboundState {
 let _asnSeq = 100;
 function nextAsnId() {
   const d = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const max = useInboundStore.getState().asns.reduce((m, a) => Math.max(m, parseInt(a.id.slice(-4), 10) || 0), 0);
+  _asnSeq = Math.max(_asnSeq, max);
   return `ASN-${d}-${String(++_asnSeq).padStart(4, "0")}`;
 }
 
