@@ -22,6 +22,7 @@ import { usePickingStore } from "@/lib/picking-store";
 import { PageHeader, KPICard } from "@/components/wms/Primitives";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { cn } from "@/lib/utils";
+import { normalizeScan, skuMatches, scanBeep, useScanListener } from "@/lib/scan";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -359,6 +360,47 @@ function CheckLineRow({ laneId, line }: { laneId: string; line: ConsolidationLin
   );
 }
 
+function ScanCheckBar({ lanes, lane, onSelect }: { lanes: ConsolidationLane[]; lane: ConsolidationLane | null; onSelect: (id: string) => void }) {
+  const scanArrival = useConsolidationStore((s) => s.scanArrival);
+  const [value, setValue] = useState("");
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const sq = (v: string) => normalizeScan(v).replace(/\s+/g, "").toLowerCase();
+
+  const handle = (raw: string) => {
+    const code = normalizeScan(raw);
+    if (!code) return;
+    // 1) a lane label switches to that lane
+    const byLane = lanes.find((l) => sq(l.laneCode) === sq(code));
+    if (byLane) { onSelect(byLane.id); scanBeep(true); setMsg({ ok: true, text: `Lane ${byLane.laneCode} selected.` }); return; }
+    if (!lane) { scanBeep(false); setMsg({ ok: false, text: "Scan a lane label first." }); return; }
+    // 2) a tote id, or 3) a SKU / barcode, marks the matching pending line as arrived
+    const line = lane.lines.find((l) => l.status === "PENDING" && l.toteId && sq(l.toteId) === sq(code))
+      ?? lane.lines.find((l) => l.status === "PENDING" && skuMatches(code, l.skuCode));
+    if (!line) {
+      const done = lane.lines.find((l) => l.status === "ARRIVED" && ((l.toteId && sq(l.toteId) === sq(code)) || skuMatches(code, l.skuCode)));
+      scanBeep(false);
+      setMsg({ ok: false, text: done ? `${done.skuCode} has already arrived.` : `${code} is not waiting on lane ${lane.laneCode}.` });
+      return;
+    }
+    scanArrival(lane.id, line.id);
+    scanBeep(true);
+    setMsg({ ok: true, text: `${line.skuCode} arrived (${line.qtyExpected} ${line.uom}${line.toteId ? `, tote ${line.toteId}` : ""}).` });
+  };
+  useScanListener(handle, true, false);
+
+  return (
+    <div className={cn("rounded-lg border p-3 mb-3", msg ? (msg.ok ? "border-emerald-500/40 bg-emerald-500/5" : "border-red-500/40 bg-red-500/5") : "border-primary/30 bg-primary/5")}>
+      <div className="flex items-center gap-2 mb-2 text-xs font-semibold"><ScanLine className="h-4 w-4 text-primary" /> Scan to check in <span className="text-muted-foreground font-normal">lane label, tote ID or SKU</span></div>
+      <Input
+        value={value} onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") { handle(value); setValue(""); } }}
+        placeholder="Scan lane, tote or item…" className="h-9 text-sm font-mono"
+      />
+      {msg && <div className={cn("text-xs mt-2", msg.ok ? "text-emerald-400" : "text-red-400")}>{msg.text}</div>}
+    </div>
+  );
+}
+
 function ConsolidationCheckView({ onOpen }: { onOpen: (l: ConsolidationLane) => void }) {
   const readyLanes = useConsolidationStore().readyLanes();
   const stagingLanes = useConsolidationStore().stagingLanes();
@@ -436,6 +478,7 @@ function ConsolidationCheckView({ onOpen }: { onOpen: (l: ConsolidationLane) => 
           }
         >
           <div className="p-4 space-y-2">
+            <ScanCheckBar lanes={allActionable} lane={lane} onSelect={setActiveId} />
             <div className="grid grid-cols-3 gap-2 mb-4">
               <MiniStat label="Lines"    value={`${lane.totalLines}`} />
               <MiniStat label="Arrived"  value={`${lane.arrivedLines}`}     tone="text-emerald-400" />

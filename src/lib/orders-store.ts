@@ -152,7 +152,7 @@ export const useOrdersStore = create<OrdersState>()(
           customerCode: data.customer.slice(0, 3).toUpperCase() + "-" + Math.floor(100 + Math.random() * 899),
           channel: data.channel,
           shippingMethod: data.shippingMethod,
-          carrier: data.carrier ?? null,
+          carrier: data.carrier ?? "UPS",
           priority: data.priority,
           status: "NEW",
           lines,

@@ -10,7 +10,7 @@ import {
   ScanLine, Check, X, ChevronRight, Package, MapPin, AlertTriangle, Battery,
   Wifi, SignalHigh, Minus, Plus, ArrowLeft, Sparkles, Boxes, PartyPopper, RefreshCw,
 } from "lucide-react";
-import { usePutawayStore, type PutawayTask } from "@/lib/putaway-store";
+import { usePutawayStore, binFit, type PutawayTask } from "@/lib/putaway-store";
 import { useSlottingStore } from "@/lib/slotting-store";
 import { skuMatches, binMatches, scanBeep } from "@/lib/scan";
 import { cn } from "@/lib/utils";
@@ -53,6 +53,7 @@ export function HandheldPutawayScreen() {
   const [scan, setScan] = useState("");
   const [flash, setFlash] = useState<"none" | "ok" | "err">("none");
   const [qty, setQty] = useState(0);
+  const [msg, setMsg] = useState<string | null>(null);
   const [targetBin, setTargetBin] = useState<{ id: string; code: string } | null>(null);
 
   const task = useMemo(() => tasks.find((t) => t.id === taskId) ?? null, [tasks, taskId]);
@@ -84,6 +85,8 @@ export function HandheldPutawayScreen() {
 
   const confirmPutaway = () => {
     if (!task || !targetBin) return;
+    const fit = binFit(targetBin.code, task.quantity);
+    if (!fit.ok) { setFlash("err"); scanBeep(false); setMsg(fit.reason); return; }
     completeTask(task.id, targetBin.id, targetBin.code, 2.4);
     setFlash("ok"); setScan(""); setTaskId(null); setTargetBin(null);
     setStep(queue.filter((t) => t.id !== task.id).length > 0 ? "tasks" : "done");
@@ -205,6 +208,7 @@ export function HandheldPutawayScreen() {
             <input value={scan} onChange={(e) => setScan(e.target.value)} onKeyDown={(e) => e.key === "Enter" && tryScan("bin", "qty")}
               placeholder={targetBin?.code ?? "bin"} autoFocus className="w-full bg-neutral-950 border border-neutral-700 rounded-xl px-3 py-3 text-white font-mono text-center text-lg focus:outline-none focus:border-amber-400" />
             {flash === "err" && <div className="text-red-400 text-xs mt-2 text-center">Wrong bin — expected {targetBin?.code}</div>}
+            {msg && <div className="text-red-400 text-xs mt-2 text-center">{msg}</div>}
           </div>
         )}
         {step === "qty" && (

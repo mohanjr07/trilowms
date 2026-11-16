@@ -65,6 +65,15 @@ export interface PutawayTask {
   cycleTime: number | null;        // minutes (actual)
 }
 
+/** Bin capacity check: does `qty` more units fit in the bin? Unknown bins pass. */
+export function binFit(binCode: string, qty: number): { ok: boolean; free: number; reason: string } {
+  const bin = useInvBinStore.getState().getBinByCode(binCode);
+  if (!bin || !bin.capacity) return { ok: true, free: Infinity, reason: "" };
+  const free = Math.max(0, bin.capacity - bin.quantity);
+  if (qty <= free) return { ok: true, free, reason: "" };
+  return { ok: false, free, reason: `Bin ${binCode} has room for ${free} (capacity ${bin.capacity}); task needs ${qty}` };
+}
+
 // ─── Seed data ────────────────────────────────────────────────────────────────
 
 const OPERATORS = [
@@ -347,6 +356,13 @@ export const usePutawayStore = create<PutawayState>()(
 
       completeTask: (taskId, actualBinId, actualBinCode, cycleTime) => {
         const t = get().tasks.find((x) => x.id === taskId);
+        if (t) {
+          const fit = binFit(actualBinCode, t.quantity);
+          if (!fit.ok) {
+            set((s) => ({ tasks: s.tasks.map((x) => x.id === taskId ? { ...x, status: "BLOCKED" as PutawayStatus, blockedReason: fit.reason } : x) }));
+            return;
+          }
+        }
         set((s) => ({
           tasks: s.tasks.map((t) =>
             t.id === taskId

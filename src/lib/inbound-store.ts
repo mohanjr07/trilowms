@@ -669,12 +669,21 @@ export const useInboundStore = create<InboundState>()(
         const isHeld = (skuCode: string, lotNumber: string | null) =>
           activeHolds.some((h) => h.skuCode === skuCode && (!h.lotNumber || h.lotNumber === lotNumber));
 
+        // QC gate: stock can't be put away until its inbound inspection has finished
+        // (passed / conditional pass). Open or failed inspections keep it in receiving.
+        const inspections = useQCStore.getState().inspections;
+        const qcBlocked = (asnId: string, skuCode: string, lot: string | null) =>
+          inspections.some((i) =>
+            i.type === "INBOUND" && i.sourceRef === asnId && i.skuCode === skuCode &&
+            (!lot || !i.lotNumber || i.lotNumber === lot) &&
+            ["QUEUED", "IN_PROGRESS", "SAMPLED", "PENDING_REVIEW", "HOLD", "FAILED"].includes(i.status));
+
         const out: { line: AsnLine; asnNumber: string; sourceDock: string | null }[] = [];
         for (const a of get().asns) {
           if (!["PARTIAL", "RECEIVED", "DISCREPANCY", "CLOSED"].includes(a.status)) continue;
           for (const l of a.lines) {
             const good = l.receivedQty - l.damagedQty - l.rejectedQty;
-            if (["RECEIVED", "OVER_RECEIPT"].includes(l.status) && good > 0 && !isHeld(l.skuCode, l.lotNumber)) {
+            if (["RECEIVED", "OVER_RECEIPT"].includes(l.status) && good > 0 && !isHeld(l.skuCode, l.lotNumber) && !qcBlocked(a.id, l.skuCode, l.lotNumber)) {
               out.push({ line: l, asnNumber: a.asnNumber, sourceDock: a.dockCode ?? null });
             }
           }
@@ -749,6 +758,8 @@ export const useInboundStore = create<InboundState>()(
         return {
           ...current,
           ...p,
+          // Drop leftover empty placeholder ASNs (no lines, never started) from older gate-ins.
+          asns: (p.asns ?? current.asns).filter((a) => !(a.lines.length === 0 && ["PENDING", "SCHEDULED"].includes(a.status) && !a.dockId)),
           dockDoors: p.dockDoors && p.dockDoors.length > 0 ? p.dockDoors : current.dockDoors,
         };
       },
