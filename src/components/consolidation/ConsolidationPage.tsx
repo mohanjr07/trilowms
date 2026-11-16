@@ -150,7 +150,7 @@ function ReadyLanesAlert({ onOpen }: { onOpen: (l: ConsolidationLane) => void })
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs text-primary">{lane.laneCode}</span>
-                <span className="text-xs text-muted-foreground truncate">{lane.orderId}</span>
+                <span className="text-xs text-muted-foreground truncate">{lane.orderNumber ?? lane.orderId}</span>
               </div>
               <div className="text-[11px] text-muted-foreground">
                 {lane.totalLines} lines · {lane.hasShortage ? "has shortage" : "all arrived"}
@@ -202,7 +202,7 @@ function LaneCard({ lane, onClick }: { lane: ConsolidationLane; onClick: () => v
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-mono text-xs font-bold text-primary">{lane.laneCode}</span>
-            <span className="text-xs text-muted-foreground">{lane.orderId}</span>
+            <span className="text-xs text-muted-foreground">{lane.orderNumber ?? lane.orderId}</span>
             {lane.hasShortage && (
               <span className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded">Shortage</span>
             )}
@@ -246,7 +246,7 @@ function StagingLanesView({ onOpen }: { onOpen: (l: ConsolidationLane) => void }
       if (statusFilter && l.status !== statusFilter) return false;
       if (search) {
         const q = search.toLowerCase();
-        return l.laneCode.toLowerCase().includes(q) || l.orderId.toLowerCase().includes(q) || l.waveNumber.toLowerCase().includes(q);
+        return l.laneCode.toLowerCase().includes(q) || (l.orderNumber ?? l.orderId).toLowerCase().includes(q) || l.waveNumber.toLowerCase().includes(q);
       }
       return true;
     });
@@ -392,7 +392,7 @@ function ConsolidationCheckView({ onOpen }: { onOpen: (l: ConsolidationLane) => 
                   <span className="font-mono text-xs text-primary">{l.laneCode}</span>
                   <LaneStatusBadge status={l.status} />
                 </div>
-                <div className="text-sm mt-1 truncate text-muted-foreground">{l.orderId}</div>
+                <div className="text-sm mt-1 truncate text-muted-foreground">{l.orderNumber ?? l.orderId}</div>
                 <div className="flex items-center gap-2 mt-2">
                   <Progress value={prog} className="h-1 flex-1" />
                   <span className="text-[10px] font-mono tabular-nums w-8 text-right">{prog}%</span>
@@ -406,7 +406,7 @@ function ConsolidationCheckView({ onOpen }: { onOpen: (l: ConsolidationLane) => 
       {lane ? (
         <Section
           title={`Order Check · ${lane.laneCode}`}
-          sub={`${lane.orderId} · Wave ${lane.waveNumber}`}
+          sub={`${lane.orderNumber ?? lane.orderId} · Wave ${lane.waveNumber}`}
           actions={
             <div className="flex items-center gap-2">
               <div className={cn(
@@ -497,7 +497,7 @@ function MovedView() {
               return (
                 <tr key={lane.id} className="hover:bg-accent/15">
                   <td className="py-2.5 px-3 font-mono text-xs text-primary">{lane.laneCode}</td>
-                  <td className="py-2.5 px-3 font-mono text-xs text-muted-foreground">{lane.orderId}</td>
+                  <td className="py-2.5 px-3 font-mono text-xs text-muted-foreground">{lane.orderNumber ?? lane.orderId}</td>
                   <td className="py-2.5 px-3 font-mono text-xs">
                     {lane.waveNumber}
                     {orphaned && <span className="ml-1.5 text-[9px] text-amber-400 uppercase">stale</span>}
@@ -567,7 +567,7 @@ function LaneDetailDrawer({ laneId, onClose }: { laneId: string | null; onClose:
               </span>
             )}
           </div>
-          <div className="text-sm text-muted-foreground mt-1">{lane.orderId} · Wave {lane.waveNumber}</div>
+          <div className="text-sm text-muted-foreground mt-1">{lane.orderNumber ?? lane.orderId} · Wave {lane.waveNumber}</div>
         </div>
       </div>
 

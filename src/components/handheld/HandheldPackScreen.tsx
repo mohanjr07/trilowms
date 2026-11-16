@@ -40,7 +40,7 @@ const bigBtn = (extra?: string) => cn("w-full min-h-[60px] rounded-2xl font-semi
 
 export function HandheldPackScreen() {
   const orders = usePackingStore((s) => s.orders);
-  const { syncFromConsolidation, createCarton, scanCartonItem, closeCarton, completeOrder } = usePackingStore();
+  const { syncFromConsolidation, createCarton, scanCartonItem, closeCarton, completeOrder, labelCarton, manifestOrder } = usePackingStore();
 
   const [orderId, setOrderId] = useState<string | null>(null);
   const [step, setStep] = useState<Step>("queue");
@@ -82,10 +82,12 @@ export function HandheldPackScreen() {
   const closeAndComplete = () => {
     if (!order || !carton) return;
     closeCarton(order.id, carton.id, weight);
+    // "Close carton & label": generate the carrier label here so the carton is ready to ship.
+    labelCarton(order.id, carton.id, `1Z${Math.floor(100000000 + Math.random() * 899999999)}`);
     const fresh = usePackingStore.getState().orders.find((o) => o.id === order.id);
     const stillOpen = fresh?.lines.some((l) => l.qtyPacked < l.qtyRequired);
     if (stillOpen) { createCarton(order.id); setWeight(0); setStep("pack"); setFlash("ok"); }
-    else { completeOrder(order.id); setOrderId(null); setWeight(0); setStep(queue.filter((o) => o.id !== order.id).length > 0 ? "queue" : "done"); }
+    else { completeOrder(order.id); manifestOrder(order.id); setOrderId(null); setWeight(0); setStep(queue.filter((o) => o.id !== order.id).length > 0 ? "queue" : "done"); }
   };
 
   // ── QUEUE ─────────────────────────────────────────────────────────────────

@@ -30,6 +30,8 @@ export interface ConsolidationLine {
 export interface ConsolidationLane {
   id: string;
   orderId: string;
+  /** Human-readable order number for display (orderId stays the internal id used for lookups). */
+  orderNumber?: string;
   waveId: string;
   waveNumber: string;
   status: LaneStatus;
@@ -154,6 +156,7 @@ export const useConsolidationStore = create<ConsolidationState>()(
           return {
             id: `CLANE-${wave.id}`,
             orderId: wave.sourceOrderId ?? wave.tasks[0]?.orderId ?? wave.id,
+            orderNumber: wave.tasks[0]?.orderId ?? wave.sourceOrderId ?? wave.id,
             waveId: wave.id,
             waveNumber: wave.waveNumber,
             status: laneStatus,
