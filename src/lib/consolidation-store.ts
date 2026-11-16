@@ -259,6 +259,21 @@ export const useConsolidationStore = create<ConsolidationState>()(
     {
       name: "trilowms-consolidation-v1",
       partialize: (s) => ({ lanes: s.lanes, lastSyncAt: s.lastSyncAt }),
+      // Older builds could reuse a lane code after a reload. Give later duplicates a fresh code.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<ConsolidationState>;
+        const lanes = [...(p.lanes ?? current.lanes)];
+        const num = (l: ConsolidationLane) => parseInt(l.laneCode.replace(/\D/g, ""), 10) || 0;
+        let max = lanes.reduce((m, l) => Math.max(m, num(l)), 0);
+        const seen = new Set<string>();
+        const fixed = lanes.map((l) => {
+          if (!seen.has(l.laneCode)) { seen.add(l.laneCode); return l; }
+          const c = `LANE-${String(++max).padStart(3, "0")}`;
+          seen.add(c);
+          return { ...l, laneCode: c };
+        });
+        return { ...current, ...p, lanes: fixed };
+      },
     },
   ),
 );

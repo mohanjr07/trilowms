@@ -368,6 +368,23 @@ export const useOrdersStore = create<OrdersState>()(
       customerList: () => Array.from(new Set(get().orders.map((o) => o.customer))).sort(),
       allocatableOrders: () => get().orders.filter((o) => o.status === "NEW"),
     }),
-    { name: "trilowms-orders-v2" },
+    {
+      name: "trilowms-orders-v2",
+      // Older builds could reuse an order number after a reload. Give later duplicates a fresh number.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<OrdersState>;
+        const orders = [...(p.orders ?? current.orders)];
+        const num = (o: Order) => parseInt(o.orderNumber.replace(/\D/g, ""), 10) || 0;
+        let max = orders.reduce((m, o) => Math.max(m, num(o)), 0);
+        const seen = new Set<string>();
+        const fixed = orders.slice().reverse().map((o) => {
+          if (!seen.has(o.orderNumber)) { seen.add(o.orderNumber); return o; }
+          const n = `ORD-${String(++max).padStart(5, "0")}`;
+          seen.add(n);
+          return { ...o, orderNumber: n };
+        }).reverse();
+        return { ...current, ...p, orders: fixed };
+      },
+    },
   ),
 );

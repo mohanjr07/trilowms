@@ -74,7 +74,7 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     label: "Inbound Supervisor",
     color: "text-cyan-400",
     bgColor: "bg-cyan-400/15 border-cyan-400/30",
-    allowedRoutes: ["/", "/inbound", "/putaway", "/scan-putaway", "/yard"],
+    allowedRoutes: ["/", "/inbound", "/putaway", "/scan-putaway", "/yard", "/qc"],
     defaultRoute: "/inbound",
     dashboardType: "inbound",
   },
