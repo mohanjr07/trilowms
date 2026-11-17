@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { supabase } from "./supabase";
+import { supabase, supabaseConfigured } from "./supabase";
 import {
   warehouse as defaultWarehouse,
   type Warehouse,
@@ -138,6 +138,7 @@ export const useEditorStore = create<EditorState>()(
         isHydrating: false,
         syncError: null,
         _loadFromCloud: async () => {
+          if (!supabaseConfigured) { rawSet({ isHydrating: false }); return; }
           rawSet({ isHydrating: true, syncError: null });
           try {
             // Fetch the single snapshot row (we store everything in one row keyed by id=1)
@@ -164,6 +165,10 @@ export const useEditorStore = create<EditorState>()(
           }
         },
         _saveToCloud: async () => {
+          if (!supabaseConfigured) {
+            rawSet({ syncError: "Cloud sync is not configured (set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY). Saved in this browser only.", isDirty: false });
+            return;
+          }
           const { warehouses, activeId } = get();
           rawSet({ isSaving: true, syncError: null });
           try {

@@ -3,13 +3,14 @@
  */
 
 import { useState } from "react";
-import { Settings, Users, Shield, Warehouse, Key, ChevronRight, Eye, EyeOff } from "lucide-react";
+import { Settings, Users, Shield, Warehouse, Key, ChevronRight, Eye, EyeOff, Database, Loader2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DEMO_USERS, ROLE_DEFINITIONS, type DemoUser, type UserRole } from "@/lib/auth-store";
 import { PageHeader, KPICard, Panel } from "@/components/wms/Primitives";
+import { seedDemoData } from "@/lib/demo-seed";
 import { cn } from "@/lib/utils";
 
 function AdminKPIs() {
@@ -251,6 +252,50 @@ function WarehouseConfig() {
   );
 }
 
+function DemoDataPanel() {
+  const [state, setState] = useState<"idle" | "loading" | "done">("idle");
+  const [summary, setSummary] = useState<ReturnType<typeof seedDemoData> | null>(null);
+
+  const handleLoad = () => {
+    setState("loading");
+    // Let the button paint its loading state before the (synchronous) seed
+    // runs — it touches every store in one tick, which is fast but still
+    // worth a frame of feedback.
+    setTimeout(() => {
+      const result = seedDemoData();
+      setSummary(result);
+      setState("done");
+    }, 150);
+  };
+
+  return (
+    <Panel title="DEMO DATA">
+      <p className="text-xs text-muted-foreground mb-3">
+        Populate every module — SKUs, stock, inbound ASNs, putaway, orders, picking waves,
+        consolidation, packing and outbound — with realistic, internally-consistent demo
+        data. Orders are actually run through allocation, picking, consolidation and packing
+        using the same actions a warehouse worker's screen would call, so the numbers match
+        across modules. Safe to run again at any time — it resets the order pipeline and
+        stock ledger before reloading.
+      </p>
+      <Button onClick={handleLoad} disabled={state === "loading"} className="gap-2">
+        {state === "loading" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Database className="h-3.5 w-3.5" />}
+        {state === "loading" ? "Loading demo data…" : "Load Demo Data"}
+      </Button>
+      {state === "done" && summary && (
+        <div className="mt-3 flex items-start gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 p-3 text-xs">
+          <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+          <div className="text-emerald-300">
+            Loaded {summary.skus} SKUs, stock for {summary.stockSkus} SKUs, {summary.orders} orders,{" "}
+            {summary.waves} pick waves, {summary.lanes} consolidation lanes, {summary.packOrders} pack
+            orders, and {summary.shipments} outbound shipments. Reload any module page to see it.
+          </div>
+        </div>
+      )}
+    </Panel>
+  );
+}
+
 function SystemInfo() {
   const checks = [
     { name: "Database Connection", status: "OK", detail: "Supabase - latency 12ms" },
@@ -306,7 +351,7 @@ export function AdminPage() {
           <TabsContent value="users" className="mt-4"><UsersPanel /></TabsContent>
           <TabsContent value="roles" className="mt-4"><RolesPanel /></TabsContent>
           <TabsContent value="warehouse" className="mt-4"><WarehouseConfig /></TabsContent>
-          <TabsContent value="system" className="mt-4"><SystemInfo /></TabsContent>
+          <TabsContent value="system" className="mt-4 space-y-5"><DemoDataPanel /><SystemInfo /></TabsContent>
         </Tabs>
       </div>
     </div>

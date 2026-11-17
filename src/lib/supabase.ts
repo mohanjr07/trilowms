@@ -1,6 +1,18 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = "https://pbfxorfiwhmzinkwumwt.supabase.co";
-const supabaseAnonKey = "sb_publishable_tA9Hl-rwctqQDwvFVMYCLQ_TE4rwF_o";
+// Connection details come from the build environment, never from source code:
+//   VITE_SUPABASE_URL       e.g. https://abcdxyz.supabase.co
+//   VITE_SUPABASE_ANON_KEY  the project's anon / publishable key
+// Set them in .env for local work and as build variables in Cloudflare.
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+/** False when the variables are missing; the app then runs on browser storage only. */
+export const supabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+
+// createClient throws on an empty URL, so a harmless placeholder is used when
+// unconfigured. Callers must check supabaseConfigured before using it.
+export const supabase = createClient(
+  supabaseUrl || "http://localhost:54321",
+  supabaseAnonKey || "not-configured",
+);
