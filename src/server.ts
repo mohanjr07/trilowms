@@ -66,8 +66,34 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
   return brandedErrorResponse();
 }
 
+// Some networks (e.g. several Indian ISPs) block *.supabase.co. The browser instead calls
+// this site's own /sb/rest/v1/... path and the Worker forwards it to Supabase from
+// Cloudflare's network. Only the REST data API is forwarded.
+const SUPABASE_UPSTREAM = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/+$/, "");
+
+async function proxySupabase(request: Request, url: URL): Promise<Response> {
+  if (!SUPABASE_UPSTREAM) return new Response("Supabase is not configured", { status: 503 });
+  const target = SUPABASE_UPSTREAM + url.pathname.slice(3) + url.search; // strip "/sb"
+  const headers = new Headers(request.headers);
+  for (const h of ["host", "origin", "referer", "cf-connecting-ip", "x-forwarded-for", "x-forwarded-host", "x-real-ip"]) headers.delete(h);
+  const upstream = await fetch(target, {
+    method: request.method,
+    headers,
+    body: ["GET", "HEAD"].includes(request.method) ? undefined : request.body,
+    redirect: "manual",
+  });
+  const out = new Headers(upstream.headers);
+  out.set("cache-control", "no-store");
+  return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers: out });
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    const url = new URL(request.url);
+    if (url.pathname.startsWith("/sb/rest/v1/")) {
+      try { return await proxySupabase(request, url); }
+      catch (error) { console.error(error); return new Response("Upstream unreachable", { status: 502 }); }
+    }
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);

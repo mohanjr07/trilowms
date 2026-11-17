@@ -12,7 +12,11 @@ export const supabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
 // createClient throws on an empty URL, so a harmless placeholder is used when
 // unconfigured. Callers must check supabaseConfigured before using it.
+// In the browser, talk to this site's own /sb proxy (see src/server.ts) because some networks
+// block *.supabase.co directly. On the server, use the real address.
+const effectiveUrl = typeof window !== "undefined" && supabaseUrl ? `${window.location.origin}/sb` : supabaseUrl;
+
 export const supabase = createClient(
-  supabaseUrl || "http://localhost:54321",
+  effectiveUrl || "http://localhost:54321",
   supabaseAnonKey || "not-configured",
 );
