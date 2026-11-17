@@ -751,6 +751,15 @@ export const usePickingStore = create<PickingState>()(
       name: "trilowms-picking-v4",
       storage: cloudJSONStorage,
       partialize: (s) => ({ waves: s.waves, shortages: s.shortages }),
+      // Drop the built-in demo waves (WAVE-300..317, not tied to any real order) so
+      // "Open Picks" only counts work that really exists.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<PickingState>;
+        const isDemo = (w: Wave) => w.sourceOrderId == null && /^WAVE-3\d\d$/.test(w.id);
+        const waves = (p.waves ?? current.waves).filter((w) => !isDemo(w));
+        const ids = new Set(waves.map((w) => w.id));
+        return { ...current, ...p, waves, shortages: (p.shortages ?? current.shortages).filter((x) => ids.has(x.waveId)) };
+      },
     }
   )
 );

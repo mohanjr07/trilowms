@@ -140,6 +140,22 @@ export const useStockStore = create<StockState>()(
       },
     }),
     { name: "trilowms-stock-v1",
-      storage: cloudJSONStorage },
+      storage: cloudJSONStorage,
+      // Move any units parked in the virtual RETURNS-RESTOCK bin into the SKU's biggest real bin.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<StockState>;
+        const stock = { ...(p.stock ?? current.stock) };
+        for (const [sku, rec] of Object.entries(stock)) {
+          const parked = rec.bins?.["RETURNS-RESTOCK"];
+          if (!parked) continue;
+          const real = Object.entries(rec.bins).filter(([c]) => c !== "RETURNS-RESTOCK").sort((a, b) => b[1] - a[1])[0];
+          if (!real) continue;
+          const bins = { ...rec.bins };
+          delete bins["RETURNS-RESTOCK"];
+          bins[real[0]] = real[1] + parked;
+          stock[sku] = { ...rec, bins };
+        }
+        return { ...current, ...p, stock };
+      } },
   ),
 );

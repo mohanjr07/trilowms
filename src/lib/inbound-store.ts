@@ -757,12 +757,18 @@ export const useInboundStore = create<InboundState>()(
       // case while still preserving their real ASNs and any dock state that does exist.
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<InboundState>;
+        const isEmpty = (a: ASN) => a.lines.length === 0 && ["PENDING", "SCHEDULED", "ARRIVED", "DOCKED"].includes(a.status);
+        const all = p.asns ?? current.asns;
+        const dropped = new Set(all.filter(isEmpty).map((a) => a.id));
+        const doors = p.dockDoors && p.dockDoors.length > 0 ? p.dockDoors : current.dockDoors;
         return {
           ...current,
           ...p,
-          // Drop leftover empty placeholder ASNs (no lines, never started) from older gate-ins.
-          asns: (p.asns ?? current.asns).filter((a) => !(a.lines.length === 0 && ["PENDING", "SCHEDULED"].includes(a.status) && !a.dockId)),
-          dockDoors: p.dockDoors && p.dockDoors.length > 0 ? p.dockDoors : current.dockDoors,
+          // Drop leftover empty placeholder ASNs (no lines, never received) from older gate-ins and free their doors.
+          asns: all.filter((a) => !isEmpty(a)),
+          dockDoors: doors.map((d) => d.assignedAsnId && dropped.has(d.assignedAsnId)
+            ? { ...d, status: "AVAILABLE" as const, assignedAsnId: null, assignedTruckId: null, occupiedSince: null }
+            : d),
         };
       },
     }

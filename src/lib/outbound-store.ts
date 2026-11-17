@@ -306,6 +306,13 @@ export const useOutboundStore = create<OutboundState>()(
       name: "trilowms-outbound-v3",
       storage: cloudJSONStorage,
       partialize: (s) => ({ shipments: s.shipments }),
+      // Older shipments were created before the carrier default existed — backfill them.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<OutboundState>;
+        const shipments = (p.shipments ?? current.shipments).map((s) =>
+          !s.carrier || s.carrier === "Unassigned" ? { ...s, carrier: "UPS" } : s);
+        return { ...current, ...p, shipments };
+      },
     }
   )
 );
