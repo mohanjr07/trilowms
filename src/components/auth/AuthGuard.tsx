@@ -5,7 +5,7 @@
 
 import { useEffect } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { useAuthStore } from "@/lib/auth-store";
+import { useAuthStore, verifyAuthSession } from "@/lib/auth-store";
 import { LoginScreen } from "@/components/auth/LoginScreen";
 import { useCloudReady } from "@/lib/cloud-ready";
 
@@ -18,6 +18,9 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const cloudReady = useCloudReady();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  // If the Supabase sign-in is gone (expired or signed out elsewhere), return to the login screen.
+  useEffect(() => { void verifyAuthSession(); }, [pathname]);
 
   // Session expiry check
   useEffect(() => {

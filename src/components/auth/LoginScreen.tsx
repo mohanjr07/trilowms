@@ -157,40 +157,6 @@ function WarehouseBackground() {
   return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />;
 }
 
-// ─── Demo credentials panel ───────────────────────────────────────────────────
-
-function DemoPanel({ onSelect, onClose }: { onSelect: (e: string, p: string) => void; onClose: () => void }) {
-  return (
-    <div className="absolute right-4 top-4 z-20 w-72 bg-[#0d1724]/95 backdrop-blur border border-border/60 rounded-xl shadow-2xl overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
-        <div className="text-xs font-bold tracking-wider text-amber-400">DEMO CREDENTIALS</div>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /></button>
-      </div>
-      <div className="max-h-80 overflow-y-auto">
-        {DEMO_USERS.map((u) => {
-          const def = ROLE_DEFINITIONS[u.role];
-          return (
-            <button
-              key={u.id}
-              onClick={() => { onSelect(u.email, u.password); onClose(); }}
-              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-colors text-left border-b border-border/30 last:border-0"
-            >
-              <div className={cn("h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold border", def.bgColor)}>
-                {u.avatar}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium truncate">{u.name}</div>
-                <div className={cn("text-[10px] truncate", def.color)}>{def.label}</div>
-              </div>
-              <ChevronRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 // ─── Forgot password modal ────────────────────────────────────────────────────
 
 function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
@@ -283,7 +249,6 @@ export function LoginScreen() {
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [remember, setRemember] = useState(false);
-  const [showDemo, setShowDemo] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
   const [validationError, setValidationError] = useState("");
 
@@ -301,23 +266,12 @@ export function LoginScreen() {
     }
   };
 
-  const handleDemoSelect = (e: string, p: string) => {
-    setEmail(e);
-    setPassword(p);
-    clearError();
-    setValidationError("");
-  };
-
   const displayError = validationError || error;
 
   return (
     <div className="relative flex h-screen w-full overflow-hidden bg-[#060b12]">
       <WarehouseBackground />
 
-      {/* Demo credentials panel */}
-      {showDemo && (
-        <DemoPanel onSelect={handleDemoSelect} onClose={() => setShowDemo(false)} />
-      )}
 
       {/* Forgot password */}
       {showForgot && <ForgotPasswordModal onClose={() => setShowForgot(false)} />}
@@ -482,19 +436,6 @@ export function LoginScreen() {
               </button>
             </form>
 
-            {/* Demo credentials CTA */}
-            <div className="px-8 pb-6">
-              <div className="border-t border-border/40 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowDemo((v) => !v)}
-                  className="w-full flex items-center justify-center gap-2 py-2 text-xs text-amber-400/80 hover:text-amber-400 transition-colors rounded-lg hover:bg-amber-400/5 border border-amber-400/20"
-                >
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  View Demo Credentials (12 roles)
-                </button>
-              </div>
-            </div>
           </div>
 
           {/* System status */}
@@ -505,8 +446,6 @@ export function LoginScreen() {
             </div>
             <span>·</span>
             <span>TLS 1.3 Encrypted</span>
-            <span>·</span>
-            <span>SOC 2 Compliant</span>
           </div>
         </div>
       </div>

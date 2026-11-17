@@ -68,7 +68,7 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 
 // Some networks (e.g. several Indian ISPs) block *.supabase.co. The browser instead calls
 // this site's own /sb/rest/v1/... path and the Worker forwards it to Supabase from
-// Cloudflare's network. Only the REST data API is forwarded.
+// Cloudflare's network. Only the REST data API and sign-in (auth) endpoints are forwarded.
 const SUPABASE_UPSTREAM = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/+$/, "");
 
 async function proxySupabase(request: Request, url: URL): Promise<Response> {
@@ -90,7 +90,7 @@ async function proxySupabase(request: Request, url: URL): Promise<Response> {
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     const url = new URL(request.url);
-    if (url.pathname.startsWith("/sb/rest/v1/")) {
+    if (url.pathname.startsWith("/sb/rest/v1/") || url.pathname.startsWith("/sb/auth/v1/")) {
       try { return await proxySupabase(request, url); }
       catch (error) { console.error(error); return new Response("Upstream unreachable", { status: 502 }); }
     }

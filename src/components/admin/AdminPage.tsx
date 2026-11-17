@@ -66,15 +66,6 @@ function UserDetail({ user, onClose }: { user: DemoUser; onClose: () => void }) 
           ))}
         </div>
 
-        <div className="rounded border border-border bg-card/30 p-3">
-          <div className="flex items-center justify-between mb-1">
-            <div className="text-[10px] text-muted-foreground uppercase">Demo Password</div>
-            <Button variant="ghost" size="sm" className="h-5 px-1" onClick={() => setShowPw(!showPw)}>
-              {showPw ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-            </Button>
-          </div>
-          <div className="text-xs font-mono mt-0.5">{showPw ? user.password : "••••••••"}</div>
-        </div>
 
         <div>
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Allowed Routes</div>

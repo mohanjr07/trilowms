@@ -5,6 +5,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { supabase, supabaseConfigured } from "./supabase";
 
 // ─── Role definitions ─────────────────────────────────────────────────────────
 
@@ -148,7 +149,6 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
 export interface DemoUser {
   id: string;
   email: string;
-  password: string;
   name: string;
   avatar: string; // initials
   role: UserRole;
@@ -159,18 +159,18 @@ export interface DemoUser {
 }
 
 export const DEMO_USERS: DemoUser[] = [
-  { id: "u1",  email: "admin@trilowms.com",     password: "Admin@123",     name: "Alex Rodriguez",   avatar: "AR", role: "super_admin",        warehouse: "All Warehouses",  shift: "All Shifts",  employeeId: "EMP-0001" },
-  { id: "u2",  email: "whadmin@trilowms.com",   password: "Warehouse@123", name: "Maria Chen",       avatar: "MC", role: "warehouse_admin",    warehouse: "TRILO-DC-01",     shift: "Shift A",     employeeId: "EMP-0042" },
-  { id: "u3",  email: "ops@trilowms.com",       password: "Ops@123",       name: "James Okafor",     avatar: "JO", role: "operations_manager", warehouse: "TRILO-DC-01",     shift: "Shift B",     employeeId: "EMP-0078" },
-  { id: "u4",  email: "inventory@trilowms.com", password: "Inventory@123", name: "Priya Nair",       avatar: "PN", role: "inventory_manager",  warehouse: "TRILO-DC-01",     shift: "Shift A",     employeeId: "EMP-0091" },
-  { id: "u5",  email: "inbound@trilowms.com",   password: "Inbound@123",   name: "Diego Vasquez",    avatar: "DV", role: "inbound_supervisor", warehouse: "TRILO-DC-01",     shift: "Shift A",     employeeId: "EMP-0103" },
-  { id: "u6",  email: "outbound@trilowms.com",  password: "Outbound@123",  name: "Sarah Kim",        avatar: "SK", role: "outbound_supervisor",warehouse: "TRILO-DC-01",     shift: "Shift B",     employeeId: "EMP-0117" },
-  { id: "u7",  email: "picker1@trilowms.com",   password: "Picker@123",    name: "Marcus Johnson",   avatar: "MJ", role: "picker",             warehouse: "TRILO-DC-01",     shift: "Shift B",     employeeId: "EMP-0204" },
-  { id: "u8",  email: "forklift@trilowms.com",  password: "Forklift@123",  name: "Tommy Wu",         avatar: "TW", role: "forklift_operator",  warehouse: "TRILO-DC-01",     shift: "Shift A",     employeeId: "EMP-0231" },
-  { id: "u9",  email: "qc@trilowms.com",        password: "QC@123",        name: "Aisha Patel",      avatar: "AP", role: "qc_inspector",       warehouse: "TRILO-DC-01",     shift: "Shift B",     employeeId: "EMP-0289" },
-  { id: "u10", email: "packing@trilowms.com",   password: "Packing@123",   name: "Carlos Mendez",    avatar: "CM", role: "packing_operator",   warehouse: "TRILO-DC-01",     shift: "Shift A",     employeeId: "EMP-0312" },
-  { id: "u11", email: "yard@trilowms.com",      password: "Yard@123",      name: "Fatima Al-Hassan", avatar: "FH", role: "yard_manager",       warehouse: "TRILO-DC-01",     shift: "Shift B",     employeeId: "EMP-0345" },
-  { id: "u12", email: "audit@trilowms.com",     password: "Audit@123",     name: "Robert Steele",    avatar: "RS", role: "auditor",            warehouse: "TRILO-DC-01",     shift: "All Shifts",  employeeId: "EMP-0401" },
+  { id: "u1",  email: "admin@trilowms.com",         name: "Alex Rodriguez",   avatar: "AR", role: "super_admin",        warehouse: "All Warehouses",  shift: "All Shifts",  employeeId: "EMP-0001" },
+  { id: "u2",  email: "whadmin@trilowms.com",   name: "Maria Chen",       avatar: "MC", role: "warehouse_admin",    warehouse: "TRILO-DC-01",     shift: "Shift A",     employeeId: "EMP-0042" },
+  { id: "u3",  email: "ops@trilowms.com",             name: "James Okafor",     avatar: "JO", role: "operations_manager", warehouse: "TRILO-DC-01",     shift: "Shift B",     employeeId: "EMP-0078" },
+  { id: "u4",  email: "inventory@trilowms.com", name: "Priya Nair",       avatar: "PN", role: "inventory_manager",  warehouse: "TRILO-DC-01",     shift: "Shift A",     employeeId: "EMP-0091" },
+  { id: "u5",  email: "inbound@trilowms.com",     name: "Diego Vasquez",    avatar: "DV", role: "inbound_supervisor", warehouse: "TRILO-DC-01",     shift: "Shift A",     employeeId: "EMP-0103" },
+  { id: "u6",  email: "outbound@trilowms.com",   name: "Sarah Kim",        avatar: "SK", role: "outbound_supervisor",warehouse: "TRILO-DC-01",     shift: "Shift B",     employeeId: "EMP-0117" },
+  { id: "u7",  email: "picker1@trilowms.com",      name: "Marcus Johnson",   avatar: "MJ", role: "picker",             warehouse: "TRILO-DC-01",     shift: "Shift B",     employeeId: "EMP-0204" },
+  { id: "u8",  email: "forklift@trilowms.com",   name: "Tommy Wu",         avatar: "TW", role: "forklift_operator",  warehouse: "TRILO-DC-01",     shift: "Shift A",     employeeId: "EMP-0231" },
+  { id: "u9",  email: "qc@trilowms.com",               name: "Aisha Patel",      avatar: "AP", role: "qc_inspector",       warehouse: "TRILO-DC-01",     shift: "Shift B",     employeeId: "EMP-0289" },
+  { id: "u10", email: "packing@trilowms.com",     name: "Carlos Mendez",    avatar: "CM", role: "packing_operator",   warehouse: "TRILO-DC-01",     shift: "Shift A",     employeeId: "EMP-0312" },
+  { id: "u11", email: "yard@trilowms.com",           name: "Fatima Al-Hassan", avatar: "FH", role: "yard_manager",       warehouse: "TRILO-DC-01",     shift: "Shift B",     employeeId: "EMP-0345" },
+  { id: "u12", email: "audit@trilowms.com",         name: "Robert Steele",    avatar: "RS", role: "auditor",            warehouse: "TRILO-DC-01",     shift: "All Shifts",  employeeId: "EMP-0401" },
 ];
 
 // ─── Auth store ───────────────────────────────────────────────────────────────
@@ -204,14 +204,16 @@ export const useAuthStore = create<AuthState>()(
 
       login: async (email, password) => {
         set({ isLoading: true, error: null });
-        // Simulate network delay
-        await new Promise((r) => setTimeout(r, 900));
-
-        const user = DEMO_USERS.find(
-          (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password,
-        );
-
-        if (!user) {
+        if (!supabaseConfigured) {
+          set({ isLoading: false, error: "Sign-in is not configured (missing Supabase settings)." });
+          return false;
+        }
+        // Real sign-in through Supabase Auth. The role/profile comes from the user list below
+        // (matched by e-mail); the database only trusts the signed-in session.
+        const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        const user = DEMO_USERS.find((u) => u.email.toLowerCase() === (data.user?.email ?? "").toLowerCase());
+        if (error || !data.session || !user) {
+          if (data.session) await supabase.auth.signOut();
           set({ isLoading: false, error: "Invalid email or password. Please check your credentials." });
           return false;
         }
@@ -229,6 +231,7 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         set({ session: null, isAuthenticated: false, error: null });
+        if (supabaseConfigured) void supabase.auth.signOut();
       },
 
       clearError: () => set({ error: null }),
@@ -252,3 +255,14 @@ export const useAuthStore = create<AuthState>()(
     },
   ),
 );
+
+/**
+ * Keeps the app login in step with the Supabase session: if the Supabase session is gone
+ * (expired, signed out elsewhere) the user is sent back to the login screen.
+ */
+export async function verifyAuthSession(): Promise<boolean> {
+  if (!supabaseConfigured) return false;
+  const { data } = await supabase.auth.getSession();
+  if (!data.session && useAuthStore.getState().isAuthenticated) useAuthStore.getState().logout();
+  return Boolean(data.session);
+}

@@ -16,6 +16,17 @@
 import { createJSONStorage, type StateStorage } from "zustand/middleware";
 import { supabase, supabaseConfigured } from "./supabase";
 
+/** Set by the auth layer: true once a Supabase session exists. Until then everything stays in this browser. */
+let signedIn = false;
+const signInListeners = new Set<() => void>();
+export function setCloudSignedIn(v: boolean) {
+  const changed = signedIn !== v;
+  signedIn = v;
+  if (changed && v) signInListeners.forEach((fn) => fn());
+}
+/** Called when a session appears (after login or on reload) so stores re-read from Supabase. */
+export function onCloudSignIn(fn: () => void) { signInListeners.add(fn); return () => { signInListeners.delete(fn); }; }
+
 const TABLE = "wms_store_snapshots";
 const PUSH_DELAY_MS = 1200;
 const LOAD_TIMEOUT_MS = 6000;
@@ -54,6 +65,7 @@ function withTimeout<T>(p: PromiseLike<T>, ms: number): Promise<T> {
 async function push(name: string) {
   const value = queued.get(name);
   if (value === undefined) return;
+  if (!signedIn) return;
   if (lastSynced.get(name) === value) { queued.delete(name); return; }
   try {
     const { error } = await supabase
@@ -87,7 +99,7 @@ export function flushCloudSync() {
 const cloudStateStorage: StateStorage = {
   getItem: async (name) => {
     const localValue = local.get(name);
-    if (!supabaseConfigured) return localValue;
+    if (!supabaseConfigured || !signedIn) return localValue;
     // Don't replace newer local edits with an older remote copy.
     if (queued.has(name)) return localValue;
     try {
@@ -111,7 +123,7 @@ const cloudStateStorage: StateStorage = {
   },
   setItem: (name, value) => {
     local.set(name, value);
-    if (supabaseConfigured) schedule(name, value);
+    if (supabaseConfigured && signedIn) schedule(name, value);
   },
   removeItem: (name) => {
     local.remove(name);

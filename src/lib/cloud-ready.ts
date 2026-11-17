@@ -4,8 +4,8 @@
  * when the tab becomes visible again so changes made elsewhere show up.
  */
 import { useEffect, useState } from "react";
-import { supabaseConfigured } from "@/lib/supabase";
-import { cloudSync } from "@/lib/cloud-storage";
+import { supabase, supabaseConfigured } from "@/lib/supabase";
+import { cloudSync, setCloudSignedIn } from "@/lib/cloud-storage";
 import { useConsolidationStore } from "@/lib/consolidation-store";
 import { useInboundStore } from "@/lib/inbound-store";
 import { useInvBinStore } from "@/lib/inventory-bin-store";
@@ -32,9 +32,34 @@ const STORES: Persisted[] = [
 ] as unknown as Persisted[];
 
 const MAX_WAIT_MS = 9000;
+let wasSignedIn = false;
 
 export function useCloudReady(): boolean {
   const [ready, setReady] = useState(() => STORES.every((s) => s.persist.hasHydrated()));
+  // True while stores are being re-read from Supabase right after sign-in.
+  const [syncing, setSyncing] = useState(supabaseConfigured);
+
+  // Follow the Supabase session: once signed in, allow cloud reads/writes and load the shared data.
+  useEffect(() => {
+    if (!supabaseConfigured) { setSyncing(false); return; }
+    let alive = true;
+    const apply = async (hasSession: boolean) => {
+      const was = wasSignedIn;
+      wasSignedIn = hasSession;
+      if (!hasSession) { setCloudSignedIn(false); if (alive) setSyncing(false); return; }
+      if (was) return;
+      if (alive) setSyncing(true);
+      setCloudSignedIn(true);
+      await Promise.race([
+        Promise.allSettled(STORES.map((s) => Promise.resolve(s.persist.rehydrate()))),
+        new Promise((r) => setTimeout(r, MAX_WAIT_MS)),
+      ]);
+      if (alive) setSyncing(false);
+    };
+    void supabase.auth.getSession().then(({ data }) => apply(Boolean(data.session)));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => { void apply(Boolean(session)); });
+    return () => { alive = false; sub.subscription.unsubscribe(); };
+  }, []);
 
   useEffect(() => {
     if (ready) return;
@@ -58,5 +83,5 @@ export function useCloudReady(): boolean {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
 
-  return ready;
+  return ready && !syncing;
 }
