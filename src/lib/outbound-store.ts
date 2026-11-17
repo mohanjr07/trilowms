@@ -310,7 +310,7 @@ export const useOutboundStore = create<OutboundState>()(
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<OutboundState>;
         const shipments = (p.shipments ?? current.shipments).map((s) =>
-          !s.carrier || s.carrier === "Unassigned" ? { ...s, carrier: "UPS" } : s);
+          !s.carrier || ["Unassigned", "—", "-"].includes(s.carrier.trim()) ? { ...s, carrier: "UPS" } : s);
         return { ...current, ...p, shipments };
       },
     }
