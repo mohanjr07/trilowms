@@ -63,10 +63,9 @@ function ZoneOccupancyChart() {
             <YAxis tick={{ fontSize: 9 }} stroke="var(--color-muted-foreground)" domain={[0, 100]} />
             <Tooltip
               contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: 11 }}
-              formatter={(value, _name, item) => {
-                const zone = item.payload as (typeof data)[number] | undefined;
-                if (!zone) return [value, ""];
-                return [`${value}% (${zone.occupied}/${zone.bins} bins)`, zone.fullName];
+              formatter={(v, _name, item) => {
+                const pl = (item?.payload ?? {}) as { fullName?: string; occupied?: number; bins?: number };
+                return [`${v}% (${pl.occupied ?? 0}/${pl.bins ?? 0} bins)`, pl.fullName ?? ""];
               }}
             />
             <Bar dataKey="pct" radius={[3, 3, 0, 0]}>

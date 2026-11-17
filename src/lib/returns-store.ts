@@ -5,6 +5,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useStockStore } from "@/lib/stock-store";
+import { useSkuStore } from "@/lib/sku-store";
+import { useInvBinStore } from "@/lib/inventory-bin-store";
 import { useTransactionStore } from "@/lib/transaction-store";
 
 export type RmaStatus = "REQUESTED" | "APPROVED" | "IN_TRANSIT" | "RECEIVED" | "INSPECTING" | "INSPECTED" | "PROCESSING" | "COMPLETED" | "REJECTED" | "CANCELLED";
@@ -176,6 +178,13 @@ export interface CreateRmaInput {
   lines: RmaLineInput[];
 }
 
+/** Bin a returned SKU goes back to: its fullest existing bin, else any bin that holds it, else a returns bin. */
+function restockBinFor(skuCode: string): string {
+  const bins = useStockStore.getState().stock?.[skuCode]?.bins ?? {};
+  const best = Object.entries(bins).sort((a, b) => b[1] - a[1])[0];
+  return best ? best[0] : "RETURNS-RESTOCK";
+}
+
 let _rmaSeq = 3000;
 const nextRmaId = () => {
   const max = useReturnsStore.getState().rmas.reduce((m, r) => Math.max(m, parseInt(r.id.replace(/\D/g, ""), 10) || 0), 0);
@@ -303,8 +312,12 @@ export const useReturnsStore = create<ReturnsState>()(
             const lines = r.lines.map((l) =>
               l.id === lineId
                 ? { ...l, condition, disposition, inspectionNotes: notes ?? null, status: "INSPECTED" as const,
-                    creditAmount: disposition === "RESTOCK" ? parseFloat((l.receivedQty * 75).toFixed(2)) : 0,
-                    restockBinCode: disposition === "RESTOCK" ? "A-01-R-01-L1-P1" : null }
+                    // Credit at the SKU's selling price (falls back to $75 only if the SKU has no price)
+                    creditAmount: disposition === "RESTOCK"
+                      ? parseFloat((l.receivedQty * (useSkuStore.getState().skus.find((k) => k.skuCode === l.skuCode)?.sellingPrice ?? 75)).toFixed(2))
+                      : 0,
+                    // Restock where this SKU already lives, so the bin exists and the pick path finds it
+                    restockBinCode: disposition === "RESTOCK" ? restockBinFor(l.skuCode) : null }
                 : l
             );
             const allInspected = lines.every((l) => l.status === "INSPECTED");
@@ -327,6 +340,7 @@ export const useReturnsStore = create<ReturnsState>()(
             if (l.disposition === "RESTOCK" && qty > 0) {
               const binCode = l.restockBinCode ?? "RETURNS-RESTOCK";
               stock.addStock(l.skuCode, l.skuName, qty, binCode);
+              useInvBinStore.getState().depositToBin(binCode, l.skuCode, l.skuName, qty);
               useTransactionStore.getState().logMovement({
                 type: "RETURNED",
                 skuCode: l.skuCode,
