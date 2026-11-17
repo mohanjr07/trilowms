@@ -303,7 +303,12 @@ function InventoryOverviewPanel() {
 // ════════════════════════════════════════════════════════════════════════════
 
 function EnterpriseDashboard() {
-  const k = totalKPIs(warehouse);
+  const layoutK = totalKPIs(warehouse);
+  // Occupancy comes from where stock actually sits (the stock ledger), not the layout template.
+  const stockByBin = useStockStore((s) => s.stock);
+  const occupiedCodes = new Set<string>();
+  Object.values(stockByBin).forEach((r) => Object.entries(r.bins ?? {}).forEach(([code, q]) => { if (q > 0) occupiedCodes.add(code); }));
+  const k = { ...layoutK, occupied: Math.max(layoutK.occupied, occupiedCodes.size), utilization: Math.max(layoutK.occupied, occupiedCodes.size) / Math.max(1, layoutK.totalBins) };
 
   const inbound = useInboundStore().kpis();
   const putaway = usePutawayStore().kpis();
@@ -498,7 +503,7 @@ function EnterpriseDashboard() {
 function OccupancyPanel({ total, occupied, blocked, util, docksOpen, onShift }: {
   total: number; occupied: number; blocked: number; util: number; docksOpen: number; onShift: number;
 }) {
-  const pct = Math.round(util * 100);
+  const pct = Math.round(util * 1000) / 10;
   const free = Math.max(0, total - occupied);
   const R = 54, C = 2 * Math.PI * R;
   const tone = pct >= 90 ? "var(--color-destructive)" : pct >= 75 ? "var(--color-warning)" : "var(--color-primary)";

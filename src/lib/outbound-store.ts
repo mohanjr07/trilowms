@@ -278,7 +278,7 @@ export const useOutboundStore = create<OutboundState>()(
           dispatched: shipments.filter((s) => s.actualDispatch?.startsWith(today)).length,
           staged: shipments.filter((s) => s.status === "STAGED").length,
           loading: shipments.filter((s) => s.status === "LOADING").length,
-          delayed: shipments.filter((s) => !["DELIVERED","EXCEPTION","RETURNED"].includes(s.status) && new Date(s.scheduledDispatch) < now).length,
+          delayed: shipments.filter((s) => !["DISPATCHED","IN_TRANSIT","DELIVERED","EXCEPTION","RETURNED"].includes(s.status) && new Date(s.scheduledDispatch) < now).length,
           slaCompliance: delivered.length > 0 ? `${Math.round((slaMet / delivered.length) * 100)}%` : "—",
           trucksLoading: shipments.filter((s) => s.status === "LOADING").length,
           exceptionsOpen: shipments.reduce((s, sh) => s + sh.exceptions.length, 0),

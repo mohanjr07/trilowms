@@ -404,7 +404,7 @@ function CarriersView() {
 function ExceptionsView({ onOpen }: { onOpen: (s: Shipment) => void }) {
   const shipments = useOutboundStore((s) => s.shipments);
   const exceptions = shipments.filter((s) => s.exceptions.length > 0 || s.status === "EXCEPTION");
-  const delayed = shipments.filter((s) => !["DELIVERED", "EXCEPTION", "RETURNED"].includes(s.status) && new Date(s.scheduledDispatch) < new Date());
+  const delayed = shipments.filter((s) => !["DISPATCHED", "IN_TRANSIT", "DELIVERED", "EXCEPTION", "RETURNED"].includes(s.status) && new Date(s.scheduledDispatch) < new Date());
   const returned = shipments.filter((s) => s.status === "RETURNED");
 
   return (
