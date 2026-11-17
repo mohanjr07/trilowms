@@ -243,11 +243,29 @@ export const useYardStore = create<YardState>()(
       },
 
       gateOut: (truckId) => {
+        const truck = get().trucks.find((t) => t.id === truckId);
         set((s) => ({
           trucks: s.trucks.map((t) =>
             t.id === truckId ? { ...t, status: "GATE_OUT" as YardTruckStatus, departureTime: new Date().toISOString() } : t
           ),
+          // a departed truck must not keep holding its dock door
+          docks: s.docks.map((d) =>
+            d.assignedTruckId === truckId || (truck?.dockId && d.id === truck.dockId)
+              ? { ...d, status: "AVAILABLE" as DockStatus, assignedTruckId: null, assignedAt: null, currentWeight: 0 } : d
+          ),
         }));
+        // ...and the matching Inbound dock door is freed too
+        try {
+          const code = truck?.dockCode;
+          if (code) {
+            useInboundStore.setState((st) => ({
+              dockDoors: st.dockDoors.map((d) =>
+                d.code === code && d.status !== "AVAILABLE" && d.status !== "MAINTENANCE"
+                  ? { ...d, status: "AVAILABLE", assignedAsnId: null, scheduledUntil: null } : d
+              ),
+            }));
+          }
+        } catch { /* inbound handoff best-effort */ }
       },
 
       assignDock: (truckId, dockId) => {
@@ -354,7 +372,8 @@ export const useYardStore = create<YardState>()(
         const live = new Set(trucks.map((t) => t.id));
         const appointments = (p.appointments ?? current.appointments).filter((a) => !/^APPT-1\d\d$/.test(a.id));
         const docksIn = p.docks && p.docks.length > 0 ? p.docks : current.docks;
-        const docks = docksIn.map((d) => d.assignedTruckId && !live.has(d.assignedTruckId)
+        const gone = new Set(trucks.filter((t) => t.status === "GATE_OUT" || t.status === "DEPARTED").map((t) => t.id));
+        const docks = docksIn.map((d) => d.assignedTruckId && (!live.has(d.assignedTruckId) || gone.has(d.assignedTruckId))
           ? { ...d, status: "AVAILABLE" as const, assignedTruckId: null, assignedAt: null, currentWeight: 0 } : d);
         return { ...current, ...p, trucks, appointments, docks };
       },

@@ -54,6 +54,8 @@ export function useCloudReady(): boolean {
         Promise.allSettled(STORES.map((s) => Promise.resolve(s.persist.rehydrate()))),
         new Promise((r) => setTimeout(r, MAX_WAIT_MS)),
       ]);
+      // bin map follows the stock ledger (goods moved while the bin map was closed never reached it)
+      try { useInvBinStore.getState().reconcileWithStock(); } catch { /* best-effort */ }
       if (alive) setSyncing(false);
     };
     void supabase.auth.getSession().then(({ data }) => apply(Boolean(data.session)));

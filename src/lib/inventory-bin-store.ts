@@ -8,6 +8,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { cloudJSONStorage } from "@/lib/cloud-storage";
 import type { BinStatus } from "./wms-data";
+import { useStockStore } from "@/lib/stock-store";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -183,6 +184,7 @@ interface InvBinState {
   clearBin: (binId: string) => void;
   // Additive movement hooks — called by Putaway (deposit) and Picking (withdraw) so the
   // bin map / heatmap reflects real goods movement instead of only its own seed data.
+  reconcileWithStock: () => void;
   depositToBin: (binCode: string, skuCode: string, skuName: string, qty: number) => void;
   withdrawFromBin: (binCode: string, qty: number) => void;
   setFilters: (f: Partial<BinInventoryFilters>) => void;
@@ -216,6 +218,7 @@ export const useInvBinStore = create<InvBinState>()(
         // Only seed bins if this warehouse hasn't been seeded yet
         if (alreadySeeded) {
           set({ activeWarehouseName: warehouse.name, selectedBinId: null });
+          get().reconcileWithStock();
           return;
         }
         const bins = buildInitialBinInventory(warehouse);
@@ -224,6 +227,40 @@ export const useInvBinStore = create<InvBinState>()(
           selectedBinId: null,
           warehouseBins: { ...warehouseBins, [warehouse.name]: bins },
         });
+        get().reconcileWithStock();
+      },
+
+      // The stock ledger is the source of truth for what is in each bin. Goods moved while the
+      // bin map was not open never reached the bin map, so rebuild quantities from the ledger.
+      reconcileWithStock: () => {
+        const { warehouseBins } = get();
+        const activeWarehouseName = get().activeWarehouseName ?? Object.keys(warehouseBins).find((w) => (warehouseBins[w] ?? []).length > 0) ?? null;
+        if (!activeWarehouseName) return;
+        const perBin = new Map<string, { qty: number; sku: string; name: string }>();
+        for (const r of Object.values(useStockStore.getState().stock)) {
+          for (const [code, q] of Object.entries(r.bins ?? {})) {
+            if (q <= 0) continue;
+            const cur = perBin.get(code);
+            perBin.set(code, { qty: (cur?.qty ?? 0) + q, sku: cur?.sku ?? r.skuCode, name: cur?.name ?? r.skuName });
+          }
+        }
+        let changed = false;
+        const bins = (warehouseBins[activeWarehouseName] ?? []).map((b) => {
+          const want = perBin.get(b.binCode);
+          const qty = want?.qty ?? 0;
+          if (qty === b.quantity && (qty === 0 || b.skuCode)) return b;
+          if (!want && b.quantity === 0) return b;
+          changed = true;
+          const occupancyPct = qty === 0 ? 0 : Math.min(100, Math.round((qty / b.capacity) * 100));
+          return {
+            ...b, quantity: qty, occupancyPct,
+            skuCode: qty === 0 ? null : (b.skuCode ?? want?.sku ?? null),
+            skuName: qty === 0 ? null : (b.skuName ?? want?.name ?? null),
+            status: (qty === 0 ? "Empty" : occupancyPct >= 100 ? "Full" : "Partial") as BinStatus,
+            palletCount: Math.ceil(qty / 50), weight: Math.round(qty * 2.5 * 10) / 10,
+          };
+        });
+        if (changed) set({ warehouseBins: { ...warehouseBins, [activeWarehouseName]: bins } });
       },
 
       selectBin: (id) => set({ selectedBinId: id }),
@@ -306,7 +343,10 @@ export const useInvBinStore = create<InvBinState>()(
 
       depositToBin: (binCode, skuCode, skuName, qty) => {
         if (qty <= 0) return;
-        const { activeWarehouseName, warehouseBins } = get();
+        const { warehouseBins } = get();
+        // activeWarehouseName is not persisted, so fall back to whichever warehouse holds this bin
+        const activeWarehouseName = get().activeWarehouseName
+          ?? Object.keys(warehouseBins).find((w) => (warehouseBins[w] ?? []).some((b) => b.binCode === binCode)) ?? null;
         if (!activeWarehouseName) return;
         set({
           warehouseBins: {
@@ -334,7 +374,10 @@ export const useInvBinStore = create<InvBinState>()(
 
       withdrawFromBin: (binCode, qty) => {
         if (qty <= 0) return;
-        const { activeWarehouseName, warehouseBins } = get();
+        const { warehouseBins } = get();
+        // activeWarehouseName is not persisted, so fall back to whichever warehouse holds this bin
+        const activeWarehouseName = get().activeWarehouseName
+          ?? Object.keys(warehouseBins).find((w) => (warehouseBins[w] ?? []).some((b) => b.binCode === binCode)) ?? null;
         if (!activeWarehouseName) return;
         set({
           warehouseBins: {
