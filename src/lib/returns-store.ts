@@ -7,6 +7,7 @@ import { persist } from "zustand/middleware";
 import { useStockStore } from "@/lib/stock-store";
 import { useSkuStore } from "@/lib/sku-store";
 import { useInvBinStore } from "@/lib/inventory-bin-store";
+import { computeSuggestion } from "@/lib/slotting-store";
 import { useTransactionStore } from "@/lib/transaction-store";
 
 export type RmaStatus = "REQUESTED" | "APPROVED" | "IN_TRANSIT" | "RECEIVED" | "INSPECTING" | "INSPECTED" | "PROCESSING" | "COMPLETED" | "REJECTED" | "CANCELLED";
@@ -178,11 +179,16 @@ export interface CreateRmaInput {
   lines: RmaLineInput[];
 }
 
-/** Bin a returned SKU goes back to: its fullest existing bin, else any bin that holds it, else a returns bin. */
-function restockBinFor(skuCode: string): string {
+/** Bin a returned SKU goes back to: where it already lives, else a real bin picked by slotting, else a returns bin. */
+function restockBinFor(skuCode: string, quantity = 1): string {
   const bins = useStockStore.getState().stock?.[skuCode]?.bins ?? {};
-  const best = Object.entries(bins).sort((a, b) => b[1] - a[1])[0];
-  return best ? best[0] : "RETURNS-RESTOCK";
+  const best = Object.entries(bins).filter(([code]) => code !== "RETURNS-RESTOCK").sort((a, b) => b[1] - a[1])[0];
+  if (best) return best[0];
+  try {
+    const r = computeSuggestion({ id: `RET-${skuCode}`, skuCode, quantity, expiryDate: null });
+    if (r.primary?.binCode) return r.primary.binCode;
+  } catch { /* no layout yet */ }
+  return "RETURNS-RESTOCK";
 }
 
 let _rmaSeq = 3000;
@@ -317,7 +323,7 @@ export const useReturnsStore = create<ReturnsState>()(
                       ? parseFloat((l.receivedQty * (useSkuStore.getState().skus.find((k) => k.skuCode === l.skuCode)?.sellingPrice ?? 75)).toFixed(2))
                       : 0,
                     // Restock where this SKU already lives, so the bin exists and the pick path finds it
-                    restockBinCode: disposition === "RESTOCK" ? restockBinFor(l.skuCode) : null }
+                    restockBinCode: disposition === "RESTOCK" ? restockBinFor(l.skuCode, l.receivedQty) : null }
                 : l
             );
             const allInspected = lines.every((l) => l.status === "INSPECTED");
