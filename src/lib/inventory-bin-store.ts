@@ -6,6 +6,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { cloudJSONStorage } from "@/lib/cloud-storage";
 import type { BinStatus } from "./wms-data";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -483,6 +484,7 @@ export const useInvBinStore = create<InvBinState>()(
     }),
     {
       name: "trilowms-inv-bin-map-v2",
+      storage: cloudJSONStorage,
       partialize: (s) => ({
         warehouseBins: s.warehouseBins,
         // Do NOT persist activeWarehouseName — it is always set by init() on mount

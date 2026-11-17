@@ -4,6 +4,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { cloudJSONStorage } from "@/lib/cloud-storage";
 import { useInboundStore } from "@/lib/inbound-store";
 
 export type YardTruckStatus = "GATE_IN" | "WAITING" | "DOCKING" | "DOCKED_IN" | "DOCKED_OUT" | "LOADING" | "UNLOADING" | "LOADED" | "GATE_OUT" | "DEPARTED";
@@ -342,6 +343,7 @@ export const useYardStore = create<YardState>()(
     }),
     {
       name: "trilowms-yard-v2",
+      storage: cloudJSONStorage,
       partialize: (s) => ({ trucks: s.trucks, docks: s.docks, appointments: s.appointments }),
       // Backfill for anyone who already has an empty `docks: []` persisted from
       // before this fix (same issue as Inbound's dock board).

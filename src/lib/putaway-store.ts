@@ -5,6 +5,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { cloudJSONStorage } from "@/lib/cloud-storage";
 import { useInboundStore } from "@/lib/inbound-store";
 import { useSkuStore } from "@/lib/sku-store";
 import { useStockStore } from "@/lib/stock-store";
@@ -512,6 +513,7 @@ export const usePutawayStore = create<PutawayState>()(
     }),
     {
       name: "trilowms-putaway-v2",
+      storage: cloudJSONStorage,
       partialize: (s) => ({ tasks: s.tasks, rules: s.rules }),
     }
   )

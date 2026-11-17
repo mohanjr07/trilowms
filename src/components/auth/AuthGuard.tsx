@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuthStore } from "@/lib/auth-store";
 import { LoginScreen } from "@/components/auth/LoginScreen";
+import { useCloudReady } from "@/lib/cloud-ready";
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -14,6 +15,7 @@ interface AuthGuardProps {
 
 export function AuthGuard({ children }: AuthGuardProps) {
   const { isAuthenticated, session, canAccess, role } = useAuthStore();
+  const cloudReady = useCloudReady();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
@@ -34,6 +36,14 @@ export function AuthGuard({ children }: AuthGuardProps) {
     const def = role();
     navigate({ to: def?.defaultRoute ?? "/" });
     return null;
+  }
+
+  if (!cloudReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-sm text-muted-foreground">
+        Loading warehouse data…
+      </div>
+    );
   }
 
   return <>{children}</>;

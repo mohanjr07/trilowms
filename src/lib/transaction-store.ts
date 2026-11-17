@@ -6,6 +6,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { cloudJSONStorage } from "@/lib/cloud-storage";
 import type { BinStatus } from "./wms-data";
 import { useAuthStore } from "@/lib/auth-store";
 import { useEditorStore } from "@/lib/wms-editor-store";
@@ -382,6 +383,7 @@ export const useTransactionStore = create<TransactionState>()(
     }),
     {
       name: "trilowms-transactions-v2",
+      storage: cloudJSONStorage,
       partialize: (s) => ({ transactions: s.transactions }),
       onRehydrateStorage: () => () => {
         // demo seeding disabled — start clean

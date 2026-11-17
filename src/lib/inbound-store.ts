@@ -5,6 +5,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { cloudJSONStorage } from "@/lib/cloud-storage";
 import { useQCStore } from "@/lib/qc-store";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -747,6 +748,7 @@ export const useInboundStore = create<InboundState>()(
     }),
     {
       name: "trilowms-inbound-v2",
+      storage: cloudJSONStorage,
       partialize: (s) => ({ asns: s.asns, dockDoors: s.dockDoors }),
       // Anyone who loaded the app before dock doors were seeded already has an empty
       // `dockDoors: []` saved in localStorage under this key — persist's default merge

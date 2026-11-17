@@ -4,6 +4,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { cloudJSONStorage } from "@/lib/cloud-storage";
 import { usePackingStore } from "@/lib/packing-store";
 import { useOrdersStore } from "@/lib/orders-store";
 
@@ -303,6 +304,7 @@ export const useOutboundStore = create<OutboundState>()(
     }),
     {
       name: "trilowms-outbound-v3",
+      storage: cloudJSONStorage,
       partialize: (s) => ({ shipments: s.shipments }),
     }
   )

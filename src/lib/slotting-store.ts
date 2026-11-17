@@ -7,6 +7,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { cloudJSONStorage } from "@/lib/cloud-storage";
 import type { Warehouse, ZoneType } from "@/lib/wms-data";
 import { useEditorStore } from "@/lib/wms-editor-store";
 import { useSkuStore } from "@/lib/sku-store";
@@ -191,6 +192,7 @@ export const useSlottingStore = create<SlottingState>()(
         }));
       },
     }),
-    { name: "trilowms-slotting-v1", partialize: (s) => ({ overrides: s.overrides }) },
+    { name: "trilowms-slotting-v1",
+      storage: cloudJSONStorage, partialize: (s) => ({ overrides: s.overrides }) },
   ),
 );

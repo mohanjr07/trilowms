@@ -8,6 +8,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { cloudJSONStorage } from "@/lib/cloud-storage";
 import { useConsolidationStore } from "@/lib/consolidation-store";
 import { useOrdersStore } from "@/lib/orders-store";
 import { useLaborStore } from "@/lib/labor-store";
@@ -484,6 +485,7 @@ export const usePackingStore = create<PackingState>()(
     }),
     {
       name: "trilowms-packing-v4",
+      storage: cloudJSONStorage,
       partialize: (s) => ({ stations: s.stations, orders: s.orders, lastSyncAt: s.lastSyncAt }),
     }
   )

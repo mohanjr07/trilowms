@@ -4,6 +4,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { cloudJSONStorage } from "@/lib/cloud-storage";
 import { useLaborStore } from "@/lib/labor-store";
 
 export type InspectionStatus = "QUEUED" | "IN_PROGRESS" | "PASSED" | "FAILED" | "CONDITIONAL_PASS" | "PENDING_REVIEW" | "SAMPLED" | "HOLD" | "DISPOSED";
@@ -429,6 +430,7 @@ export const useQCStore = create<QCState>()(
     }),
     {
       name: "trilowms-qc-v2",
+      storage: cloudJSONStorage,
       partialize: (s) => ({ inspections: s.inspections, holds: s.holds }),
     }
   )

@@ -6,6 +6,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { cloudJSONStorage } from "@/lib/cloud-storage";
 import { usePickingStore } from "@/lib/picking-store";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -258,6 +259,7 @@ export const useConsolidationStore = create<ConsolidationState>()(
     }),
     {
       name: "trilowms-consolidation-v1",
+      storage: cloudJSONStorage,
       partialize: (s) => ({ lanes: s.lanes, lastSyncAt: s.lastSyncAt }),
       // Older builds could reuse a lane code after a reload. Give later duplicates a fresh code.
       merge: (persisted, current) => {

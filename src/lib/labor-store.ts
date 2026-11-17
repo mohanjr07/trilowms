@@ -4,6 +4,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { cloudJSONStorage } from "@/lib/cloud-storage";
 // Lazily referenced only inside autoBalance() (never at module load time), so
 // this reverse-direction import doesn't create a real circular-init problem
 // even though putaway/picking stores also reference useLaborStore.
@@ -372,6 +373,7 @@ export const useLaborStore = create<LaborState>()(
     }),
     {
       name: "trilowms-labor-v2",
+      storage: cloudJSONStorage,
       partialize: (s) => ({ employees: s.employees }),
     }
   )

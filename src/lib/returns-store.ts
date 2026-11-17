@@ -4,6 +4,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { cloudJSONStorage } from "@/lib/cloud-storage";
 import { useStockStore } from "@/lib/stock-store";
 import { useSkuStore } from "@/lib/sku-store";
 import { useInvBinStore } from "@/lib/inventory-bin-store";
@@ -454,6 +455,7 @@ export const useReturnsStore = create<ReturnsState>()(
     }),
     {
       name: "trilowms-returns-v2",
+      storage: cloudJSONStorage,
       partialize: (s) => ({ rmas: s.rmas }),
     }
   )

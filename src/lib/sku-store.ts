@@ -5,6 +5,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { cloudJSONStorage } from "@/lib/cloud-storage";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -156,7 +157,7 @@ function makeSKU(i: number): SKU {
   };
 }
 
-const SEED_SKUS: SKU[] = Array.from({ length: 48 }, (_, i) => makeSKU(i));
+export const SEED_SKUS: SKU[] = Array.from({ length: 48 }, (_, i) => makeSKU(i));
 
 // ─── Store ────────────────────────────────────────────────────────────────────
 
@@ -210,7 +211,7 @@ interface SkuState {
 export const useSkuStore = create<SkuState>()(
   persist(
     (set, get) => ({
-      skus: [],
+      skus: SEED_SKUS,
       filters: DEFAULT_FILTERS,
       sortKey: "",
       sortDir: "asc",
@@ -312,6 +313,7 @@ export const useSkuStore = create<SkuState>()(
     }),
     {
       name: "trilowms-sku-master-v2",
+      storage: cloudJSONStorage,
       partialize: (state) => ({ skus: state.skus }),
     }
   )

@@ -6,6 +6,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { cloudJSONStorage } from "@/lib/cloud-storage";
 import { useTransactionStore } from "@/lib/transaction-store";
 
 export interface StockRecord {
@@ -138,6 +139,7 @@ export const useStockStore = create<StockState>()(
         };
       },
     }),
-    { name: "trilowms-stock-v1" },
+    { name: "trilowms-stock-v1",
+      storage: cloudJSONStorage },
   ),
 );

@@ -5,6 +5,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { cloudJSONStorage } from "@/lib/cloud-storage";
 import { useStockStore } from "@/lib/stock-store";
 import { useInvBinStore } from "@/lib/inventory-bin-store";
 import { useLaborStore } from "@/lib/labor-store";
@@ -748,6 +749,7 @@ export const usePickingStore = create<PickingState>()(
     }),
     {
       name: "trilowms-picking-v4",
+      storage: cloudJSONStorage,
       partialize: (s) => ({ waves: s.waves, shortages: s.shortages }),
     }
   )

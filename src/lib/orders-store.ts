@@ -7,6 +7,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { cloudJSONStorage } from "@/lib/cloud-storage";
 import { useStockStore } from "@/lib/stock-store";
 
 export type OrderStatus =
@@ -370,6 +371,7 @@ export const useOrdersStore = create<OrdersState>()(
     }),
     {
       name: "trilowms-orders-v2",
+      storage: cloudJSONStorage,
       // Older builds could reuse an order number after a reload. Give later duplicates a fresh number.
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<OrdersState>;
