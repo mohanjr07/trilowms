@@ -250,7 +250,7 @@ export function TransactionLogTable({ onNewTransaction }: { onNewTransaction?: (
 
   const hasFilters = filters.search || filters.type || filters.status || filters.skuCode || filters.dateFrom || filters.dateTo;
 
-  const typeOptions: TransactionType[] = ["RECEIVED", "MOVED", "RACK_TRANSFER", "WH_TRANSFER", "ADJUSTMENT", "BLOCKED", "DAMAGED", "RETURNED"];
+  const typeOptions: TransactionType[] = ["RECEIVED", "MOVED", "RACK_TRANSFER", "WH_TRANSFER", "ADJUSTMENT", "BLOCKED", "DAMAGED", "RETURNED", "SHIPPED"];
   const statusOptions: TransactionStatus[] = ["PENDING", "IN_PROGRESS", "COMPLETED", "FAILED", "CANCELLED"];
 
   return (

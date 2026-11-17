@@ -4,7 +4,7 @@
  * Consumes pick waves from the Picking module; gates items into Packing.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Combine, Search, X, CheckCircle2, AlertTriangle, LayoutDashboard,
   Layers, ScanLine, ArrowRightCircle, RefreshCw, ChevronRight,
@@ -661,6 +661,12 @@ const TABS: { id: Tab; label: string; icon: typeof LayoutDashboard }[] = [
 ];
 
 export function ConsolidationPage() {
+  const autoSync = useConsolidationStore((s) => s.syncFromPicking);
+  // Keep staging lanes current automatically: pull on open and whenever picking changes.
+  useEffect(() => {
+    autoSync();
+    return usePickingStore.subscribe(() => { autoSync(); });
+  }, [autoSync]);
   const [tab, setTab] = useState<Tab>("overview");
   const [openLaneId, setOpenLaneId] = useState<string | null>(null);
   const kpis = useConsolidationStore().kpis();

@@ -7,6 +7,21 @@ import { persist } from "zustand/middleware";
 import { cloudJSONStorage } from "@/lib/cloud-storage";
 import { usePackingStore } from "@/lib/packing-store";
 import { useOrdersStore } from "@/lib/orders-store";
+import { useTransactionStore } from "@/lib/transaction-store";
+
+// Ledger entry for goods leaving the building (stock itself was already consumed at pick).
+function logShipped(sh: { shipmentNumber: string; orders: { realSourceOrderId: string }[] }) {
+  try {
+    const orders = useOrdersStore.getState().orders;
+    const log = useTransactionStore.getState().logMovement;
+    for (const o of sh.orders) {
+      const ord = orders.find((x) => x.id === o.realSourceOrderId);
+      ord?.lines.forEach((l) => {
+        if (l.allocatedQty > 0) log({ type: "SHIPPED", skuCode: l.skuCode, skuName: l.skuName, quantity: l.allocatedQty, uom: l.uom, referenceDoc: sh.shipmentNumber, notes: `Shipped on ${sh.shipmentNumber} for order ${ord.orderNumber}` });
+      });
+    }
+  } catch { /* ledger best-effort */ }
+}
 
 export type ShipmentStatus = "PLANNED" | "STAGED" | "LOADING" | "LOADED" | "DISPATCHED" | "IN_TRANSIT" | "DELIVERED" | "EXCEPTION" | "RETURNED";
 
@@ -118,6 +133,7 @@ export const useOutboundStore = create<OutboundState>()(
             sh.id === id ? { ...sh, ...extra, status, actualDispatch: status === "DISPATCHED" ? new Date().toISOString() : sh.actualDispatch } : sh
           ),
         }));
+        if (sh && status === "DISPATCHED" && sh.status !== "DISPATCHED") logShipped(sh);
         if (sh && (status === "DISPATCHED" || status === "DELIVERED") && sh.status !== status) {
           try {
             const ord = useOrdersStore.getState();
@@ -203,6 +219,7 @@ export const useOutboundStore = create<OutboundState>()(
               proNumber: x.proNumber ?? `PRO${Math.floor(100000000 + Math.random() * 899999999)}` } : x
           ),
         }));
+        logShipped(sh);
         // close the loop: mark the source packing order dispatched
         try {
           const pk = usePackingStore.getState() as unknown as { dispatchOrder?: (oid: string) => void };

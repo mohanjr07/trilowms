@@ -4,6 +4,7 @@
  * quarantine holds and inspector performance.
  */
 
+import { hourlySeries } from "@/lib/hourly";
 import { useMemo, useState } from "react";
 import {
   ShieldCheck, Search, X, ChevronRight, CheckCircle2, XCircle, AlertTriangle, Play,
@@ -106,14 +107,7 @@ function MiniStat({ label, value, tone }: { label: string; value: string; tone?:
 // ════════════════════════════════════════════════════════════════════════════
 
 function PassFailChart() {
-  const data = useMemo(
-    () => Array.from({ length: 12 }, (_, i) => ({
-      hour: `${String((6 + i) % 24).padStart(2, "0")}:00`,
-      passed: Math.floor(6 + Math.abs(Math.sin(i + 1)) * 14),
-      failed: i % 3 === 0 ? Math.floor(1 + Math.random() * 3) : Math.floor(Math.random() * 2),
-    })),
-    [],
-  );
+  const data = useMemo(() => hourlySeries(["passed", "failed"]), []);
   return (
     <Section title="Inspection Outcomes" sub="Passed vs failed — last 12 hours" className="lg:col-span-2 h-[240px]">
       <div className="h-[190px] px-2 pt-2">

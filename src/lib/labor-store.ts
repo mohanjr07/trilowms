@@ -190,8 +190,8 @@ export const useLaborStore = create<LaborState>()(
       // Seeded roster/history — unlike the stock ledger, employees aren't created by
       // another module's workflow, so they need to start populated (same pattern as
       // the SKU catalog) rather than empty.
-      employees: buildSeedEmployees(),
-      tasks: buildSeedTasks(),
+      employees: [],
+      tasks: [],
       filters: DEFAULT_FILTERS,
       page: 1,
       pageSize: 20,
@@ -375,6 +375,12 @@ export const useLaborStore = create<LaborState>()(
       name: "trilowms-labor-v2",
       storage: cloudJSONStorage,
       partialize: (s) => ({ employees: s.employees }),
+      // Drop the old generated demo workforce (emp-1..emp-44).
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<LaborState>;
+        const employees = (p.employees ?? current.employees).filter((e) => !/^emp-\d+$/.test(e.id));
+        return { ...current, ...p, employees };
+      },
     }
   )
 );

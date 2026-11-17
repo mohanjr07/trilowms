@@ -4,6 +4,7 @@
  * productivity and shortage resolution.
  */
 
+import { hourlySeries } from "@/lib/hourly";
 import { useMemo, useState } from "react";
 import {
   PackageSearch, Search, X, ChevronRight, Play, CheckCircle2, AlertTriangle, Zap,
@@ -122,14 +123,7 @@ function MiniStat({ label, value, tone }: { label: string; value: string; tone?:
 // ════════════════════════════════════════════════════════════════════════════
 
 function PickThroughputChart() {
-  const data = useMemo(
-    () => Array.from({ length: 12 }, (_, i) => ({
-      hour: `${String((6 + i) % 24).padStart(2, "0")}:00`,
-      picked: Math.floor(120 + Math.abs(Math.sin(i + 1)) * 480),
-      short: i % 3 === 0 ? Math.floor(5 + Math.random() * 18) : Math.floor(Math.random() * 8),
-    })),
-    [],
-  );
+  const data = useMemo(() => hourlySeries(["picked", "short"]), []);
   return (
     <Section title="Pick Throughput" sub="Units picked vs shorted — last 12 hours" className="lg:col-span-2 h-[240px]">
       <div className="h-[190px] px-2 pt-2">

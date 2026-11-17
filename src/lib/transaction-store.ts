@@ -21,7 +21,8 @@ export type TransactionType =
   | "ADJUSTMENT"    // Stock count correction (positive or negative)
   | "BLOCKED"       // Bin or stock flagged as blocked
   | "DAMAGED"       // Stock marked as damaged
-  | "RETURNED";     // Return processing back into stock
+  | "RETURNED"      // Return processing back into stock
+  | "SHIPPED";      // Outbound: goods left the building on a dispatched shipment
 
 export type TransactionStatus =
   | "PENDING"     // Created, awaiting execution
@@ -360,7 +361,7 @@ export const useTransactionStore = create<TransactionState>()(
         const h24ago = new Date(Date.now() - 86400000).toISOString();
 
         const byType = {} as Record<TransactionType, number>;
-        const allTypes: TransactionType[] = ["RECEIVED", "MOVED", "RACK_TRANSFER", "WH_TRANSFER", "ADJUSTMENT", "BLOCKED", "DAMAGED", "RETURNED"];
+        const allTypes: TransactionType[] = ["RECEIVED", "MOVED", "RACK_TRANSFER", "WH_TRANSFER", "ADJUSTMENT", "BLOCKED", "DAMAGED", "RETURNED", "SHIPPED"];
         for (const t of allTypes) byType[t] = 0;
 
         let todayCount = 0;
@@ -403,6 +404,7 @@ export const TXN_TYPE_META: Record<TransactionType, { label: string; color: stri
   BLOCKED:       { label: "Blocked",        color: "text-orange-400",  bg: "bg-orange-500/10",  border: "border-orange-500/30",  dot: "bg-orange-400"  },
   DAMAGED:       { label: "Damaged",        color: "text-red-400",     bg: "bg-red-500/10",     border: "border-red-500/30",     dot: "bg-red-400"     },
   RETURNED:      { label: "Returned",       color: "text-teal-400",    bg: "bg-teal-500/10",    border: "border-teal-500/30",    dot: "bg-teal-400"    },
+  SHIPPED:       { label: "Shipped",        color: "text-indigo-400",  bg: "bg-indigo-500/10",  border: "border-indigo-500/30",  dot: "bg-indigo-400"  },
 };
 
 export const TXN_STATUS_META: Record<TransactionStatus, { label: string; color: string; bg: string }> = {

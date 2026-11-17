@@ -7,6 +7,7 @@
  * Rules) → shared task detail drawer.
  */
 
+import { hourlySeries } from "@/lib/hourly";
 import { useMemo, useState } from "react";
 import {
   PackageOpen, Search, X, ChevronRight, MapPin, User, AlertTriangle, CheckCircle2,
@@ -106,14 +107,8 @@ function MiniStat({ label, value, tone }: { label: string; value: string; tone?:
 // ════════════════════════════════════════════════════════════════════════════
 
 function ThroughputChart() {
-  const data = useMemo(
-    () => Array.from({ length: 12 }, (_, i) => ({
-      hour: `${String((6 + i) % 24).padStart(2, "0")}:00`,
-      completed: Math.floor(22 + Math.abs(Math.sin(i + 1)) * 52),
-      blocked: i % 4 === 0 ? Math.floor(1 + Math.random() * 4) : Math.floor(Math.random() * 2),
-    })),
-    [],
-  );
+  const tasks = usePutawayStore((s) => s.tasks);
+  const data = useMemo(() => hourlySeries(["completed", "blocked"], { completed: tasks.map((t) => ({ ts: t.completedAt })) }), [tasks]);
   return (
     <Section title="Putaway Throughput" sub="Completed vs blocked tasks — last 12 hours" className="lg:col-span-2 h-[240px]">
       <div className="h-[190px] px-2 pt-2">

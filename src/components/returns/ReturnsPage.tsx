@@ -110,14 +110,7 @@ function MiniStat({ label, value, tone }: { label: string; value: string; tone?:
 // ════════════════════════════════════════════════════════════════════════════
 
 function ReturnsTrendChart() {
-  const data = useMemo(
-    () => Array.from({ length: 14 }, (_, i) => ({
-      day: `D${i + 1}`,
-      received: Math.floor(3 + Math.abs(Math.sin(i + 1)) * 11),
-      processed: Math.floor(2 + Math.abs(Math.cos(i)) * 9),
-    })),
-    [],
-  );
+  const data = useMemo(() => Array.from({ length: 14 }, (_, i) => ({ day: `D${i + 1}`, received: 0, processed: 0 })), []);
   return (
     <Section title="Returns Trend" sub="Received vs processed — last 14 days" className="lg:col-span-2 h-[240px]">
       <div className="h-[190px] px-2 pt-2">

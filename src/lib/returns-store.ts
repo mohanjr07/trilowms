@@ -228,7 +228,7 @@ interface ReturnsState {
 export const useReturnsStore = create<ReturnsState>()(
   persist(
     (set, get) => ({
-      rmas: buildSeedRMAs(),
+      rmas: [],
       filters: DEFAULT_FILTERS,
       page: 1,
       pageSize: 15,
@@ -457,6 +457,12 @@ export const useReturnsStore = create<ReturnsState>()(
       name: "trilowms-returns-v2",
       storage: cloudJSONStorage,
       partialize: (s) => ({ rmas: s.rmas }),
+      // Drop the old generated demo RMAs (RMA-3000..3029 against fake ORD-3xxxx orders).
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<ReturnsState>;
+        const rmas = (p.rmas ?? current.rmas).filter((r) => !(/^RMA-30\d\d$/.test(r.id) && /^ORD-3\d{4}$/.test(r.orderId)));
+        return { ...current, ...p, rmas };
+      },
     }
   )
 );

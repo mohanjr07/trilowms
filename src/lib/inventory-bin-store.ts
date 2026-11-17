@@ -417,7 +417,7 @@ export const useInvBinStore = create<InvBinState>()(
 
       kpis: () => {
         const { warehouseBins, activeWarehouseName } = get();
-        const bins = activeWarehouseName ? (warehouseBins[activeWarehouseName] ?? []) : [];
+        const bins = (activeWarehouseName ? warehouseBins[activeWarehouseName] : undefined) ?? Object.values(warehouseBins).find((b) => b.length > 0) ?? [];
         if (bins.length === 0) return {
           totalBins: 0, occupiedBins: 0, emptyBins: 0, reservedBins: 0,
           blockedBins: 0, damagedBins: 0, avgOccupancyPct: 0,

@@ -4,7 +4,8 @@
  * PRO / seal), carrier performance and delivery exception handling.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { usePackingStore } from "@/lib/packing-store";
 import {
   Truck, Search, X, ChevronRight, CheckCircle2, AlertTriangle, LayoutDashboard,
   ClipboardList, CalendarClock, Building2, PackageX, Ship, MapPin, Hash, User,
@@ -624,6 +625,12 @@ export function OutboundPage() {
   const syncFromPacking = useOutboundStore((s) => s.syncFromPacking);
   const shipments = useOutboundStore((s) => s.shipments);
   const sealAndConfirmDispatch = useOutboundStore((s) => s.sealAndConfirmDispatch);
+
+  // Keep shipments current automatically: pull on open and whenever packing changes.
+  useEffect(() => {
+    syncFromPacking();
+    return usePackingStore.subscribe(() => { syncFromPacking(); });
+  }, [syncFromPacking]);
 
   const open = (s: Shipment) => setOpenId(s.id);
 

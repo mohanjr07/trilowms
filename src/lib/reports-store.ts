@@ -183,7 +183,7 @@ function buildKPIs(): WarehouseKPIs {
   const avgPickTimeMin = pickingKpis.avgPicksPerHour > 0 ? `${(60 / pickingKpis.avgPicksPerHour).toFixed(1)}m` : "—";
 
   const rmaRate = outboundState.shipments.length > 0
-    ? `${((rmaCount / outboundState.shipments.length) * 100).toFixed(1)}%`
+    ? `${Math.min(100, (rmaCount / outboundState.shipments.length) * 100).toFixed(1)}%`
     : "—";
 
   return {
@@ -198,7 +198,7 @@ function buildKPIs(): WarehouseKPIs {
     avgReceivingTimeMin: inboundKpis.avgReceivingTime,
     avgPutawayTimeMin: putawayKpis.avgCycleTime,
     avgPickTimeMin,
-    warehouseUtilization: `${binKpis.avgOccupancyPct}%`,
+    warehouseUtilization: binKpis.totalBins > 0 ? `${binKpis.avgOccupancyPct}%` : "—",
     laborUtilization: laborKpis.targetVsActual,
     dockUtilization: `${dock.pct}%`,
     qcPassRate: qcKpis.passRate,
@@ -235,10 +235,11 @@ function buildMonthlyTrend(): { month: string; received: number; shipped: number
 function buildCarrierPerf(): { carrier: string; onTime: number; delayed: number; total: number; }[] {
   const map = new Map<string, { onTime: number; delayed: number; total: number }>();
   for (const s of useOutboundStore.getState().shipments) {
-    if (s.status !== "DELIVERED") continue;
+    if (!["DISPATCHED", "IN_TRANSIT", "DELIVERED"].includes(s.status)) continue;
+    const onTime = s.slaMet ?? (s.actualDispatch ? new Date(s.actualDispatch) <= new Date(s.scheduledDispatch) : false);
     const e = map.get(s.carrier) ?? { onTime: 0, delayed: 0, total: 0 };
     e.total += 1;
-    if (s.slaMet) e.onTime += 1; else e.delayed += 1;
+    if (onTime) e.onTime += 1; else e.delayed += 1;
     map.set(s.carrier, e);
   }
   return Array.from(map.entries())

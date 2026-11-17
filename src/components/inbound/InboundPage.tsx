@@ -7,6 +7,8 @@
  * Docks & Appointments · Discrepancies) → shared ASN detail drawer + Create ASN.
  */
 
+import { hourlySeries } from "@/lib/hourly";
+import { useTransactionStore } from "@/lib/transaction-store";
 import { useMemo, useState } from "react";
 import { normalizeScan, skuMatches, scanBeep, useScanListener } from "@/lib/scan";
 import {
@@ -125,13 +127,8 @@ function MiniStat({ label, value, tone }: { label: string; value: string; tone?:
 // ════════════════════════════════════════════════════════════════════════════
 
 function ReceivingVolumeChart() {
-  const data = useMemo(
-    () => Array.from({ length: 12 }, (_, i) => ({
-      hour: `${String((6 + i) % 24).padStart(2, "0")}:00`,
-      units: Math.floor(180 + Math.abs(Math.sin(i)) * 760),
-    })),
-    [],
-  );
+  const txns = useTransactionStore((s) => s.transactions);
+  const data = useMemo(() => hourlySeries(["units"], { units: txns.filter((t) => t.type === "RECEIVED").map((t) => ({ ts: t.timestamp, qty: t.quantity })) }), [txns]);
   return (
     <Section title="Receiving Volume" sub="Units received — last 12 hours" className="lg:col-span-2 h-[240px]">
       <div className="h-[190px] px-2 pt-2">

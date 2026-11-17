@@ -4,7 +4,9 @@
  * manifest workflow and exception handling.
  */
 
-import { useMemo, useState } from "react";
+import { hourlySeries } from "@/lib/hourly";
+import { useEffect, useMemo, useState } from "react";
+import { useConsolidationStore } from "@/lib/consolidation-store";
 import {
   PackageCheck, Search, X, ChevronRight, Play, CheckCircle2, AlertTriangle,
   LayoutDashboard, ClipboardList, Monitor, Box, PackageX, Printer, Truck,
@@ -107,14 +109,8 @@ function MiniStat({ label, value, tone }: { label: string; value: string; tone?:
 // ════════════════════════════════════════════════════════════════════════════
 
 function PackThroughputChart() {
-  const data = useMemo(
-    () => Array.from({ length: 12 }, (_, i) => ({
-      hour: `${String((6 + i) % 24).padStart(2, "0")}:00`,
-      cartons: Math.floor(18 + Math.abs(Math.sin(i + 1)) * 46),
-      rework: i % 4 === 0 ? Math.floor(1 + Math.random() * 3) : Math.floor(Math.random() * 2),
-    })),
-    [],
-  );
+  const orders = usePackingStore((s) => s.orders);
+  const data = useMemo(() => hourlySeries(["cartons", "rework"], { cartons: orders.map((o) => ({ ts: o.completedAt, qty: o.cartons.length })) }), [orders]);
   return (
     <Section title="Pack Throughput" sub="Cartons completed vs rework — last 12 hours" className="lg:col-span-2 h-[240px]">
       <div className="h-[190px] px-2 pt-2">
@@ -728,6 +724,12 @@ export function PackingPage() {
   const orders = usePackingStore((s) => s.orders);
   const syncFromConsolidation = usePackingStore((s) => s.syncFromConsolidation);
   const exceptionCount = orders.filter((o) => o.status === "EXCEPTION").length;
+
+  // Keep the pack queue current automatically: pull on open and whenever consolidation changes.
+  useEffect(() => {
+    syncFromConsolidation();
+    return useConsolidationStore.subscribe(() => { syncFromConsolidation(); });
+  }, [syncFromConsolidation]);
 
   const open = (o: PackOrder) => setOpenOrderId(o.id);
 

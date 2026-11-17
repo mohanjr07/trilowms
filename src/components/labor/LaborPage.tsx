@@ -4,6 +4,7 @@
  * shift planning and performance leaderboards.
  */
 
+import { hourlySeries } from "@/lib/hourly";
 import { useMemo, useState } from "react";
 import {
   Users, Search, X, ChevronRight, LogIn, LogOut, Coffee, Play, LayoutDashboard,
@@ -99,13 +100,7 @@ function uphTone(uph: number, target: number) {
 // ════════════════════════════════════════════════════════════════════════════
 
 function UphTrendChart() {
-  const data = useMemo(
-    () => Array.from({ length: 12 }, (_, i) => ({
-      hour: `${String((6 + i) % 24).padStart(2, "0")}:00`,
-      uph: Math.floor(130 + Math.abs(Math.sin(i + 1)) * 70),
-    })),
-    [],
-  );
+  const data = useMemo(() => hourlySeries(["uph"]), []);
   return (
     <Section title="Productivity Trend" sub="Average units-per-hour vs target — last 12 hours" className="lg:col-span-2 h-[240px]">
       <div className="h-[190px] px-2 pt-2">

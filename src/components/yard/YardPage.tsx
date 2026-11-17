@@ -4,6 +4,7 @@
  * monitoring and appointment scheduling.
  */
 
+import { hourlySeries } from "@/lib/hourly";
 import { useMemo, useState } from "react";
 import {
   Container, Search, X, ChevronRight, CheckCircle2, AlertTriangle, LayoutDashboard,
@@ -107,14 +108,7 @@ function MiniStat({ label, value, tone }: { label: string; value: string; tone?:
 // ════════════════════════════════════════════════════════════════════════════
 
 function GateActivityChart() {
-  const data = useMemo(
-    () => Array.from({ length: 12 }, (_, i) => ({
-      hour: `${String((6 + i) % 24).padStart(2, "0")}:00`,
-      in: Math.floor(2 + Math.abs(Math.sin(i + 1)) * 7),
-      out: Math.floor(1 + Math.abs(Math.cos(i)) * 6),
-    })),
-    [],
-  );
+  const data = useMemo(() => hourlySeries(["in", "out"]), []);
   return (
     <Section title="Gate Activity" sub="Gate-in vs gate-out moves — last 12 hours" className="lg:col-span-2 h-[240px]">
       <div className="h-[190px] px-2 pt-2">

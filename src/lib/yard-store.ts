@@ -196,9 +196,9 @@ const SEED_YARD_DOCKS: YardDock[] = YARD_DOCKS.map((d) => ({
 export const useYardStore = create<YardState>()(
   persist(
     (set, get) => ({
-      trucks: buildSeedTrucks(),
+      trucks: [],
       docks: SEED_YARD_DOCKS,
-      appointments: buildSeedAppointments(),
+      appointments: [],
       filters: DEFAULT_FILTERS,
       page: 1,
 
@@ -349,7 +349,14 @@ export const useYardStore = create<YardState>()(
       // before this fix (same issue as Inbound's dock board).
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<YardState>;
-        return { ...current, ...p, docks: p.docks && p.docks.length > 0 ? p.docks : current.docks };
+        // Drop the old generated demo trucks (TRK-Y1..20) and appointments (APPT-100..123) and free their docks.
+        const trucks = (p.trucks ?? current.trucks).filter((t) => !/^TRK-Y\d{1,2}$/.test(t.id));
+        const live = new Set(trucks.map((t) => t.id));
+        const appointments = (p.appointments ?? current.appointments).filter((a) => !/^APPT-1\d\d$/.test(a.id));
+        const docksIn = p.docks && p.docks.length > 0 ? p.docks : current.docks;
+        const docks = docksIn.map((d) => d.assignedTruckId && !live.has(d.assignedTruckId)
+          ? { ...d, status: "AVAILABLE" as const, assignedTruckId: null, assignedAt: null, currentWeight: 0 } : d);
+        return { ...current, ...p, trucks, appointments, docks };
       },
     }
   )
