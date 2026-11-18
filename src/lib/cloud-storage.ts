@@ -43,7 +43,19 @@ const local = {
   },
 };
 
-const lastSynced = new Map<string, string>();   // last value known to be in Supabase
+/** JSON with sorted keys. Postgres jsonb reorders object keys, so a plain string compare says "changed"
+ *  for data that is identical, which made every page load re-upload every store. */
+function canon(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(canon).join(",")}]`;
+  if (v && typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    return `{${Object.keys(o).sort().map((k) => `${JSON.stringify(k)}:${canon(o[k])}`).join(",")}}`;
+  }
+  return JSON.stringify(v) ?? "null";
+}
+const canonOf = (raw: string): string => { try { return canon(JSON.parse(raw)); } catch { return raw; } };
+
+const lastSynced = new Map<string, string>();   // canonical form of the last value known to be in Supabase
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
 const queued = new Map<string, string>();       // latest value waiting to be pushed
 let pushErrors = 0;
@@ -66,13 +78,14 @@ async function push(name: string) {
   const value = queued.get(name);
   if (value === undefined) return;
   if (!signedIn) return;
-  if (lastSynced.get(name) === value) { queued.delete(name); return; }
+  const canonical = canonOf(value);
+  if (lastSynced.get(name) === canonical) { queued.delete(name); return; }
   try {
     const { error } = await supabase
       .from(TABLE)
       .upsert({ name, state: JSON.parse(value), updated_at: new Date().toISOString() }, { onConflict: "name" });
     if (error) throw error;
-    lastSynced.set(name, value);
+    lastSynced.set(name, canonical);
     if (queued.get(name) === value) queued.delete(name);
   } catch {
     pushErrors++;
@@ -110,7 +123,7 @@ const cloudStateStorage: StateStorage = {
       if (error) throw error;
       if (data?.state) {
         const s = JSON.stringify(data.state);
-        lastSynced.set(name, s);
+        lastSynced.set(name, canon(data.state));
         local.set(name, s);
         return s;
       }
