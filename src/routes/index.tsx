@@ -209,7 +209,7 @@ function OrderFulfillmentPanel() {
     { label: "New", value: kpis.newOrders, color: "bg-slate-500" },
     { label: "Allocated", value: kpis.allocated, color: "bg-blue-500" },
     { label: "Fulfilling", value: kpis.inFulfillment, color: "bg-amber-500" },
-    { label: "Shipped", value: kpis.shipped, color: "bg-emerald-500" },
+    { label: "Shipped", value: orders.filter((o) => o.status === "SHIPPED" || o.status === "DELIVERED").length, color: "bg-emerald-500" },
     { label: "Exceptions", value: kpis.exceptions, color: "bg-red-500" },
   ];
   const total = stages.reduce((s, st) => s + st.value, 0);

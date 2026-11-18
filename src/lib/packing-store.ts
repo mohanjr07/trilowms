@@ -189,8 +189,11 @@ export const usePackingStore = create<PackingState>()(
         const { orders } = get();
         // repair order numbers saved from an older build that showed a duplicated number
         const fixed = orders.map((o) => {
-          const real = sourceOrders.find((x) => x.id === o.sourceOrderId)?.orderNumber;
-          return real && real !== o.orderNumber ? { ...o, orderNumber: real } : o;
+          const src = sourceOrders.find((x) => x.id === o.sourceOrderId);
+          const real = src?.orderNumber;
+          const noCarrier = !o.carrier || ["Unassigned", "—", "-"].includes(o.carrier.trim());
+          const carrier = noCarrier ? (src?.carrier && !["Unassigned", "—", "-"].includes(src.carrier.trim()) ? src.carrier : "UPS") : o.carrier;
+          return (real && real !== o.orderNumber) || carrier !== o.carrier ? { ...o, orderNumber: real ?? o.orderNumber, carrier } : o;
         });
         if (fixed.some((o, i) => o !== orders[i])) set({ orders: fixed });
         const existingLaneIds = new Set(orders.map((o) => o.sourceLaneId));

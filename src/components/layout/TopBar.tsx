@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, Activity, Wifi, LogOut, User, ChevronDown, Shield } from "lucide-react";
+import { Search, Activity, Wifi, LogOut, User, ChevronDown, Shield, KeyRound } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import { useAuthStore, ROLE_DEFINITIONS } from "@/lib/auth-store";
 import { usePickingStore } from "@/lib/picking-store";
 import { useOutboundStore } from "@/lib/outbound-store";
@@ -10,6 +11,15 @@ import { cn } from "@/lib/utils";
 export function TopBar() {
   const { session, logout, role } = useAuthStore();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
+  const [newPw, setNewPw] = useState("");
+  const [pwMsg, setPwMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const changePassword = async () => {
+    if (newPw.length < 8) { setPwMsg({ ok: false, text: "Use at least 8 characters." }); return; }
+    const { error } = await supabase.auth.updateUser({ password: newPw });
+    if (error) setPwMsg({ ok: false, text: error.message });
+    else { setPwMsg({ ok: true, text: "Password changed. Use it next time you sign in." }); setNewPw(""); }
+  };
   const dropRef = useRef<HTMLDivElement>(null);
   const roleDef = role();
 
@@ -97,6 +107,21 @@ export function TopBar() {
 
               {/* Actions */}
               <div className="p-2">
+                <button
+                  onClick={() => { setPwOpen((v) => !v); setPwMsg(null); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs hover:bg-muted/40 transition-colors"
+                >
+                  <KeyRound className="h-3.5 w-3.5" />
+                  Change password
+                </button>
+                {pwOpen && (
+                  <div className="px-3 pb-2 space-y-2">
+                    <input value={newPw} onChange={(e) => setNewPw(e.target.value)} type="password" placeholder="New password (8+ characters)"
+                      className="w-full bg-background/60 border border-border/60 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-amber-500/60" />
+                    <button onClick={() => void changePassword()} className="w-full py-2 rounded-lg bg-amber-500 text-black font-bold text-xs hover:bg-amber-400">Save new password</button>
+                    {pwMsg && <div className={cn("text-[11px]", pwMsg.ok ? "text-green-400" : "text-destructive")}>{pwMsg.text}</div>}
+                  </div>
+                )}
                 <button
                   onClick={() => { setProfileOpen(false); logout(); }}
                   className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-destructive hover:bg-destructive/10 transition-colors"

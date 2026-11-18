@@ -160,79 +160,26 @@ function WarehouseBackground() {
 // ─── Forgot password modal ────────────────────────────────────────────────────
 
 function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
-  const [step, setStep] = useState<"email" | "sent" | "reset" | "done">("email");
-  const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
-  const [pw, setPw] = useState("");
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="w-full max-w-sm bg-[#0d1724] border border-border/60 rounded-2xl shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border/60">
-          <div className="text-sm font-bold tracking-wider">
-            {step === "email" && "FORGOT PASSWORD"}
-            {step === "sent" && "CHECK YOUR EMAIL"}
-            {step === "reset" && "RESET PASSWORD"}
-            {step === "done" && "PASSWORD RESET"}
-          </div>
+          <div className="text-sm font-bold tracking-wider">FORGOT PASSWORD</div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
         </div>
         <div className="p-6 space-y-4">
-          {step === "email" && (
-            <>
-              <p className="text-sm text-muted-foreground">Enter your work email to receive a reset link.</p>
-              <div>
-                <label className="text-[10px] font-bold tracking-wider text-muted-foreground">WORK EMAIL</label>
-                <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@trilowms.com"
-                  className="mt-1 w-full bg-background/60 border border-border/60 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-amber-500/60" />
-              </div>
-              <button onClick={() => email && setStep("sent")} className="w-full py-2.5 rounded-lg bg-amber-500 text-black font-bold text-sm hover:bg-amber-400 transition-colors">
-                Send Reset Link
-              </button>
-            </>
-          )}
-          {step === "sent" && (
-            <>
-              <div className="flex flex-col items-center gap-3 py-4">
-                <div className="h-14 w-14 rounded-full bg-green-500/15 border border-green-500/30 flex items-center justify-center">
-                  <Mail className="h-6 w-6 text-green-400" />
-                </div>
-                <p className="text-sm text-center text-muted-foreground">A reset code has been sent to <span className="text-foreground font-medium">{email}</span></p>
-              </div>
-              <div>
-                <label className="text-[10px] font-bold tracking-wider text-muted-foreground">6-DIGIT CODE</label>
-                <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="000000" maxLength={6}
-                  className="mt-1 w-full bg-background/60 border border-border/60 rounded-lg px-3 py-2.5 text-sm text-center tracking-widest font-mono focus:outline-none focus:border-amber-500/60" />
-              </div>
-              <button onClick={() => code.length === 6 && setStep("reset")} className="w-full py-2.5 rounded-lg bg-amber-500 text-black font-bold text-sm hover:bg-amber-400 transition-colors">
-                Verify Code
-              </button>
-            </>
-          )}
-          {step === "reset" && (
-            <>
-              <p className="text-sm text-muted-foreground">Enter your new password.</p>
-              <div>
-                <label className="text-[10px] font-bold tracking-wider text-muted-foreground">NEW PASSWORD</label>
-                <input value={pw} onChange={(e) => setPw(e.target.value)} type="password" placeholder="Min 8 characters"
-                  className="mt-1 w-full bg-background/60 border border-border/60 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-amber-500/60" />
-              </div>
-              <button onClick={() => pw.length >= 6 && setStep("done")} className="w-full py-2.5 rounded-lg bg-amber-500 text-black font-bold text-sm hover:bg-amber-400 transition-colors">
-                Reset Password
-              </button>
-            </>
-          )}
-          {step === "done" && (
-            <div className="flex flex-col items-center gap-4 py-4">
-              <div className="h-14 w-14 rounded-full bg-green-500/15 border border-green-500/30 flex items-center justify-center">
-                <ShieldCheck className="h-6 w-6 text-green-400" />
-              </div>
-              <p className="text-sm text-center text-muted-foreground">Password reset successfully. You can now log in with your new password.</p>
-              <button onClick={onClose} className="w-full py-2.5 rounded-lg bg-amber-500 text-black font-bold text-sm hover:bg-amber-400 transition-colors">
-                Back to Login
-              </button>
+          <div className="flex flex-col items-center gap-3 py-2">
+            <div className="h-14 w-14 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
+              <ShieldCheck className="h-6 w-6 text-amber-400" />
             </div>
-          )}
+            <p className="text-sm text-center text-muted-foreground">
+              Passwords are managed by your administrator. Ask them to set a new one for you, then change it yourself from the
+              profile menu (top right) after you sign in.
+            </p>
+          </div>
+          <button onClick={onClose} className="w-full py-2.5 rounded-lg bg-amber-500 text-black font-bold text-sm hover:bg-amber-400 transition-colors">
+            Back to Login
+          </button>
         </div>
       </div>
     </div>
