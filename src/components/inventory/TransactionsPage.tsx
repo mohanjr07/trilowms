@@ -30,7 +30,7 @@ export function TransactionsPage() {
           <div>
             <div className="text-xs font-bold">Transaction Engine</div>
             <div className="text-[9px] text-muted-foreground font-mono">
-              {activeWarehouseName ?? "No warehouse"}
+              {activeWarehouseName ?? "All warehouses"}
               {pendingCount > 0 && (
                 <span className="ml-1.5 inline-flex items-center px-1 py-0.5 rounded bg-amber-500/15 text-amber-400 text-[8px] font-bold">
                   {pendingCount} pending

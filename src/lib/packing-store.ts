@@ -187,6 +187,12 @@ export const usePackingStore = create<PackingState>()(
         const { lanes } = useConsolidationStore.getState();
         const { orders: sourceOrders } = useOrdersStore.getState();
         const { orders } = get();
+        // repair order numbers saved from an older build that showed a duplicated number
+        const fixed = orders.map((o) => {
+          const real = sourceOrders.find((x) => x.id === o.sourceOrderId)?.orderNumber;
+          return real && real !== o.orderNumber ? { ...o, orderNumber: real } : o;
+        });
+        if (fixed.some((o, i) => o !== orders[i])) set({ orders: fixed });
         const existingLaneIds = new Set(orders.map((o) => o.sourceLaneId));
         const eligible = lanes.filter((l) => l.status === "MOVED_TO_PACKING" && !existingLaneIds.has(l.id));
         if (eligible.length === 0) return 0;

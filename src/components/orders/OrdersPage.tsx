@@ -21,6 +21,7 @@ import {
   type Order, type OrderStatus, type OrderPriority, type OrderLineInput, type AllocStatus,
 } from "@/lib/orders-store";
 import { usePickingStore } from "@/lib/picking-store";
+import { useSkuStore } from "@/lib/sku-store";
 import { PageHeader, KPICard } from "@/components/wms/Primitives";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import { cn } from "@/lib/utils";
@@ -286,7 +287,7 @@ function CreateOrderView({ onCreated }: { onCreated: (o: Order) => void }) {
     if (!validManual) return;
     const o = createOrder({
       customer: customer.trim(), channel, shippingMethod: shipping, priority, shipToAddress: address.trim(),
-      lines: lines.filter((l) => l.skuCode.trim() && l.requestedQty > 0).map((l) => ({ ...l, skuName: l.skuName.trim() || l.skuCode.trim() })),
+      lines: lines.filter((l) => l.skuCode.trim() && l.requestedQty > 0).map((l) => ({ ...l, skuName: l.skuName.trim() || useSkuStore.getState().skus.find((k) => k.skuCode.toLowerCase() === l.skuCode.trim().toLowerCase())?.itemName || l.skuCode.trim() })),
     });
     setCustomer(""); setAddress(""); setLines([{ skuCode: "", skuName: "", uom: "EA", requestedQty: 1 }]);
     onCreated(o);
