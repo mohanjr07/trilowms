@@ -7,6 +7,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { cloudJSONStorage } from "@/lib/cloud-storage";
 import { useStockStore, fifoBins } from "@/lib/stock-store";
+import { useOrdersStore } from "@/lib/orders-store";
 import { useInvBinStore } from "@/lib/inventory-bin-store";
 import { useLaborStore } from "@/lib/labor-store";
 import { useAuthStore } from "@/lib/auth-store";
@@ -609,6 +610,24 @@ export const usePickingStore = create<PickingState>()(
       },
 
       resolveShortage: (shortageId, resolution) => {
+        // The shorted units are not coming from this wave: take them off the order's
+        // allocation so the order is not left "100% allocated" with nothing to pick.
+        const sh = get().shortages.find((x) => x.id === shortageId);
+        if (sh && sh.status === "OPEN") {
+          useOrdersStore.setState((st) => ({
+            orders: st.orders.map((o) => {
+              if (o.id !== sh.orderId && o.orderNumber !== sh.orderId) return o;
+              const lines = o.lines.map((l) => {
+                if (l.skuCode !== sh.skuCode) return l;
+                const alloc = Math.max(0, l.allocatedQty - sh.qtyShort);
+                return { ...l, allocatedQty: alloc, backordered: true, allocStatus: (alloc === 0 ? "UNALLOCATED" : alloc < l.requestedQty ? "PARTIAL" : "ALLOCATED") as typeof l.allocStatus };
+              });
+              const anyAlloc = lines.some((l) => l.allocatedQty > 0);
+              const status = anyAlloc ? o.status : ("NEW" as typeof o.status);
+              return { ...o, lines, status, stages: status === o.status ? o.stages : [...o.stages, { status, ts: new Date().toISOString() }] };
+            }),
+          }));
+        }
         set((s) => ({
           shortages: s.shortages.map((sh) =>
             sh.id === shortageId
