@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useSkuStore, SKU_CATEGORIES, type SKU } from "@/lib/sku-store";
 import { useAuthStore } from "@/lib/auth-store";
+import { useStockStore } from "@/lib/stock-store";
 import { PageHeader, KPICard } from "@/components/wms/Primitives";
 import { SkuTable } from "@/components/sku/SkuTable";
 import { SkuFormModal } from "@/components/sku/SkuFormModal";
@@ -32,7 +33,8 @@ export function SkuMasterPage() {
   const [deleteTarget, setDeleteTarget] = useState<SKU | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
 
-  const stats = kpis();
+  const stockOnHand = useStockStore((st) => Object.values(st.stock).reduce((a, r) => a + r.onHand, 0));
+  const stats = { ...kpis(), totalOnHand: stockOnHand };
   const totalFiltered = filteredSkus().length;
 
   const hasActiveFilters =

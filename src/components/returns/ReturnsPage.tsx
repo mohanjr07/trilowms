@@ -669,7 +669,7 @@ function CreateRmaModal({ open, onClose }: { open: boolean; onClose: () => void 
   const submit = () => {
     if (!canSubmit || !selectedOrder) return;
     createRma({
-      orderId: selectedOrder.id,
+      orderId: selectedOrder.orderNumber,
       orderDate: selectedOrder.createdAt,
       customer: selectedOrder.customer,
       customerCode: selectedOrder.customerCode,
