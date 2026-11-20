@@ -190,3 +190,12 @@
   main .flex-col.overflow-y-auto > * { flex-shrink: 0; }
   main .flex-col.h-full > header, main .flex-col.h-full > nav { flex-shrink: 0; }
 }
+
+/* Phones / WebViews: drop GPU-heavy effects that cause stale-paint "ghost" copies while scrolling. */
+@media (max-width: 767px) {
+  *, *::before, *::after { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+  .scanline { display: none !important; }
+  .pulse-dot { animation: none !important; }
+  .glow-amber { box-shadow: none !important; }
+  main .overflow-y-auto, main .overflow-auto { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+}
