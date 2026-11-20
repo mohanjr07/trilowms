@@ -12,6 +12,7 @@ import { useStockStore } from "@/lib/stock-store";
 import { useSlottingStore } from "@/lib/slotting-store";
 import { useInvBinStore } from "@/lib/inventory-bin-store";
 import { useLaborStore } from "@/lib/labor-store";
+import { useAuthStore } from "@/lib/auth-store";
 import { useTransactionStore } from "@/lib/transaction-store";
 
 export type PutawayStatus = "PENDING" | "ASSIGNED" | "IN_PROGRESS" | "COMPLETED" | "BLOCKED" | "CANCELLED";
@@ -241,7 +242,11 @@ function nextPtwId() {
 /** Round-robins new work to whichever clocked-in employee currently has the fewest open putaway tasks. */
 function leastLoadedOperator(tasks: PutawayTask[]): { id: string; name: string } | null {
   const candidates = useLaborStore.getState().employees.filter((e) => e.status === "CLOCKED_IN");
-  if (candidates.length === 0) return null;
+  if (candidates.length === 0) {
+    // No roster clocked in: the signed-in user takes the task (they are the one doing it).
+    const u = useAuthStore.getState().session?.user;
+    return u ? { id: u.id, name: u.name } : null;
+  }
   const openStatuses: PutawayStatus[] = ["PENDING", "ASSIGNED", "IN_PROGRESS"];
   const load = new Map<string, number>(candidates.map((e) => [e.id, 0]));
   for (const t of tasks) {

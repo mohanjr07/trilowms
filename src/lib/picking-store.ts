@@ -9,6 +9,7 @@ import { cloudJSONStorage } from "@/lib/cloud-storage";
 import { useStockStore, fifoBins } from "@/lib/stock-store";
 import { useInvBinStore } from "@/lib/inventory-bin-store";
 import { useLaborStore } from "@/lib/labor-store";
+import { useAuthStore } from "@/lib/auth-store";
 import { useTransactionStore } from "@/lib/transaction-store";
 
 export type WaveStatus = "DRAFT" | "RELEASED" | "IN_PROGRESS" | "PARTIAL" | "COMPLETED" | "CANCELLED" | "SHORTED";
@@ -298,7 +299,9 @@ function realLocationFor(skuCode: string, idx: number) {
 /** Round-robins new work to whichever clocked-in employee currently has the fewest open pick tasks. */
 function leastLoadedPicker(waves: Wave[]): { id: string; name: string } {
   const roster = useLaborStore.getState().employees.filter((e) => e.status === "CLOCKED_IN");
-  const candidates = roster.length > 0 ? roster.map((e) => ({ id: e.id, name: e.name })) : PICKERS;
+  const me = useAuthStore.getState().session?.user;
+  // No roster clocked in: use the signed-in user, not demo names.
+  const candidates = roster.length > 0 ? roster.map((e) => ({ id: e.id, name: e.name })) : me ? [{ id: me.id, name: me.name }] : PICKERS;
   const openStatuses: PickTaskStatus[] = ["PENDING", "ASSIGNED", "IN_PROGRESS"];
   const load = new Map<string, number>(candidates.map((p) => [p.id, 0]));
   for (const w of waves) {
