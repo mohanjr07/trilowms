@@ -134,3 +134,26 @@
   }
   .pulse-dot { animation: pulse-dot 1.8s ease-in-out infinite; }
 }
+
+
+/* ── Phone optimisation (≤767px) ─────────────────────────────────────── */
+@media (max-width: 767px) {
+  html { -webkit-text-size-adjust: 100%; }
+  body { overscroll-behavior-y: none; }
+  /* comfortable touch targets */
+  main button, main [role="tab"], main select { min-height: 36px; }
+  main input, main select, main textarea { font-size: 16px; } /* stops iOS/Android zoom-on-focus */
+  /* tighter page gutters */
+  main .px-6 { padding-left: 0.75rem; padding-right: 0.75rem; }
+  main .py-6 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+  main .p-6 { padding: 0.75rem; }
+  main .px-5 { padding-left: 0.75rem; padding-right: 0.75rem; }
+  main .p-5 { padding: 0.75rem; }
+  /* wide tables scroll sideways instead of squashing */
+  main table { min-width: 560px; }
+  /* dialogs fit the screen */
+  [role="dialog"] { max-width: calc(100vw - 1rem); max-height: 92vh; overflow-y: auto; }
+  /* hide scrollbars on tab strips */
+  main .overflow-x-auto { scrollbar-width: none; }
+  main .overflow-x-auto::-webkit-scrollbar { display: none; }
+}

@@ -5,19 +5,19 @@ export function PageHeader({ title, subtitle, icon: Icon, actions }: {
   title: string; subtitle?: string; icon?: LucideIcon; actions?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between px-6 py-4 border-b panel">
-      <div className="flex items-center gap-3">
+    <div className="flex items-center justify-between max-md:flex-col max-md:items-stretch max-md:gap-3 px-6 py-4 max-md:px-3 max-md:py-3 border-b panel">
+      <div className="flex items-center gap-3 min-w-0">
         {Icon && (
-          <div className="h-10 w-10 rounded-md bg-primary/15 border border-primary/30 flex items-center justify-center">
+          <div className="h-10 w-10 shrink-0 rounded-md bg-primary/15 border border-primary/30 flex items-center justify-center">
             <Icon className="h-5 w-5 text-primary" />
           </div>
         )}
-        <div>
-          <h1 className="text-lg font-bold tracking-tight">{title}</h1>
+        <div className="min-w-0">
+          <h1 className="text-lg max-md:text-base font-bold tracking-tight">{title}</h1>
           {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
         </div>
       </div>
-      <div className="flex items-center gap-2">{actions}</div>
+      <div className="flex items-center gap-2 max-md:flex-wrap max-md:[&>*]:flex-1 max-md:[&>*]:min-w-[7rem]">{actions}</div>
     </div>
   );
 }
