@@ -184,3 +184,9 @@
   /* table cells compact but readable */
   main th, main td { padding-left: 0.5rem; padding-right: 0.5rem; }
 }
+
+/* Scrolling page columns: children must never shrink, or stacked headers get squashed and overlap the content. */
+@media (max-width: 767px) {
+  main .flex-col.overflow-y-auto > * { flex-shrink: 0; }
+  main .flex-col.h-full > header, main .flex-col.h-full > nav { flex-shrink: 0; }
+}

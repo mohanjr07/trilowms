@@ -30,7 +30,7 @@ export function AppShell() {
 
   return (
     <AuthGuard>
-      <div className="flex h-screen w-full overflow-hidden bg-background">
+      <div className="flex h-screen max-md:h-[100dvh] w-full overflow-hidden bg-background">
         {navOpen && <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={() => setNavOpen(false)} />}
         <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
         <div className="flex flex-1 flex-col min-w-0 overflow-visible">

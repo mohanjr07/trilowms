@@ -5,7 +5,7 @@ export function PageHeader({ title, subtitle, icon: Icon, actions }: {
   title: string; subtitle?: string; icon?: LucideIcon; actions?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between max-md:flex-col max-md:items-stretch max-md:gap-3 px-6 py-4 max-md:px-3 max-md:py-3 border-b panel">
+    <div className="shrink-0 flex items-center justify-between max-md:flex-col max-md:items-stretch max-md:gap-3 px-6 py-4 max-md:px-3 max-md:py-3 border-b panel">
       <div className="flex items-center gap-3 min-w-0">
         {Icon && (
           <div className="h-10 w-10 shrink-0 rounded-md bg-primary/15 border border-primary/30 flex items-center justify-center">
