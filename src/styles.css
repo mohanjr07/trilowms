@@ -157,3 +157,30 @@
   main .overflow-x-auto { scrollbar-width: none; }
   main .overflow-x-auto::-webkit-scrollbar { display: none; }
 }
+
+/* ── Phone type scale & spacing (≤767px) ─────────────────────────────── */
+@media (max-width: 767px) {
+  /* readable minimum text */
+  main .text-\[9px\] { font-size: 10.5px; }
+  main .text-\[10px\] { font-size: 11px; line-height: 1.35; }
+  main .text-\[11px\] { font-size: 12px; }
+  main .text-xs { font-size: 12.5px; }
+  /* headings scale down so they don't wrap awkwardly */
+  main .text-3xl { font-size: 1.625rem; line-height: 1.2; }
+  main .text-2xl { font-size: 1.375rem; line-height: 1.2; }
+  main .text-xl { font-size: 1.125rem; }
+  main .text-lg { font-size: 1rem; }
+  /* tighter cards and rhythm */
+  main .p-4 { padding: 0.75rem; }
+  main .px-4 { padding-left: 0.75rem; padding-right: 0.75rem; }
+  main .py-4 { padding-top: 0.625rem; padding-bottom: 0.625rem; }
+  main .py-3 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+  main .gap-6 { gap: 0.75rem; }
+  main .gap-5 { gap: 0.75rem; }
+  main .gap-4 { gap: 0.625rem; }
+  main .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.75rem; }
+  main .space-y-5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.75rem; }
+  main .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.625rem; }
+  /* table cells compact but readable */
+  main th, main td { padding-left: 0.5rem; padding-right: 0.5rem; }
+}
