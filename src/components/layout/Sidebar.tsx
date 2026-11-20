@@ -39,9 +39,10 @@ const ALL_MODULES: { to: string; label: string; icon: typeof LayoutDashboard; hi
   { to: "/admin",    label: "Admin",             icon: Settings },
 ];
 
-export function Sidebar() {
+export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: () => void }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsedState, setCollapsed] = useState(false);
+  const collapsed = collapsedState && !open;
   const { session, logout, role } = useAuthStore();
   const roleDef = role();
 
@@ -54,8 +55,10 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "panel flex flex-col border-r bg-sidebar transition-[width] duration-200",
+        "panel flex flex-col border-r bg-sidebar transition-[width,transform] duration-200",
         collapsed ? "w-[64px]" : "w-[244px]",
+        "max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:!w-[270px] max-md:shadow-2xl",
+        open ? "max-md:translate-x-0" : "max-md:-translate-x-full",
       )}
     >
       {/* Logo */}
@@ -94,6 +97,7 @@ export function Sidebar() {
             <Link
               key={m.to}
               to={m.to}
+              onClick={() => onClose?.()}
               className={cn(
                 "group flex items-center gap-3 rounded-md px-2.5 py-2 text-sm transition-colors",
                 "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
@@ -142,7 +146,7 @@ export function Sidebar() {
 
       <button
         onClick={() => setCollapsed((c) => !c)}
-        className="border-t border-border/60 px-3 py-2 text-xs text-muted-foreground hover:bg-sidebar-accent text-left"
+        className="max-md:hidden border-t border-border/60 px-3 py-2 text-xs text-muted-foreground hover:bg-sidebar-accent text-left"
       >
         {collapsed ? "›" : "‹  Collapse"}
       </button>

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, Activity, Wifi, LogOut, User, ChevronDown, Shield, KeyRound } from "lucide-react";
+import { Menu, Search, Activity, Wifi, LogOut, User, ChevronDown, Shield, KeyRound } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore, ROLE_DEFINITIONS } from "@/lib/auth-store";
 import { usePickingStore } from "@/lib/picking-store";
@@ -8,7 +8,7 @@ import { useInboundStore } from "@/lib/inbound-store";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { cn } from "@/lib/utils";
 
-export function TopBar() {
+export function TopBar({ onMenu }: { onMenu?: () => void }) {
   const { session, logout, role } = useAuthStore();
   const [profileOpen, setProfileOpen] = useState(false);
   const [pwOpen, setPwOpen] = useState(false);
@@ -37,8 +37,9 @@ export function TopBar() {
   }, []);
 
   return (
-    <header className="h-14 border-b bg-panel/80 backdrop-blur flex items-center px-4 gap-4 relative overflow-visible z-30">
-      <div className="flex items-center gap-2 text-xs text-mono text-muted-foreground">
+    <header className="h-14 border-b bg-panel/80 backdrop-blur flex items-center px-4 max-md:px-2 gap-4 max-md:gap-2 relative overflow-visible z-30">
+      <button onClick={onMenu} aria-label="Open menu" className="md:hidden p-2 rounded-md hover:bg-secondary shrink-0"><Menu className="h-5 w-5" /></button>
+      <div className="flex items-center gap-2 text-xs text-mono text-muted-foreground max-md:hidden">
         <span className="h-2 w-2 rounded-full bg-success pulse-dot text-success" />
         <span>SYSTEM ONLINE</span>
         <span className="text-border">|</span>
@@ -47,7 +48,7 @@ export function TopBar() {
         <span>{new Date().toLocaleDateString()}</span>
       </div>
 
-      <div className="flex-1 max-w-md ml-6">
+      <div className="flex-1 max-w-md ml-6 max-md:hidden">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <input
@@ -57,12 +58,12 @@ export function TopBar() {
         </div>
       </div>
 
-      <div className="ml-auto flex items-center gap-3 text-xs">
-        <KPIPill label="ORDERS"    value={orders.toLocaleString()} tone="info"    />
+      <div className="ml-auto flex items-center gap-3 max-md:gap-1 text-xs">
+        <div className="max-md:hidden contents"><KPIPill label="ORDERS"    value={orders.toLocaleString()} tone="info"    />
         <KPIPill label="OPEN PICKS" value={openPicks.toLocaleString()}  tone="warning" />
-        <KPIPill label="DOCK UTIL" value={`${dockUtil}%`}   tone="success" />
-        <button className="p-2 rounded-md hover:bg-secondary"><Activity className="h-4 w-4" /></button>
-        <button className="p-2 rounded-md hover:bg-secondary"><Wifi className="h-4 w-4" /></button>
+        <KPIPill label="DOCK UTIL" value={`${dockUtil}%`}   tone="success" /></div>
+        <button className="p-2 rounded-md hover:bg-secondary max-md:hidden"><Activity className="h-4 w-4" /></button>
+        <button className="p-2 rounded-md hover:bg-secondary max-md:hidden"><Wifi className="h-4 w-4" /></button>
         <NotificationBell />
 
         {/* User profile dropdown */}

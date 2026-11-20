@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Outlet } from "@tanstack/react-router";
+import { Outlet, useRouterState } from "@tanstack/react-router";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { useEditorStore } from "@/lib/wms-editor-store";
@@ -8,6 +8,9 @@ import { AuthGuard } from "@/components/auth/AuthGuard";
 export function AppShell() {
   const _loadFromCloud = useEditorStore((s) => s._loadFromCloud);
   const [ready, setReady] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
+  const path = useRouterState({ select: (st) => st.location.pathname });
+  useEffect(() => { setNavOpen(false); }, [path]);
 
   useEffect(() => {
     _loadFromCloud().finally(() => setReady(true));
@@ -28,9 +31,10 @@ export function AppShell() {
   return (
     <AuthGuard>
       <div className="flex h-screen w-full overflow-hidden bg-background">
-        <Sidebar />
+        {navOpen && <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={() => setNavOpen(false)} />}
+        <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
         <div className="flex flex-1 flex-col min-w-0 overflow-visible">
-          <TopBar />
+          <TopBar onMenu={() => setNavOpen(true)} />
           <main className="flex-1 overflow-hidden min-h-0">
             <Outlet />
           </main>
