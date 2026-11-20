@@ -11,6 +11,7 @@ import { cloudJSONStorage } from "@/lib/cloud-storage";
 import type { Warehouse, ZoneType } from "@/lib/wms-data";
 import { useEditorStore } from "@/lib/wms-editor-store";
 import { useSkuStore } from "@/lib/sku-store";
+import { useStockStore } from "@/lib/stock-store";
 
 export interface SlotCandidate {
   binId: string;
@@ -68,6 +69,11 @@ interface Cand {
 
 function collectBins(wh: Warehouse): Cand[] {
   const out: Cand[] = [];
+  // Real stock is the truth: a bin that holds stock is not "empty", whatever the layout says.
+  const held = new Set<string>();
+  for (const rec of Object.values(useStockStore.getState().stock)) {
+    for (const [code, q] of Object.entries(rec.bins)) if (q > 0) held.add(code);
+  }
   for (const z of wh.zones) {
     for (const a of z.aisles) {
       for (const r of a.racks) {
@@ -75,7 +81,7 @@ function collectBins(wh: Warehouse): Cand[] {
           if (b.status === "Blocked" || b.status === "Reserved" || b.status === "Full" || b.occupancy >= 1) continue;
           out.push({
             binId: b.id, binCode: b.code, zoneName: z.name, zoneType: z.type,
-            rackPos: r.position, level: parseLevel(b.code), empty: b.status === "Empty" || b.occupancy === 0,
+            rackPos: r.position, level: parseLevel(b.code), empty: (b.status === "Empty" || b.occupancy === 0) && !held.has(b.code),
           });
         }
       }

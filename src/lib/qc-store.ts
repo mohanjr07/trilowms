@@ -324,10 +324,24 @@ export const useQCStore = create<QCState>()(
           inspections: s.inspections.map((i) => {
             if (i.id !== id) return i;
             const failed = i.checkpoints.filter((cp) => cp.result === "FAIL").length;
-            const status: InspectionStatus = failed === 0 ? "PASSED" : failed === 1 ? "CONDITIONAL_PASS" : "FAILED";
+            // The inspector's disposition decides the outcome: a Reject / Rework / Scrap /
+            // Return / Quarantine can never end up released to putaway as a "conditional pass".
+            const blocked = ["REJECT", "REWORK", "SCRAP", "RETURN_TO_VENDOR", "QUARANTINE"].includes(disposition);
+            const status: InspectionStatus = blocked ? "FAILED" : failed === 0 ? "PASSED" : failed === 1 ? "CONDITIONAL_PASS" : "FAILED";
             return { ...i, status, disposition, findings, failedQty: failed, defectRate: parseFloat(((failed / Math.max(1, i.sampleSize)) * 100).toFixed(1)), completedAt: new Date().toISOString() };
           }),
         }));
+        // Quarantine a specific lot so it shows on the Holds register and in stock-on-hold.
+        // (Only when the lot is known: a hold without a lot would freeze every lot of the SKU.)
+        const insp = get().inspections.find((i) => i.id === id);
+        if (insp && insp.lotNumber && ["QUARANTINE", "REJECT", "REWORK", "SCRAP", "RETURN_TO_VENDOR"].includes(disposition)
+            && !get().holds.some((h) => h.status !== "RESOLVED" && h.skuCode === insp.skuCode && h.lotNumber === insp.lotNumber)) {
+          get().raiseHold({
+            type: "QC_HOLD", skuCode: insp.skuCode, skuName: insp.skuName, binCode: insp.binCode, lotNumber: insp.lotNumber,
+            quantity: insp.inspectedQty || insp.sampleSize, reason: `Inspection ${insp.inspectionNumber}: ${disposition.replace(/_/g, " ").toLowerCase()}`,
+            raisedBy: insp.inspectorName, notes: findings || null,
+          });
+        }
       },
 
       raiseHold: (holdData) => {

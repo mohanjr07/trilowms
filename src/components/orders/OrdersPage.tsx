@@ -476,7 +476,7 @@ function OrderDrawer({ orderId, onClose }: { orderId: string | null; onClose: ()
           {order.status === "NEW" && <Button size="sm" className="h-8 text-xs gap-1" onClick={() => autoAllocate(order.id)}><Zap className="h-3.5 w-3.5" /> Auto-allocate</Button>}
           {order.status === "ALLOCATED" && <Button size="sm" className="h-8 text-xs gap-1" onClick={releaseToPicking}><Send className="h-3.5 w-3.5" /> Release to picking</Button>}
           {next[order.status] && <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => updateStatus(order.id, next[order.status])}>{order.status === "PACKED" ? <Send className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />} Advance to {ORDER_STATUS_META[next[order.status]].label}</Button>}
-          {!["SHIPPED", "DELIVERED", "CANCELLED"].includes(order.status) && <Button size="sm" variant="ghost" className="h-8 text-xs text-red-400 ml-auto" onClick={() => { cancelOrder(order.id); onClose(); }}>Cancel</Button>}
+          {!["PICKING", "PACKED", "SHIPPED", "DELIVERED", "CANCELLED"].includes(order.status) && <Button size="sm" variant="ghost" className="h-8 text-xs text-red-400 ml-auto" onClick={() => { cancelOrder(order.id); onClose(); }}>Cancel</Button>}
         </div>
         {order.pickWaveNumber && (
           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><Layers className="h-3 w-3" /> Pick wave <span className="font-mono text-foreground">{order.pickWaveNumber}</span></div>

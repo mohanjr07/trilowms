@@ -10,6 +10,7 @@ import { cloudJSONStorage } from "@/lib/cloud-storage";
 import type { BinStatus } from "./wms-data";
 import { useAuthStore } from "@/lib/auth-store";
 import { useEditorStore } from "@/lib/wms-editor-store";
+import { useSkuStore } from "@/lib/sku-store";
 
 // ─── Transaction Types ────────────────────────────────────────────────────────
 
@@ -271,7 +272,9 @@ export const useTransactionStore = create<TransactionState>()(
         return get().createTransaction({
           type: input.type,
           skuCode: input.skuCode,
-          skuName: input.skuName,
+          skuName: !input.skuName || input.skuName === input.skuCode
+            ? (useSkuStore.getState().skus.find((k) => k.skuCode === input.skuCode)?.itemName ?? input.skuName)
+            : input.skuName,
           quantity: input.quantity,
           uom: input.uom ?? "EA",
           sourceWarehouse: wh,
@@ -349,7 +352,8 @@ export const useTransactionStore = create<TransactionState>()(
       },
 
       recentTransactions: (limit = 10) => {
-        return get().transactions.slice(0, limit);
+        // Newest first by real timestamp, not insertion order.
+        return [...get().transactions].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, limit);
       },
 
       kpis: (warehouseName) => {

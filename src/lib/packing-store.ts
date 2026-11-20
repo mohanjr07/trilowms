@@ -227,7 +227,7 @@ export const usePackingStore = create<PackingState>()(
             stationCode: null,
             status: "QUEUED" as PackOrderStatus,
             priority: sourceOrder?.priority === "RUSH" ? "RUSH" as PackPriority : "STANDARD" as PackPriority,
-            carrier: sourceOrder?.carrier ?? "—",
+            carrier: sourceOrder?.carrier && !["Unassigned", "—", "-"].includes(sourceOrder.carrier.trim()) ? sourceOrder.carrier : "UPS",
             serviceLevel: SERVICE_LEVEL_BY_PRIORITY[sourceOrder?.priority === "RUSH" ? "RUSH" : "STANDARD"],
             lines,
             totalLines: lines.length,

@@ -490,6 +490,13 @@ function TaskDetailDrawer({ taskId, onClose }: { taskId: string | null; onClose:
   const [blockReason, setBlockReason] = useState("");
   const [mode, setMode] = useState<"none" | "complete" | "block">("none");
 
+  // Suggestions are not saved, so rebuild one whenever an open task is shown without it.
+  useEffect(() => {
+    if (task && !suggestion && ["PENDING", "ASSIGNED", "IN_PROGRESS"].includes(task.status)) {
+      suggestFor({ id: task.id, skuCode: task.skuCode, quantity: task.quantity, expiryDate: task.expiryDate });
+    }
+  }, [task, suggestion, suggestFor]);
+
   if (!task) return null;
   const m = PUTAWAY_STATUS_META[task.status];
   const binMatch = task.actualBinCode && task.actualBinCode === task.suggestedBinCode;

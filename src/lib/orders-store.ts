@@ -305,6 +305,9 @@ export const useOrdersStore = create<OrdersState>()(
 
       cancelOrder: (orderId) => {
         const o = get().orders.find((x) => x.id === orderId);
+        // Once picking has started, stock has already left its bins, so a plain cancel would
+        // lose it from the ledger. Only orders that have not been picked can be cancelled.
+        if (o && ["PICKING", "PACKED", "SHIPPED", "DELIVERED"].includes(o.status)) return;
         if (o && !["SHIPPED", "DELIVERED"].includes(o.status)) {
           const stock = useStockStore.getState();
           o.lines.forEach((l) => {
