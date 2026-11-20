@@ -8,7 +8,9 @@
  */
 
 import { hourlySeries } from "@/lib/hourly";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useInboundStore } from "@/lib/inbound-store";
+import { useQCStore } from "@/lib/qc-store";
 import {
   PackageOpen, Search, X, ChevronRight, MapPin, User, AlertTriangle, CheckCircle2,
   RefreshCw, LayoutDashboard, ClipboardList, Users, Settings2, Boxes, Forklift,
@@ -677,6 +679,13 @@ export function PutawayPage() {
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const kpis = usePutawayStore().kpis();
   const syncFromInbound = usePutawayStore((s) => s.syncFromInbound);
+  // Create putaway tasks automatically when receiving completes (and on open).
+  useEffect(() => {
+    syncFromInbound();
+    const u1 = useInboundStore.subscribe(() => { syncFromInbound(); });
+    const u2 = useQCStore.subscribe(() => { syncFromInbound(); });
+    return () => { u1(); u2(); };
+  }, [syncFromInbound]);
 
   const open = (t: PutawayTask) => setOpenTaskId(t.id);
 

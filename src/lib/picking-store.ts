@@ -6,7 +6,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { cloudJSONStorage } from "@/lib/cloud-storage";
-import { useStockStore } from "@/lib/stock-store";
+import { useStockStore, fifoBins } from "@/lib/stock-store";
 import { useInvBinStore } from "@/lib/inventory-bin-store";
 import { useLaborStore } from "@/lib/labor-store";
 import { useTransactionStore } from "@/lib/transaction-store";
@@ -277,9 +277,8 @@ function locationFor(skuCode: string, idx: number) {
 // always has a location, but a live order pulls from wherever stock really is.
 function realLocationFor(skuCode: string, idx: number) {
   const stockRec = useStockStore.getState().stock[skuCode];
-  const bestBinCode = stockRec
-    ? Object.entries(stockRec.bins).sort((a, b) => b[1] - a[1])[0]?.[0]
-    : undefined;
+  // FIFO: pick from the bin that has held stock the longest.
+  const bestBinCode = stockRec ? fifoBins(stockRec)[0] : undefined;
   const bin = bestBinCode ? useInvBinStore.getState().getBinByCode(bestBinCode) : undefined;
   if (bin) {
     return {

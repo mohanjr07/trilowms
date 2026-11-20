@@ -15,7 +15,22 @@ export interface StockRecord {
   onHand: number;
   reserved: number;
   bins: Record<string, number>;   // binCode -> qty
+  /** binCode -> ISO time the bin first received its current stock (drives FIFO). */
+  binSince?: Record<string, string>;
   updatedAt: string;
+}
+
+/** Bin codes holding stock, oldest first (FIFO). Bins without a date count as oldest. */
+export function fifoBins(rec: StockRecord | undefined, exclude: string[] = []): string[] {
+  if (!rec) return [];
+  return Object.entries(rec.bins)
+    .filter(([c, q]) => q > 0 && c !== "RETURNS-RESTOCK" && !exclude.includes(c))
+    .sort((a, b) => {
+      const ta = rec.binSince?.[a[0]] ?? "";
+      const tb = rec.binSince?.[b[0]] ?? "";
+      return ta === tb ? b[1] - a[1] : ta.localeCompare(tb);
+    })
+    .map(([c]) => c);
 }
 
 export interface AdjustmentRecord {
@@ -57,11 +72,16 @@ export const useStockStore = create<StockState>()(
         set((s) => {
           const prev = s.stock[skuCode] ?? { skuCode, skuName, onHand: 0, reserved: 0, bins: {}, updatedAt: "" };
           const bins = { ...prev.bins };
-          if (binCode) bins[binCode] = (bins[binCode] ?? 0) + qty;
+          const binSince = { ...(prev.binSince ?? {}) };
+          const nowIso = new Date().toISOString();
+          if (binCode) {
+            if (!(bins[binCode] > 0)) binSince[binCode] = nowIso;
+            bins[binCode] = (bins[binCode] ?? 0) + qty;
+          }
           return {
             stock: {
               ...s.stock,
-              [skuCode]: { ...prev, skuName: skuName || prev.skuName, onHand: prev.onHand + qty, bins, updatedAt: new Date().toISOString() },
+              [skuCode]: { ...prev, skuName: skuName || prev.skuName, onHand: prev.onHand + qty, bins, binSince, updatedAt: nowIso },
             },
           };
         });
@@ -91,8 +111,19 @@ export const useStockStore = create<StockState>()(
         const r = get().stock[skuCode];
         if (!r || qty <= 0) return;
         const bins = { ...r.bins };
-        if (binCode && bins[binCode] !== undefined) bins[binCode] = Math.max(0, bins[binCode] - qty);
-        set((s) => ({ stock: { ...s.stock, [skuCode]: { ...r, bins, onHand: Math.max(0, r.onHand - qty), reserved: Math.max(0, r.reserved - qty), updatedAt: new Date().toISOString() } } }));
+        const binSince = { ...(r.binSince ?? {}) };
+        // Take from the named bin first, then spill to the next-oldest bins (FIFO),
+        // so bin quantities always add up to on-hand when a pick spans pallets.
+        let left = qty;
+        const order = [...(binCode && bins[binCode] !== undefined ? [binCode] : []), ...fifoBins(r, binCode ? [binCode] : [])];
+        for (const c of order) {
+          if (left <= 0) break;
+          const take = Math.min(bins[c] ?? 0, left);
+          bins[c] = (bins[c] ?? 0) - take;
+          left -= take;
+          if (bins[c] <= 0) delete binSince[c];
+        }
+        set((s) => ({ stock: { ...s.stock, [skuCode]: { ...r, bins, binSince, onHand: Math.max(0, r.onHand - qty), reserved: Math.max(0, r.reserved - qty), updatedAt: new Date().toISOString() } } }));
       },
 
       applyCount: (skuCode, countedQty, reason, binCode, by = "Current User") => {
