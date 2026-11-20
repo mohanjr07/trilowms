@@ -1,0 +1,10 @@
+{
+  "appId": "com.trilo.wms",
+  "appName": "TriloWMS",
+  "webDir": "www",
+  "server": {
+    "url": "https://trilowms.trilomohan.workers.dev",
+    "cleartext": false
+  },
+  "android": { "allowMixedContent": false }
+}

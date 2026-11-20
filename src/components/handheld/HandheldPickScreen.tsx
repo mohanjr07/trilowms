@@ -5,6 +5,7 @@
  * Reads/writes the real picking store; rendered in a device frame in-console.
  */
 
+import { CameraScanButton } from "@/components/handheld/CameraScan";
 import { useMemo, useState, useEffect } from "react";
 import {
   ScanLine, Check, X, ChevronRight, Package, MapPin, AlertTriangle, Battery,
@@ -26,12 +27,13 @@ const SHORT_REASONS: { id: Shortage["reason"]; label: string }[] = [
 
 function Frame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="h-full w-full flex items-center justify-center p-4 bg-[radial-gradient(circle_at_center,_var(--color-sidebar),_var(--color-background))] overflow-auto">
-      <div className="relative w-[400px] max-w-full h-[760px] max-h-full rounded-[2.2rem] border-[10px] border-neutral-800 bg-neutral-950 shadow-2xl overflow-hidden flex flex-col">
+    <div className="h-full w-full flex items-center justify-center p-4 max-sm:p-0 bg-[radial-gradient(circle_at_center,_var(--color-sidebar),_var(--color-background))] overflow-auto">
+      <div className="relative w-[400px] max-w-full h-[760px] max-h-full rounded-[2.2rem] border-[10px] max-sm:w-full max-sm:h-full max-sm:rounded-none max-sm:border-0 border-neutral-800 bg-neutral-950 shadow-2xl overflow-hidden flex flex-col">
         <div className="absolute top-0 inset-x-0 h-6 flex items-center justify-center z-20 pointer-events-none">
           <div className="w-28 h-5 bg-neutral-800 rounded-b-2xl" />
         </div>
         {children}
+        <CameraScanButton />
       </div>
     </div>
   );
