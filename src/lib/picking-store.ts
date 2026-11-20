@@ -624,7 +624,7 @@ export const usePickingStore = create<PickingState>()(
               });
               const anyAlloc = lines.some((l) => l.allocatedQty > 0);
               const status = anyAlloc ? o.status : ("NEW" as typeof o.status);
-              return { ...o, lines, status, stages: status === o.status ? o.stages : [...o.stages, { status, ts: new Date().toISOString() }] };
+              return { ...o, lines, allocatedUnits: lines.reduce((t, l) => t + l.allocatedQty, 0), status, stages: status === o.status ? o.stages : [...o.stages, { status, ts: new Date().toISOString() }] };
             }),
           }));
         }
