@@ -159,6 +159,7 @@ interface LaborState {
   page: number;
   pageSize: number;
 
+  addEmployee: (e: { name: string; email: string; role: string; department: string; shift: ShiftType }) => void;
   clockIn: (empId: string) => void;
   clockOut: (empId: string) => void;
   startBreak: (empId: string) => void;
@@ -196,6 +197,21 @@ export const useLaborStore = create<LaborState>()(
       page: 1,
       pageSize: 20,
 
+      addEmployee: (e) => {
+        set((s) => {
+          const n = s.employees.length + 1;
+          const emp: LaborEmployee = {
+            id: `emp-${Date.now()}`, employeeId: `EMP-${String(1000 + n)}`,
+            name: e.name.trim(), email: e.email.trim(), role: e.role.trim() || "Operator",
+            department: e.department.trim() || "Warehouse", shift: e.shift, status: "CLOCKED_OUT",
+            clockInTime: null, clockOutTime: null, breakStart: null,
+            currentTaskType: null, currentTaskId: null, currentZone: null,
+            unitsPerHour: 0, targetUph: 60, accuracyPct: 100, hoursToday: 0, overtimeHours: 0, idleMinutes: 0,
+            certifications: [], equipment: [], warehouseId: "TRILO-DC-01",
+          };
+          return { employees: [...s.employees, emp] };
+        });
+      },
       clockIn: (empId) => {
         set((s) => ({
           employees: s.employees.map((e) =>

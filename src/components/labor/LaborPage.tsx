@@ -212,7 +212,44 @@ function OverviewView() {
 //  WORKFORCE
 // ════════════════════════════════════════════════════════════════════════════
 
+function AddEmployeeDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const addEmployee = useLaborStore((s) => s.addEmployee);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("");
+  const [department, setDepartment] = useState("");
+  const [shift, setShift] = useState<ShiftType>("A");
+  const submit = () => {
+    if (!name.trim()) return;
+    addEmployee({ name, email, role, department, shift });
+    setName(""); setEmail(""); setRole(""); setDepartment(""); setShift("A");
+    onClose();
+  };
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Add employee</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <Input placeholder="Full name *" value={name} onChange={(e) => setName(e.target.value)} />
+          <Input placeholder="Email (use their WMS login email)" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Input placeholder="Role (e.g. Picker, Forklift Operator)" value={role} onChange={(e) => setRole(e.target.value)} />
+          <Input placeholder="Department (e.g. Outbound)" value={department} onChange={(e) => setDepartment(e.target.value)} />
+          <Select value={shift} onValueChange={(v) => setShift(v as ShiftType)}>
+            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>{(Object.keys(SHIFT_META) as ShiftType[]).map((x) => <SelectItem key={x} value={x}>Shift {x}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button disabled={!name.trim()} onClick={submit}>Add employee</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function WorkforceView({ onOpen }: { onOpen: (e: LaborEmployee) => void }) {
+  const [addOpen, setAddOpen] = useState(false);
   const { filters, setFilters, resetFilters, page, setPage, pageSize } = useLaborStore();
   const all = useLaborStore().filteredEmployees();
   const roles = useLaborStore().roleList();
@@ -223,7 +260,8 @@ function WorkforceView({ onOpen }: { onOpen: (e: LaborEmployee) => void }) {
   const hasFilters = filters.search || filters.status || filters.shift || filters.role || filters.department;
 
   return (
-    <Section title="Workforce Roster" sub={`${all.length} employees matched`} actions={<Button variant="ghost" size="sm" className="h-7 text-xs gap-1"><FileDown className="h-3.5 w-3.5" /> Export</Button>}>
+    <Section title="Workforce Roster" sub={`${all.length} employees matched`} actions={<><Button size="sm" className="h-7 text-xs gap-1" onClick={() => setAddOpen(true)}><UserCog className="h-3.5 w-3.5" /> Add employee</Button><Button variant="ghost" size="sm" className="h-7 text-xs gap-1"><FileDown className="h-3.5 w-3.5" /> Export</Button></>}>
+      <AddEmployeeDialog open={addOpen} onClose={() => setAddOpen(false)} />
       <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-border/60">
         <div className="relative flex-1 min-w-52">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
