@@ -29,7 +29,7 @@ function Frame({ children }: { children: React.ReactNode }) {
   return (
     <div className="h-full w-full flex items-center justify-center p-4 max-sm:p-0 bg-[radial-gradient(circle_at_center,_var(--color-sidebar),_var(--color-background))] overflow-auto">
       <div className="relative w-[400px] max-w-full h-[760px] max-h-full rounded-[2.2rem] border-[10px] max-sm:w-full max-sm:h-full max-sm:rounded-none max-sm:border-0 border-neutral-800 bg-neutral-950 shadow-2xl overflow-hidden flex flex-col">
-        <div className="absolute top-0 inset-x-0 h-6 flex items-center justify-center z-20 pointer-events-none">
+        <div className="absolute top-0 inset-x-0 h-6 flex items-center justify-center z-20 pointer-events-none max-sm:hidden">
           <div className="w-28 h-5 bg-neutral-800 rounded-b-2xl" />
         </div>
         {children}
@@ -43,7 +43,7 @@ function StatusBar({ label }: { label: string }) {
   return (
     <div className="flex items-center justify-between px-5 pt-2.5 pb-1 text-[11px] text-neutral-400 shrink-0">
       <span className="font-mono">{label}</span>
-      <div className="flex items-center gap-1.5"><SignalHigh className="h-3.5 w-3.5" /><Wifi className="h-3.5 w-3.5" /><Battery className="h-4 w-4" /></div>
+      <div className="flex items-center gap-1.5 max-sm:hidden"><SignalHigh className="h-3.5 w-3.5" /><Wifi className="h-3.5 w-3.5" /><Battery className="h-4 w-4" /></div>
     </div>
   );
 }

@@ -4,10 +4,13 @@ import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { useEditorStore } from "@/lib/wms-editor-store";
 import { AuthGuard } from "@/components/auth/AuthGuard";
+import { MobileApp } from "@/components/mobile/MobileApp";
+import { useMobileMode } from "@/components/mobile/useMobileMode";
 
 export function AppShell() {
   const _loadFromCloud = useEditorStore((s) => s._loadFromCloud);
   const [ready, setReady] = useState(false);
+  const mobileApp = useMobileMode();
   const [navOpen, setNavOpen] = useState(false);
   const path = useRouterState({ select: (st) => st.location.pathname });
   useEffect(() => { setNavOpen(false); }, [path]);
@@ -30,6 +33,7 @@ export function AppShell() {
 
   return (
     <AuthGuard>
+      {mobileApp ? <MobileApp /> : (
       <div className="flex h-screen max-md:h-[100dvh] w-full overflow-hidden bg-background">
         {navOpen && <div className="fixed inset-0 z-40 bg-black/60 md:hidden" onClick={() => setNavOpen(false)} />}
         <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
@@ -40,6 +44,7 @@ export function AppShell() {
           </main>
         </div>
       </div>
+      )}
     </AuthGuard>
   );
 }

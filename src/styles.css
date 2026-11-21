@@ -199,3 +199,6 @@
   .glow-amber { box-shadow: none !important; }
   main .overflow-y-auto, main .overflow-auto { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 }
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
