@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/auth-store";
-import { DESKTOP_ROLES } from "./nav";
+
 
 const KEY = "trilowms-view";
 type Mode = "mobile" | "desktop" | null;
@@ -37,20 +37,14 @@ export function isNativeApp(): boolean {
 export function useMobileMode(): boolean {
   const role = useAuthStore((s) => s.session?.user.role);
   const [, bump] = useState(0);
-  const [narrow, setNarrow] = useState(() => (typeof window === "undefined" ? false : window.innerWidth < 768));
 
   useEffect(() => {
-    const onResize = () => setNarrow(window.innerWidth < 768);
     const onView = () => bump((n) => n + 1);
-    window.addEventListener("resize", onResize);
     window.addEventListener("trilowms-view", onView);
-    return () => { window.removeEventListener("resize", onResize); window.removeEventListener("trilowms-view", onView); };
+    return () => { window.removeEventListener("trilowms-view", onView); };
   }, []);
 
-  if (typeof window !== "undefined" && role && isNativeApp()) return true;
-  if (typeof window === "undefined" || !role || DESKTOP_ROLES.includes(role)) return false;
-  const mode = readMode();
-  if (mode === "desktop") return false;
-  if (mode === "mobile") return true;
-  return narrow;
+  if (typeof window === "undefined" || !role) return false;
+  if (isNativeApp()) return true;          // the APK always gets the mobile app UI
+  return new URLSearchParams(window.location.search).get("mobile") === "1";           // the website keeps the desktop layout (?mobile=1 only for testing)
 }
