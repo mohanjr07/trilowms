@@ -35,7 +35,7 @@ export function Card({ children, onClick, className }: { children: React.ReactNo
 export function StatTile({ label, value, sub, tone = "neutral" }: { label: string; value: React.ReactNode; sub?: string; tone?: Tone }) {
   const color = tone === "neutral" ? "text-foreground" : TONES[tone].split(" ")[1];
   return (
-    <div className="rounded-3xl bg-card/60 p-4">
+    <div className="rounded-3xl border border-border bg-card/60 p-4">
       <div className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">{label}</div>
       <div className={cn("text-2xl font-bold mt-0.5 font-mono", color)}>{value}</div>
       {sub && <div className="text-[11px] text-muted-foreground">{sub}</div>}

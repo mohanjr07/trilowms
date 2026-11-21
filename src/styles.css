@@ -202,32 +202,3 @@
 
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
-
-/* ===== Mobile app light theme (lavender / white cards / dark pill nav) ===== */
-.m-light {
-  color-scheme: light;
-  --background: oklch(0.935 0.04 295);
-  --foreground: oklch(0.2 0.03 280);
-  --card: oklch(1 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2 0.03 280);
-  --card-foreground: oklch(0.2 0.03 280);
-  --secondary: oklch(0.96 0.015 290);
-  --secondary-foreground: oklch(0.25 0.03 280);
-  --muted: oklch(0.95 0.02 290);
-  --muted-foreground: oklch(0.5 0.03 280);
-  --border: oklch(0.9 0.025 290);
-  --input: oklch(0.96 0.015 290);
-  --primary: oklch(0.7 0.19 50);
-  --primary-foreground: oklch(0.2 0.03 280);
-  --sidebar: oklch(0.935 0.04 295);
-  background: var(--background);
-  color: var(--foreground);
-}
-.m-light .bg-card\/60 { background: #fff; box-shadow: 0 6px 18px -10px rgba(90, 70, 160, .35); border-color: transparent; }
-.m-light .text-emerald-400 { color: #059669; }
-.m-light .text-amber-400 { color: #b45309; }
-.m-light .text-red-400 { color: #dc2626; }
-.m-light .text-sky-400, .m-light .text-blue-400 { color: #0369a1; }
-.m-light .text-primary { color: #c2570c; }
-.m-light .bg-primary .text-primary, .m-light .bg-primary { color: #1b1530; }
