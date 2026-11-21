@@ -35,7 +35,7 @@ export const ROLE_TABS: Partial<Record<UserRole, ScreenId[]>> = {
 };
 
 export function tabsFor(role: UserRole) {
-  return T(...(ROLE_TABS[role] ?? ["home", "more"]));
+  return T(...(ROLE_TABS[role] ?? (DESKTOP_ROLES.includes(role) ? ["home", "orders", "stock", "insights", "more"] : ["home", "more"])));
 }
 
 /** Roles that keep the desktop UI (admin + warehouse admin). */

@@ -45,7 +45,7 @@ function useTiles(role: UserRole): { tiles: Tile[]; badge: Partial<Record<Screen
     operations_manager: [t("Orders in flight", ord.inFulfillment, `${ord.newOrders} new`, "primary"), t("Open picks", pick.openPicks, "lines"), t("Dispatched", out.dispatched, "today", "success"), t("Exceptions", ord.exceptions, "orders", ord.exceptions ? "danger" : "neutral")],
     auditor: [t("SKUs", stock.skus, "in ledger", "primary"), t("On hand", stock.totalOnHand.toLocaleString(), "units"), t("Open holds", qc.openHolds, "quality", qc.openHolds ? "danger" : "neutral"), t("Discrepancies", inb.discrepancies, "inbound", inb.discrepancies ? "danger" : "neutral")],
   };
-  return { tiles: byRole[role] ?? [], badge };
+  return { tiles: byRole[role] ?? byRole.operations_manager ?? [], badge };
 }
 
 export function HomeScreen({ go }: { go: (s: ScreenId) => void }) {

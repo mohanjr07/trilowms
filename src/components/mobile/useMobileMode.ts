@@ -26,6 +26,14 @@ export function setViewMode(m: "mobile" | "desktop" | null) {
   window.dispatchEvent(new Event("trilowms-view"));
 }
 
+/** True inside the Android/iOS app wrapper (Capacitor WebView). */
+export function isNativeApp(): boolean {
+  if (typeof window === "undefined") return false;
+  const w = window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } };
+  try { if (w.Capacitor?.isNativePlatform?.()) return true; } catch { /* ignore */ }
+  return /; wv\)|TriloWMSApp/.test(navigator.userAgent);
+}
+
 export function useMobileMode(): boolean {
   const role = useAuthStore((s) => s.session?.user.role);
   const [, bump] = useState(0);
@@ -39,6 +47,7 @@ export function useMobileMode(): boolean {
     return () => { window.removeEventListener("resize", onResize); window.removeEventListener("trilowms-view", onView); };
   }, []);
 
+  if (typeof window !== "undefined" && role && isNativeApp()) return true;
   if (typeof window === "undefined" || !role || DESKTOP_ROLES.includes(role)) return false;
   const mode = readMode();
   if (mode === "desktop") return false;

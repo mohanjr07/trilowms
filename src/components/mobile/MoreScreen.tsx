@@ -4,7 +4,7 @@ import { LogOut, KeyRound, Monitor } from "lucide-react";
 import { useAuthStore, ROLE_DEFINITIONS } from "@/lib/auth-store";
 import { supabase } from "@/lib/supabase";
 import { Card, Chip, BigButton, Field, Row } from "./ui";
-import { setViewMode } from "./useMobileMode";
+import { setViewMode, isNativeApp } from "./useMobileMode";
 
 export function MoreScreen() {
   const session = useAuthStore((s) => s.session)!;
@@ -52,9 +52,9 @@ export function MoreScreen() {
         )}
       </Card>
 
-      <Card onClick={() => setViewMode("desktop")} className="flex items-center gap-3 min-h-[56px]">
+      {!isNativeApp() && <Card onClick={() => setViewMode("desktop")} className="flex items-center gap-3 min-h-[56px]">
         <Monitor className="h-5 w-5 text-muted-foreground" /><div><div className="font-semibold">Use desktop layout</div><div className="text-xs text-muted-foreground">Full web screens (best on a PC)</div></div>
-      </Card>
+      </Card>}
 
       <BigButton tone="danger" className="w-full" onClick={logout}><LogOut className="h-5 w-5" /> Sign out</BigButton>
       <div className="text-center text-[11px] text-muted-foreground pt-1">TriloWMS mobile</div>
