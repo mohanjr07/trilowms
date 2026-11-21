@@ -15,6 +15,8 @@ import { SCREEN_META, tabsFor } from "./nav";
 
 type Tile = { label: string; value: React.ReactNode; sub?: string; tone?: Tone };
 
+const PASTELS = ["!bg-[#ffd9a8]", "!bg-[#d9ccff]", "!bg-[#c9f0e0]", "!bg-[#ffd0dc]", "!bg-[#cfe6ff]"];
+
 function useTiles(role: UserRole): { tiles: Tile[]; badge: Partial<Record<ScreenId, number>> } {
   const inb = useInboundStore((s) => s.kpis)();
   const out = useOutboundStore((s) => s.kpis)();
@@ -60,8 +62,8 @@ export function HomeScreen({ go }: { go: (s: ScreenId) => void }) {
   return (
     <div className="p-3 space-y-3">
       <div className="px-1 pt-1">
-        <div className="text-[13px] text-muted-foreground">{greet}</div>
-        <div className="text-2xl font-bold leading-tight">{session!.user.name}</div>
+        <div className="text-[13px] text-muted-foreground">{greet} · {new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" })}</div>
+        <div className="text-[26px] font-extrabold leading-tight">Today's work</div>
         <div className="mt-1.5 flex gap-2 flex-wrap"><Chip tone="primary">{def.label}</Chip><Chip>{session!.user.warehouse}</Chip><Chip>{session!.user.shift}</Chip></div>
       </div>
 
@@ -71,17 +73,17 @@ export function HomeScreen({ go }: { go: (s: ScreenId) => void }) {
 
       <SectionTitle>Your work</SectionTitle>
       <div className="grid gap-2.5">
-        {shortcuts.map((s) => {
+        {shortcuts.map((s, idx) => {
           const Icon = s.icon;
           const n = badge[s.id];
           return (
-            <Card key={s.id} onClick={() => go(s.id)} className="flex items-center gap-3">
-              <div className="h-12 w-12 shrink-0 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center"><Icon className="h-6 w-6 text-primary" /></div>
+            <Card key={s.id} onClick={() => go(s.id)} className={"flex items-center gap-3 !rounded-3xl !p-4 !shadow-none " + PASTELS[idx % PASTELS.length]}>
+              <div className="h-12 w-12 shrink-0 rounded-2xl bg-white/70 flex items-center justify-center"><Icon className="h-6 w-6 text-[#1b1530]" /></div>
               <div className="min-w-0 flex-1">
                 <div className="text-base font-bold">{s.label}</div>
                 <div className="text-xs text-muted-foreground truncate">{SCREEN_META[s.id].hint}</div>
               </div>
-              {n !== undefined && n > 0 && <span className="min-w-8 h-8 px-2 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center">{n}</span>}
+              {n !== undefined && n > 0 && <span className="min-w-8 h-8 px-2 rounded-full bg-[#1b1530] text-white text-sm font-bold flex items-center justify-center">{n}</span>}
             </Card>
           );
         })}
