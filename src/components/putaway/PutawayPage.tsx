@@ -391,25 +391,25 @@ function OperatorsView() {
             const totalT = active + op.completed;
             const lastTask = tasks.find((t) => t.assignedOperatorId === op.operatorId && t.status === "IN_PROGRESS");
             return (
-              <div key={op.operatorId} className="flex items-center gap-4 px-4 py-3">
+              <div key={op.operatorId} className="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-2 px-3 sm:px-4 py-3">
                 <div className="h-9 w-9 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center text-primary font-bold text-xs shrink-0">{initials(op.operatorName)}</div>
-                <div className="min-w-0 w-44 shrink-0">
+                <div className="min-w-0 flex-1 sm:flex-none sm:w-44 sm:shrink-0">
                   <div className="text-sm font-medium truncate">{op.operatorName}</div>
                   <div className="text-[11px] text-muted-foreground truncate">{lastTask ? `On ${lastTask.id} · ${zoneShort(lastTask.zone)}` : "Idle / queued"}</div>
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="order-last sm:order-none basis-full sm:basis-auto sm:flex-1 min-w-0">
                   <div className="flex h-2 w-full rounded-full overflow-hidden bg-secondary">
                     <div className="bg-blue-500" style={{ width: `${(op.assigned / maxLoad) * 100}%` }} />
                     <div className="bg-amber-500" style={{ width: `${(op.inProgress / maxLoad) * 100}%` }} />
                     <div className="bg-emerald-500" style={{ width: `${(op.completed / maxLoad) * 100}%` }} />
                   </div>
-                  <div className="flex gap-4 mt-1.5 text-[11px]">
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-[11px]">
                     <span className="text-blue-400">Assigned {op.assigned}</span>
                     <span className="text-amber-400">In progress {op.inProgress}</span>
                     <span className="text-emerald-400">Done {op.completed}</span>
                   </div>
                 </div>
-                <div className="text-right shrink-0 w-20">
+                <div className="text-right shrink-0 sm:w-20">
                   <div className={cn("text-lg font-bold font-mono tabular-nums", active > 3 ? "text-amber-400" : "text-emerald-400")}>{active}</div>
                   <div className="text-[10px] text-muted-foreground uppercase tracking-wide">active</div>
                 </div>
