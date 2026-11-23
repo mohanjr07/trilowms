@@ -253,7 +253,6 @@ function DownloadMenu({ tables, current }: { tables: Record<string, Row[]>; curr
         {Object.keys(tables).filter((n) => n !== current).map((n) => (
           <DropdownMenuItem key={n} onClick={() => downloadCsv(n)}><FileText className="h-4 w-4 mr-2 opacity-60" /> CSV — {n}</DropdownMenuItem>
         ))}
-        <DropdownMenuItem onClick={() => window.print()}><FileText className="h-4 w-4 mr-2" /> Print / Save as PDF</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
