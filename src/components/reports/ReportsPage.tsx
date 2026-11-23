@@ -2,7 +2,10 @@
  * TriloWMS — Reports & Analytics Module Page
  */
 
-import { BarChart2 } from "lucide-react";
+import { useState } from "react";
+import * as XLSX from "xlsx";
+import { BarChart2, Download, FileSpreadsheet, FileText } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useReportsStore } from "@/lib/reports-store";
 import { PageHeader, KPICard, Panel } from "@/components/wms/Primitives";
@@ -196,12 +199,77 @@ function FinancialKPIs() {
   );
 }
 
+type Row = Record<string, string | number>;
+
+/** Builds every report as a table of rows so it can be exported. */
+function useReportTables(): Record<string, Row[]> {
+  const st = useReportsStore();
+  const k = st.kpis();
+  const kpiRows: Row[] = [
+    ["Units received today", k.unitsReceivedToday], ["Units shipped today", k.unitsShippedToday],
+    ["Units picked today", k.unitsPickedToday], ["Units packed today", k.unitsPackedToday],
+    ["Inventory accuracy", k.inventoryAccuracy], ["Shipment accuracy", k.shipmentAccuracy], ["Receiving accuracy", k.receivingAccuracy],
+    ["Dock-to-dock", k.avgDockToDockHrs], ["Avg receiving time", k.avgReceivingTimeMin], ["Avg putaway time", k.avgPutawayTimeMin], ["Avg pick time", k.avgPickTimeMin],
+    ["Warehouse utilization", k.warehouseUtilization], ["Labor utilization", k.laborUtilization], ["Dock utilization", k.dockUtilization],
+    ["QC pass rate", k.qcPassRate], ["Defect rate", k.defectRate], ["RMA rate", k.rmaRate],
+  ].map(([Metric, Value]) => ({ Metric: String(Metric), Value: Value as string | number }));
+  return {
+    "Overview KPIs": kpiRows,
+    "Weekly throughput": st.weeklyTrend().map((r) => ({ Week: r.label, Received: r.received, Shipped: r.shipped, Returns: r.returns, "QC fails": r.qcFails })),
+    "Monthly volume": st.monthlyTrend().map((r) => ({ Month: r.month, Received: r.received, Shipped: r.shipped })),
+    "Carriers": st.carrierPerformance().map((c) => ({ Carrier: c.carrier, "On time": c.onTime, Delayed: c.delayed, Total: c.total, "On-time %": c.total ? Number(((c.onTime / c.total) * 100).toFixed(1)) : 0 })),
+    "Top SKUs": st.topSkus().map((x, i) => ({ Rank: i + 1, SKU: x.skuCode, Name: x.skuName, "Units moved": x.movedUnits, "Return rate": x.returnRate })),
+  };
+}
+
+function saveBlob(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+const stamp = () => new Date().toISOString().slice(0, 10);
+
+function DownloadMenu({ tables, current }: { tables: Record<string, Row[]>; current: string }) {
+  const downloadExcel = () => {
+    const wb = XLSX.utils.book_new();
+    for (const [name, rows] of Object.entries(tables)) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), name.slice(0, 31));
+    XLSX.writeFile(wb, `TriloWMS-reports-${stamp()}.xlsx`);
+  };
+  const downloadCsv = (name: string) => {
+    const csv = XLSX.utils.sheet_to_csv(XLSX.utils.json_to_sheet(tables[name] ?? []));
+    saveBlob(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }), `TriloWMS-${name.toLowerCase().replace(/\s+/g, "-")}-${stamp()}.csv`);
+  };
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button" className="inline-flex items-center gap-2 h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm font-semibold">
+          <Download className="h-4 w-4" /> Download
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuItem onClick={downloadExcel}><FileSpreadsheet className="h-4 w-4 mr-2" /> Excel — all reports</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => downloadCsv(current)}><FileText className="h-4 w-4 mr-2" /> CSV — {current}</DropdownMenuItem>
+        {Object.keys(tables).filter((n) => n !== current).map((n) => (
+          <DropdownMenuItem key={n} onClick={() => downloadCsv(n)}><FileText className="h-4 w-4 mr-2 opacity-60" /> CSV — {n}</DropdownMenuItem>
+        ))}
+        <DropdownMenuItem onClick={() => window.print()}><FileText className="h-4 w-4 mr-2" /> Print / Save as PDF</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+const TAB_TABLE: Record<string, string> = { overview: "Overview KPIs", throughput: "Weekly throughput", carriers: "Carriers", skus: "Top SKUs" };
+
 export function ReportsPage() {
+  const [tab, setTab] = useState("overview");
+  const tables = useReportTables();
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <PageHeader icon={BarChart2} title="Reports & Analytics" subtitle="Warehouse performance dashboard, throughput trends, carrier scorecard & SKU velocity" />
+      <PageHeader icon={BarChart2} title="Reports & Analytics" subtitle="Warehouse performance dashboard, throughput trends, carrier scorecard & SKU velocity"
+        actions={<DownloadMenu tables={tables} current={TAB_TABLE[tab]} />} />
       <div className="flex-1 overflow-y-auto p-6 space-y-5">
-        <Tabs defaultValue="overview">
+        <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="throughput">Throughput</TabsTrigger>
