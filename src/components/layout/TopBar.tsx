@@ -83,7 +83,7 @@ export function TopBar({ onMenu }: { onMenu?: () => void }) {
           </button>
 
           {profileOpen && (
-            <div className="absolute right-0 top-full mt-2 w-64 bg-popover border border-border/60 rounded-xl shadow-2xl z-[200] overflow-hidden">
+            <div className="absolute right-0 top-full mt-2 w-64 bg-[#0d1724]/98 backdrop-blur border border-border/60 rounded-xl shadow-2xl z-[200] overflow-hidden">
               {/* Profile header */}
               <div className="px-4 py-3 border-b border-border/60">
                 <div className="flex items-center gap-3">
