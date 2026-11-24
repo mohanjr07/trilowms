@@ -202,3 +202,53 @@
 
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* ===== Mobile app theme: clean light (white cards, soft shadows, blue accent) ===== */
+.m-light {
+  color-scheme: light;
+  --background: oklch(0.975 0.004 250);
+  --foreground: oklch(0.22 0.02 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.02 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.02 260);
+  --secondary: oklch(0.96 0.006 250);
+  --secondary-foreground: oklch(0.25 0.02 260);
+  --muted: oklch(0.96 0.006 250);
+  --muted-foreground: oklch(0.52 0.02 260);
+  --border: oklch(0.92 0.006 250);
+  --input: oklch(0.96 0.006 250);
+  --primary: oklch(0.55 0.2 262);
+  --primary-foreground: oklch(1 0 0);
+  --sidebar: oklch(1 0 0);
+  background: var(--background);
+  color: var(--foreground);
+}
+.m-light .bg-card\/60 { background: #fff; border-color: transparent; box-shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 4px 14px -6px rgba(16, 24, 40, .12); }
+.m-light .text-emerald-400 { color: #059669; }
+.m-light .text-amber-400 { color: #b45309; }
+.m-light .text-red-400 { color: #dc2626; }
+.m-light .text-sky-400, .m-light .text-blue-400 { color: #0369a1; }
+.m-light .bg-emerald-500 { color: #fff; }
+
+/* Scan screens (Pick / Putaway / Pack) re-themed to the light mobile theme */
+.m-scan .border-\[10px\] { border-width: 0 !important; border-radius: 0 !important; }
+.m-scan .bg-neutral-950 { background: var(--background); }
+.m-scan .bg-neutral-900 { background: #fff; border-color: transparent; box-shadow: 0 1px 2px rgba(16,24,40,.05), 0 4px 14px -6px rgba(16,24,40,.12); }
+.m-scan .bg-neutral-800 { background: #eef0f4; }
+.m-scan .border-neutral-800, .m-scan .border-neutral-700 { border-color: #e2e5ea; }
+.m-scan .text-white { color: #111827; }
+.m-scan .text-neutral-200, .m-scan .text-neutral-300 { color: #374151; }
+.m-scan .text-neutral-400 { color: #6b7280; }
+.m-scan .text-neutral-500, .m-scan .text-neutral-600 { color: #9ca3af; }
+.m-scan .bg-amber-400 { background: var(--primary); color: #fff; }
+.m-scan .bg-amber-400.text-neutral-950, .m-scan .text-neutral-950 { color: #fff; }
+.m-scan .text-amber-400, .m-scan .text-amber-300 { color: var(--primary); }
+.m-scan .border-amber-400 { border-color: var(--primary); }
+.m-scan .bg-amber-500\/10, .m-scan .bg-amber-500\/15 { background: color-mix(in oklab, var(--primary) 10%, transparent); }
+.m-scan .text-red-400 { color: #dc2626; }
+.m-scan .text-emerald-400 { color: #059669; }
+.m-scan [class*="bg-emerald-500"].text-white, .m-scan [class*="bg-red-500"].text-white, .m-scan [class*="bg-red-600"].text-white, .m-scan [class*="bg-emerald-600"].text-white, .m-scan [class*="bg-amber-500"].text-white { color: #fff; }
+.m-scan input { color: #111827; }
+.m-scan > div { padding: 0 !important; background: var(--background) !important; }
+.m-scan .shadow-2xl { box-shadow: none; }

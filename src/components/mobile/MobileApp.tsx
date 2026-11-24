@@ -51,11 +51,11 @@ export function MobileApp() {
   const fullBleed = screen === "pick" || screen === "putaway" || screen === "pack"; // scan screens draw their own header
 
   return (
-    <div className="flex flex-col h-[100dvh] w-full bg-background text-foreground overflow-hidden">
+    <div className="m-light flex flex-col h-[100dvh] w-full bg-background text-foreground overflow-hidden">
       {!fullBleed && (
         <header className="shrink-0 flex items-center justify-between gap-2 px-5 pt-[calc(env(safe-area-inset-top)+12px)] pb-3">
           <div className="flex items-center gap-3 min-w-0">
-            <button type="button" onClick={() => go("more")} aria-label="Profile" className="h-11 w-11 shrink-0 rounded-full bg-primary/15 border border-primary/30 text-primary text-sm font-bold flex items-center justify-center active:scale-95">
+            <button type="button" onClick={() => go("more")} aria-label="Profile" className="h-11 w-11 shrink-0 rounded-full bg-primary/10 text-primary text-sm font-bold flex items-center justify-center active:scale-95">
               {session.user.avatar}
             </button>
             <div className="min-w-0">
@@ -63,13 +63,13 @@ export function MobileApp() {
               <div className="text-[11px] text-muted-foreground leading-tight truncate">{def.label} · {session.user.warehouse}</div>
             </div>
           </div>
-          {screen !== "more" && <button type="button" onClick={() => void useAuthStore.getState().logout?.()} aria-label="Sign out" className="h-11 px-3 shrink-0 rounded-full bg-secondary border border-border text-[13px] font-semibold flex items-center gap-1.5 active:scale-95">
+          {screen !== "more" && <button type="button" onClick={() => void useAuthStore.getState().logout?.()} aria-label="Sign out" className="h-11 px-3 shrink-0 rounded-full bg-card shadow-sm text-[13px] font-semibold flex items-center gap-1.5 active:scale-95">
             <LogOut className="h-4 w-4" /> Sign out
           </button>}
         </header>
       )}
 
-      <main className={cn("flex-1 min-h-0 overflow-y-auto overscroll-contain", !fullBleed && "px-2 pt-1 pb-6")}>
+      <main className={cn("flex-1 min-h-0 overflow-y-auto overscroll-contain", fullBleed ? "m-scan" : "px-2 pt-1 pb-6")}>
         {screen === "home" && <HomeScreen go={go} />}
         {screen === "pick" && <HandheldPickScreen />}
         {screen === "putaway" && <HandheldPutawayScreen />}
@@ -84,14 +84,14 @@ export function MobileApp() {
         {screen === "more" && <MoreScreen />}
       </main>
 
-      <nav className="shrink-0 px-4 pt-2 pb-[calc(env(safe-area-inset-bottom)+12px)]">
-        <div className="grid rounded-full bg-sidebar border border-border p-1.5 shadow-lg" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
+      <nav className="shrink-0 border-t border-border bg-card pb-[env(safe-area-inset-bottom)]">
+        <div className="grid px-2 pt-1.5 pb-1.5" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
           {tabs.map((t) => {
             const Icon = t.icon;
             const active = screen === t.id;
             return (
-              <button key={t.id} type="button" onClick={() => go(t.id)} className={cn("flex flex-col items-center justify-center gap-0.5 h-14 rounded-full text-[10px] font-semibold transition active:scale-95", active ? "bg-primary !text-primary-foreground" : "text-muted-foreground")}>
-                <Icon className="h-5 w-5" />
+              <button key={t.id} type="button" onClick={() => go(t.id)} className={cn("flex flex-col items-center justify-center gap-1 h-14 rounded-xl text-[11px] font-medium transition active:scale-95", active ? "text-primary" : "text-muted-foreground")}>
+                <span className={cn("h-7 w-12 rounded-full flex items-center justify-center", active && "bg-primary/10")}><Icon className="h-5 w-5" /></span>
                 {t.label}
               </button>
             );
