@@ -203,72 +203,54 @@
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
-/* ===== Mobile app theme: clean light (white cards, soft shadows, blue accent) ===== */
+/* ===== Mobile app theme: dark navy liquid glass ===== */
 .m-light {
-  color-scheme: light;
-  --background: oklch(0.975 0.004 250);
-  --foreground: oklch(0.22 0.02 260);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.02 260);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.02 260);
-  --secondary: oklch(0.96 0.006 250);
-  --secondary-foreground: oklch(0.25 0.02 260);
-  --muted: oklch(0.96 0.006 250);
-  --muted-foreground: oklch(0.52 0.02 260);
-  --border: oklch(0.92 0.006 250);
-  --input: oklch(0.96 0.006 250);
-  --primary: oklch(0.55 0.2 262);
-  --primary-foreground: oklch(1 0 0);
-  --sidebar: oklch(1 0 0);
-  background: var(--background);
+  color-scheme: dark;
+  --background: oklch(0.17 0.03 262);
+  --foreground: oklch(0.97 0.005 250);
+  --card: oklch(0.24 0.035 262);
+  --card-foreground: oklch(0.97 0.005 250);
+  --popover: oklch(0.22 0.035 262);
+  --popover-foreground: oklch(0.97 0.005 250);
+  --secondary: oklch(0.28 0.035 262);
+  --secondary-foreground: oklch(0.97 0.005 250);
+  --muted: oklch(0.28 0.035 262);
+  --muted-foreground: oklch(0.72 0.02 255);
+  --border: oklch(1 0 0 / 0.12);
+  --input: oklch(1 0 0 / 0.1);
+  --primary: oklch(0.68 0.17 255);
+  --primary-foreground: oklch(0.14 0.03 262);
+  --sidebar: oklch(0.2 0.03 262);
+  background:
+    radial-gradient(90% 45% at 12% -8%, oklch(0.38 0.12 262 / .55) 0%, transparent 65%),
+    radial-gradient(70% 40% at 100% 8%, oklch(0.4 0.1 215 / .35) 0%, transparent 60%),
+    radial-gradient(80% 40% at 50% 110%, oklch(0.35 0.12 300 / .35) 0%, transparent 60%),
+    var(--background);
   color: var(--foreground);
 }
-.m-light .bg-card\/60 { background: #fff; border-color: transparent; box-shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 4px 14px -6px rgba(16, 24, 40, .12); }
-.m-light .text-emerald-400 { color: #059669; }
-.m-light .text-amber-400 { color: #b45309; }
-.m-light .text-red-400 { color: #dc2626; }
-.m-light .text-sky-400, .m-light .text-blue-400 { color: #0369a1; }
-.m-light .bg-emerald-500 { color: #fff; }
+.m-light .bg-card\/60, .m-scan .bg-neutral-900 {
+  background: linear-gradient(145deg, rgba(255,255,255,.14), rgba(255,255,255,.05));
+  -webkit-backdrop-filter: blur(24px) saturate(1.7); backdrop-filter: blur(24px) saturate(1.7);
+  border: 1px solid rgba(255,255,255,.16);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.28), inset 0 -1px 0 rgba(255,255,255,.04), 0 10px 28px -10px rgba(0,0,0,.6);
+}
+.m-light .bg-card { background-color: rgba(255,255,255,.08); }
 
-/* Scan screens (Pick / Putaway / Pack) re-themed to the light mobile theme */
+/* Scan screens (Pick / Putaway / Pack): keep dark, drop device bezel/padding */
 .m-scan .border-\[10px\] { border-width: 0 !important; border-radius: 0 !important; }
-.m-scan .bg-neutral-950 { background: var(--background); }
-.m-scan .bg-neutral-900 { background: #fff; border-color: transparent; box-shadow: 0 1px 2px rgba(16,24,40,.05), 0 4px 14px -6px rgba(16,24,40,.12); }
-.m-scan .bg-neutral-800 { background: #eef0f4; }
-.m-scan .border-neutral-800, .m-scan .border-neutral-700 { border-color: #e2e5ea; }
-.m-scan .text-white { color: #111827; }
-.m-scan .text-neutral-200, .m-scan .text-neutral-300 { color: #374151; }
-.m-scan .text-neutral-400 { color: #6b7280; }
-.m-scan .text-neutral-500, .m-scan .text-neutral-600 { color: #9ca3af; }
-.m-scan .bg-amber-400 { background: var(--primary); color: #fff; }
-.m-scan .bg-amber-400.text-neutral-950, .m-scan .text-neutral-950 { color: #fff; }
-.m-scan .text-amber-400, .m-scan .text-amber-300 { color: var(--primary); }
-.m-scan .border-amber-400 { border-color: var(--primary); }
-.m-scan .bg-amber-500\/10, .m-scan .bg-amber-500\/15 { background: color-mix(in oklab, var(--primary) 10%, transparent); }
-.m-scan .text-red-400 { color: #dc2626; }
-.m-scan .text-emerald-400 { color: #059669; }
-.m-scan [class*="bg-emerald-500"].text-white, .m-scan [class*="bg-red-500"].text-white, .m-scan [class*="bg-red-600"].text-white, .m-scan [class*="bg-emerald-600"].text-white, .m-scan [class*="bg-amber-500"].text-white { color: #fff; }
-.m-scan input { color: #111827; }
-.m-scan > div { padding: 0 !important; background: var(--background) !important; }
+.m-scan .bg-neutral-950 { background: transparent; }
+.m-scan > div { padding: 0 !important; background: transparent !important; }
 .m-scan .shadow-2xl { box-shadow: none; }
 
-/* ===== Liquid-glass look (mobile app) ===== */
-.m-light { background: radial-gradient(120% 60% at 10% -10%, oklch(0.93 0.05 262) 0%, transparent 60%), radial-gradient(90% 50% at 100% 0%, oklch(0.94 0.04 200) 0%, transparent 55%), var(--background); }
-.m-light .bg-card\/60, .m-scan .bg-neutral-900 {
-  background: linear-gradient(145deg, rgba(255,255,255,.82), rgba(255,255,255,.55));
-  -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
-  border: 1px solid rgba(255,255,255,.75);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(120,130,160,.08), 0 8px 24px -10px rgba(40,60,120,.25);
-}
 .m-glass-nav {
   border-radius: 9999px;
-  background: linear-gradient(160deg, rgba(255,255,255,.85), rgba(255,255,255,.55));
-  -webkit-backdrop-filter: blur(22px) saturate(1.8); backdrop-filter: blur(22px) saturate(1.8);
-  border: 1px solid rgba(255,255,255,.8);
-  box-shadow: inset 0 1px 0 #fff, inset 0 -1px 0 rgba(120,130,160,.12), 0 12px 32px -8px rgba(40,60,120,.35);
+  background: linear-gradient(160deg, rgba(255,255,255,.16), rgba(255,255,255,.06));
+  -webkit-backdrop-filter: blur(28px) saturate(1.8); backdrop-filter: blur(28px) saturate(1.8);
+  border: 1px solid rgba(255,255,255,.2);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), inset 0 -1px 0 rgba(255,255,255,.05), 0 14px 34px -8px rgba(0,0,0,.7);
 }
 .m-glass-active {
-  background: linear-gradient(180deg, color-mix(in oklab, var(--primary) 78%, white) 0%, var(--primary) 100%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.55), 0 6px 14px -4px color-mix(in oklab, var(--primary) 60%, transparent);
+  color: #0b1220 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #dfe7f5 100%);
+  box-shadow: inset 0 1px 0 #fff, 0 6px 16px -4px rgba(120,160,255,.45);
 }

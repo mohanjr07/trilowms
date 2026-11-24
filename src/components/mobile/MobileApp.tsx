@@ -92,7 +92,7 @@ export function MobileApp() {
             const Icon = t.icon;
             const active = screen === t.id;
             return (
-              <button key={t.id} type="button" onClick={() => go(t.id)} className={cn("flex flex-col items-center justify-center gap-0.5 h-14 rounded-full text-[10.5px] font-semibold transition-all active:scale-95", active ? "m-glass-active text-white" : "text-muted-foreground")}>
+              <button key={t.id} type="button" onClick={() => go(t.id)} className={cn("flex flex-col items-center justify-center gap-0.5 h-14 rounded-full text-[10.5px] font-semibold transition-all active:scale-95", active ? "m-glass-active" : "text-muted-foreground")}>
                 <Icon className="h-5 w-5" />
                 {t.label}
               </button>
