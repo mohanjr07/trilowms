@@ -252,3 +252,23 @@
 .m-scan input { color: #111827; }
 .m-scan > div { padding: 0 !important; background: var(--background) !important; }
 .m-scan .shadow-2xl { box-shadow: none; }
+
+/* ===== Liquid-glass look (mobile app) ===== */
+.m-light { background: radial-gradient(120% 60% at 10% -10%, oklch(0.93 0.05 262) 0%, transparent 60%), radial-gradient(90% 50% at 100% 0%, oklch(0.94 0.04 200) 0%, transparent 55%), var(--background); }
+.m-light .bg-card\/60, .m-scan .bg-neutral-900 {
+  background: linear-gradient(145deg, rgba(255,255,255,.82), rgba(255,255,255,.55));
+  -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
+  border: 1px solid rgba(255,255,255,.75);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(120,130,160,.08), 0 8px 24px -10px rgba(40,60,120,.25);
+}
+.m-glass-nav {
+  border-radius: 9999px;
+  background: linear-gradient(160deg, rgba(255,255,255,.85), rgba(255,255,255,.55));
+  -webkit-backdrop-filter: blur(22px) saturate(1.8); backdrop-filter: blur(22px) saturate(1.8);
+  border: 1px solid rgba(255,255,255,.8);
+  box-shadow: inset 0 1px 0 #fff, inset 0 -1px 0 rgba(120,130,160,.12), 0 12px 32px -8px rgba(40,60,120,.35);
+}
+.m-glass-active {
+  background: linear-gradient(180deg, color-mix(in oklab, var(--primary) 78%, white) 0%, var(--primary) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55), 0 6px 14px -4px color-mix(in oklab, var(--primary) 60%, transparent);
+}

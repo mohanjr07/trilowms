@@ -173,6 +173,28 @@ export const DEMO_USERS: DemoUser[] = [
   { id: "u12", email: "audit@trilowms.com",         name: "Robert Steele",    avatar: "RS", role: "auditor",            warehouse: "TRILO-DC-01",     shift: "All Shifts",  employeeId: "EMP-0401" },
 ];
 
+/**
+ * Accounts created in bulk (see tools/make-operators.py) are not in DEMO_USERS. Their role comes from
+ * the Supabase app_metadata.wms_role (writable only with the service key, so users cannot change it);
+ * name, shift, warehouse and employee id come from user_metadata.
+ */
+function profileFromSupabase(u: { id: string; email?: string | null; app_metadata?: Record<string, unknown>; user_metadata?: Record<string, unknown> } | null | undefined): DemoUser | undefined {
+  const role = u?.app_metadata?.wms_role as UserRole | undefined;
+  if (!u || !role || !ROLE_DEFINITIONS[role]) return undefined;
+  const m = u.user_metadata ?? {};
+  const name = String(m.full_name ?? u.email ?? "Operator");
+  return {
+    id: u.id,
+    email: u.email ?? "",
+    name,
+    avatar: name.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase(),
+    role,
+    warehouse: String(m.warehouse ?? "TRILO-DC-01"),
+    shift: String(m.shift ?? "Shift A"),
+    employeeId: String(m.employee_id ?? ""),
+  };
+}
+
 // ─── Auth store ───────────────────────────────────────────────────────────────
 
 export interface AuthSession {
@@ -210,8 +232,10 @@ export const useAuthStore = create<AuthState>()(
         }
         // Real sign-in through Supabase Auth. The role/profile comes from the user list below
         // (matched by e-mail); the database only trusts the signed-in session.
-        const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-        const user = DEMO_USERS.find((u) => u.email.toLowerCase() === (data.user?.email ?? "").toLowerCase());
+        // Operators can type just their employee ID (no "@"): it becomes <id>@trilowms.com.
+        const loginEmail = email.trim().includes("@") ? email.trim() : `${email.trim().toLowerCase()}@trilowms.com`;
+        const { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
+        const user = DEMO_USERS.find((u) => u.email.toLowerCase() === (data.user?.email ?? "").toLowerCase()) ?? profileFromSupabase(data.user);
         if (error || !data.session || !user) {
           if (data.session) await supabase.auth.signOut();
           set({ isLoading: false, error: "Invalid email or password. Please check your credentials." });

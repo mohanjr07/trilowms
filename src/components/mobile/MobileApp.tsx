@@ -86,14 +86,14 @@ export function MobileApp() {
         {screen === "more" && <MoreScreen go={go} />}
       </main>
 
-      <nav className="shrink-0 border-t border-border bg-card pb-[env(safe-area-inset-bottom)]">
-        <div className="grid px-2 pt-1.5 pb-1.5" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
+      <nav className="shrink-0 px-4 pt-1 pb-[calc(env(safe-area-inset-bottom)+10px)]">
+        <div className="m-glass-nav grid gap-1 p-1.5" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
           {tabs.map((t) => {
             const Icon = t.icon;
             const active = screen === t.id;
             return (
-              <button key={t.id} type="button" onClick={() => go(t.id)} className={cn("flex flex-col items-center justify-center gap-1 h-14 rounded-xl text-[11px] font-medium transition active:scale-95", active ? "text-primary" : "text-muted-foreground")}>
-                <span className={cn("h-7 w-12 rounded-full flex items-center justify-center", active && "bg-primary/10")}><Icon className="h-5 w-5" /></span>
+              <button key={t.id} type="button" onClick={() => go(t.id)} className={cn("flex flex-col items-center justify-center gap-0.5 h-14 rounded-full text-[10.5px] font-semibold transition-all active:scale-95", active ? "m-glass-active text-white" : "text-muted-foreground")}>
+                <Icon className="h-5 w-5" />
                 {t.label}
               </button>
             );
