@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "986644172610",
+    "project_id": "trilo-wms",
+    "storage_bucket": "trilo-wms.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:986644172610:android:7f87ecfc5ef74ae618c2db",
+        "android_client_info": {
+          "package_name": "com.trilo.wms"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBEeOHPyxDB6FSr2ucixF2tlOtQu93WTLw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

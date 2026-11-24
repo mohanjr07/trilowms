@@ -26,6 +26,7 @@ import { usePutawayStore } from "@/lib/putaway-store";
 import { usePackingStore } from "@/lib/packing-store";
 import { useConsolidationSync } from "./useSync";
 import { registerPush } from "@/lib/push";
+import { Logo } from "@/components/brand/Logo";
 
 export function MobileApp() {
   const session = useAuthStore((s) => s.session)!;
@@ -57,15 +58,19 @@ export function MobileApp() {
     <div className="m-light flex flex-col h-[100dvh] w-full bg-background text-foreground overflow-hidden">
       {!fullBleed && (
         <header className="shrink-0 flex items-center justify-between gap-2 px-5 pt-[calc(env(safe-area-inset-top)+12px)] pb-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <button type="button" onClick={() => go("more")} aria-label="Profile" className="h-11 w-11 shrink-0 rounded-full bg-primary/10 text-primary text-sm font-bold flex items-center justify-center active:scale-95">
-              {session.user.avatar}
-            </button>
-            <div className="min-w-0">
-              <div className="text-[17px] font-bold leading-tight truncate">{screen === "home" ? `Hello, ${session.user.name.split(" ")[0]}` : SCREEN_META[screen].label}</div>
-              <div className="text-[11px] text-muted-foreground leading-tight truncate">{def.label} · {session.user.warehouse}</div>
+          {screen === "home" ? (
+            <Logo size={34} />
+          ) : (
+            <div className="flex items-center gap-3 min-w-0">
+              <button type="button" onClick={() => go("more")} aria-label="Profile" className="h-11 w-11 shrink-0 rounded-full bg-primary/10 text-primary text-sm font-bold flex items-center justify-center active:scale-95">
+                {session.user.avatar}
+              </button>
+              <div className="min-w-0">
+                <div className="text-[17px] font-bold leading-tight truncate">{SCREEN_META[screen].label}</div>
+                <div className="text-[11px] text-muted-foreground leading-tight truncate">{def.label} · {session.user.warehouse}</div>
+              </div>
             </div>
-          </div>
+          )}
           {screen !== "more" && <button type="button" onClick={() => void useAuthStore.getState().logout?.()} aria-label="Sign out" className="h-11 px-3 shrink-0 rounded-full bg-card shadow-sm text-[13px] font-semibold flex items-center gap-1.5 active:scale-95">
             <LogOut className="h-4 w-4" /> Sign out
           </button>}
