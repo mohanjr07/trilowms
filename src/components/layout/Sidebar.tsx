@@ -1,9 +1,10 @@
+import { LogoMark, LogoWordmark } from "@/components/brand/Logo";
 import {
   Link, useRouterState } from "@tanstack/react-router";
 import {
   ClipboardList,
   LayoutDashboard, Boxes, PackageSearch, PackageOpen, PackageCheck,
-  Truck, Warehouse, Forklift, ShieldCheck, RotateCcw, Users, BarChart3,
+  Truck, Warehouse, ShieldCheck, RotateCcw, Users, BarChart3,
   Settings, ArrowDownToLine, ArrowUpFromLine, LogOut, Combine,
   ScanLine, Radio,
 } from "lucide-react";
@@ -63,12 +64,10 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
     >
       {/* Logo */}
       <div className="flex items-center gap-2 px-4 h-14 border-b border-border/60">
-        <div className="relative h-8 w-8 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold glow-amber shrink-0">
-          <Forklift className="h-4 w-4" />
-        </div>
+        <LogoMark size={28} />
         {!collapsed && (
-          <div className="flex flex-col leading-tight">
-            <span className="font-bold tracking-wider text-sm">TRILO<span className="text-primary">WMS</span></span>
+          <div className="flex flex-col leading-tight gap-1">
+            <LogoWordmark fontSize={14} />
             <span className="text-[10px] text-mono text-muted-foreground">v4.2.1</span>
           </div>
         )}

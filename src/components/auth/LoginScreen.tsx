@@ -3,10 +3,11 @@
  * Premium dark industrial authentication UI
  */
 
+import { Logo } from "@/components/brand/Logo";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
-  Eye, EyeOff, Lock, Mail, Forklift, Loader2, AlertCircle,
+  Eye, EyeOff, Lock, Mail, Loader2, AlertCircle,
   ChevronRight, ShieldCheck, ArrowRight, X,
 } from "lucide-react";
 import { useAuthStore, DEMO_USERS, ROLE_DEFINITIONS } from "@/lib/auth-store";
@@ -226,15 +227,7 @@ export function LoginScreen() {
       {/* Left panel — branding */}
       <div className="relative hidden lg:flex flex-col justify-between w-[480px] flex-shrink-0 p-10 border-r border-white/5">
         <div>
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
-              <Forklift className="h-5 w-5 text-black" />
-            </div>
-            <div>
-              <div className="font-black tracking-wider text-lg">TRILO<span className="text-amber-400">WMS</span></div>
-              <div className="text-[10px] text-muted-foreground font-mono">v4.2.1 ENTERPRISE</div>
-            </div>
-          </div>
+          <Logo size={52} subtitle={<div className="mt-1.5 text-[10px] text-muted-foreground font-mono">v4.2.1 ENTERPRISE</div>} />
 
           <div className="mt-16">
             <div className="text-3xl font-black leading-tight">
@@ -279,12 +272,7 @@ export function LoginScreen() {
         <div className="w-full max-w-[420px]">
 
           {/* Mobile logo */}
-          <div className="flex items-center gap-3 lg:hidden mb-8">
-            <div className="h-9 w-9 rounded-lg bg-amber-500 flex items-center justify-center">
-              <Forklift className="h-4.5 w-4.5 text-black" />
-            </div>
-            <div className="font-black tracking-wider">TRILO<span className="text-amber-400">WMS</span></div>
-          </div>
+          <div className="lg:hidden mb-8"><Logo size={40} /></div>
 
           <div className="bg-[#0d1724]/90 backdrop-blur-xl border border-white/8 rounded-2xl shadow-2xl overflow-hidden">
             {/* Header */}
