@@ -210,7 +210,7 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
 
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string, remember?: boolean) => Promise<boolean>;
   logout: () => void;
   clearError: () => void;
   canAccess: (route: string) => boolean;
@@ -225,7 +225,7 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
       error: null,
 
-      login: async (email, password) => {
+      login: async (email, password, remember = false) => {
         set({ isLoading: true, error: null });
         if (!supabaseConfigured) {
           set({ isLoading: false, error: "Sign-in is not configured (missing Supabase settings)." });
@@ -247,8 +247,14 @@ export const useAuthStore = create<AuthState>()(
         const session: AuthSession = {
           user: { ...user, lastLogin: new Date(now).toISOString() },
           loginTime: now,
-          expiresAt: now + 8 * 60 * 60 * 1000, // 8-hour session
+          // "Remember me": stay signed in for 30 days across restarts; otherwise 8 hours and
+          // only until the browser/app is closed (see enforceRememberChoice).
+          expiresAt: now + (remember ? 30 * 24 : 8) * 60 * 60 * 1000,
         };
+        try {
+          localStorage.setItem("trilowms-remember", remember ? "1" : "0");
+          sessionStorage.setItem("trilowms-alive", "1");
+        } catch { /* storage unavailable */ }
 
         set({ session, isAuthenticated: true, isLoading: false, error: null });
         return true;
@@ -288,6 +294,13 @@ export const useAuthStore = create<AuthState>()(
  */
 export async function verifyAuthSession(): Promise<boolean> {
   if (!supabaseConfigured) return false;
+  // Not remembered + the browser/app was closed since sign-in → sign out.
+  try {
+    if (useAuthStore.getState().isAuthenticated && localStorage.getItem("trilowms-remember") !== "1") {
+      if (!sessionStorage.getItem("trilowms-alive")) useAuthStore.getState().logout();
+      else sessionStorage.setItem("trilowms-alive", "1");
+    }
+  } catch { /* storage unavailable */ }
   const { data } = await supabase.auth.getSession();
   if (!data.session && useAuthStore.getState().isAuthenticated) useAuthStore.getState().logout();
   return Boolean(data.session);

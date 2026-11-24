@@ -207,7 +207,7 @@ export function LoginScreen() {
     if (!email.trim()) { setValidationError("Email is required."); return; }
     if (!password) { setValidationError("Password is required."); return; }
 
-    const ok = await login(email.trim(), password);
+    const ok = await login(email.trim(), password, remember);
     if (ok) {
       const r = useAuthStore.getState().role();
       navigate({ to: r?.defaultRoute ?? "/" });
@@ -346,7 +346,7 @@ export function LoginScreen() {
                   >
                     {remember && <div className="h-2 w-2 bg-black rounded-sm" />}
                   </div>
-                  <span className="text-xs text-muted-foreground">Remember me (8h)</span>
+                  <span className="text-xs text-muted-foreground">Remember me (30 days)</span>
                 </label>
                 <button
                   type="button"
