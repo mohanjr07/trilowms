@@ -5,8 +5,9 @@ import { useAuthStore, ROLE_DEFINITIONS } from "@/lib/auth-store";
 import { supabase } from "@/lib/supabase";
 import { Card, Chip, BigButton, Field, Row } from "./ui";
 import { setViewMode, isNativeApp } from "./useMobileMode";
+import { extraScreensFor, SCREEN_META, type ScreenId } from "./nav";
 
-export function MoreScreen() {
+export function MoreScreen({ go }: { go: (s: ScreenId) => void }) {
   const session = useAuthStore((s) => s.session)!;
   const logout = useAuthStore((s) => s.logout);
   const def = ROLE_DEFINITIONS[session.user.role];
@@ -38,6 +39,21 @@ export function MoreScreen() {
           <Row label="Employee ID" value={session.user.employeeId} />
         </div>
       </Card>
+
+      {extraScreensFor(session.user.role).length > 0 && (
+        <div className="space-y-2">
+          <div className="text-[13px] font-bold tracking-wide text-muted-foreground uppercase px-1">More screens</div>
+          {extraScreensFor(session.user.role).map((id) => {
+            const Icon = SCREEN_META[id].icon;
+            return (
+              <Card key={id} onClick={() => go(id)} className="flex items-center gap-3 min-h-[56px]">
+                <div className="h-10 w-10 shrink-0 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center"><Icon className="h-5 w-5 text-primary" /></div>
+                <div className="min-w-0"><div className="font-semibold">{SCREEN_META[id].label}</div><div className="text-xs text-muted-foreground truncate">{SCREEN_META[id].hint}</div></div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       <Card>
         <button type="button" onClick={() => { setOpen((v) => !v); setMsg(null); }} className="w-full flex items-center gap-3 text-left min-h-[44px]">

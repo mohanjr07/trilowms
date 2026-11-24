@@ -1,7 +1,7 @@
 /** Mobile · Orders — read-only order tracking by stage. */
 import { useState } from "react";
 import { useOrdersStore, ORDER_STATUS_META, type Order, type OrderStatus } from "@/lib/orders-store";
-import { Card, Chip, Segmented, Sheet, Row, Empty, SearchBox, type Tone } from "./ui";
+import { Card, Chip, Segmented, Sheet, Row, Empty, SearchBox, BigButton, type Tone } from "./ui";
 
 type Tab = "open" | "moving" | "done";
 const TAB_OF = (s: OrderStatus): Tab => (s === "NEW" || s === "ALLOCATED" || s === "EXCEPTION" ? "open" : s === "PICKING" || s === "PACKED" ? "moving" : "done");
@@ -50,6 +50,7 @@ export function OrdersScreen() {
 
 function OrderSheet({ orderId, onClose }: { orderId: string | null; onClose: () => void }) {
   const o: Order | null = useOrdersStore((s) => s.orders.find((x) => x.id === orderId)) ?? null;
+  const cancelOrder = useOrdersStore((s) => s.cancelOrder);
   return (
     <Sheet open={!!o} onClose={onClose} title={o ? o.orderNumber : ""}>
       {o && (
@@ -62,6 +63,9 @@ function OrderSheet({ orderId, onClose }: { orderId: string | null; onClose: () 
             <Row label="Allocated" value={`${o.allocatedUnits} / ${o.totalUnits}`} />
             <Row label="Ship to" value={o.shipToAddress} />
           </div>
+          {(o.status === "NEW" || o.status === "ALLOCATED") && (
+            <BigButton tone="danger" className="w-full" onClick={() => { if (confirm(`Cancel ${o.orderNumber}? Allocated stock is released.`)) { cancelOrder(o.id); onClose(); } }}>Cancel order</BigButton>
+          )}
           <div className="text-[13px] font-bold tracking-wide text-muted-foreground uppercase">Lines</div>
           {o.lines.map((l) => (
             <div key={l.id} className="rounded-xl border border-border bg-card/40 p-3 flex items-center justify-between gap-2">

@@ -1,8 +1,8 @@
 /** Mobile navigation map: which tabs each role sees. */
-import { Home, ScanLine, PackageOpen, PackageCheck, ArrowDownToLine, Truck, Container, ShieldCheck, Boxes, ClipboardList, BarChart3, MoreHorizontal, PackageSearch, type LucideIcon } from "lucide-react";
+import { Home, ScanLine, PackageOpen, PackageCheck, ArrowDownToLine, Truck, Container, ShieldCheck, Boxes, ClipboardList, BarChart3, MoreHorizontal, PackageSearch, Undo2, type LucideIcon } from "lucide-react";
 import type { UserRole } from "@/lib/auth-store";
 
-export type ScreenId = "home" | "pick" | "putaway" | "pack" | "receive" | "dispatch" | "yard" | "qc" | "stock" | "orders" | "insights" | "more";
+export type ScreenId = "home" | "pick" | "putaway" | "pack" | "receive" | "dispatch" | "yard" | "qc" | "stock" | "orders" | "insights" | "returns" | "more";
 
 export const SCREEN_META: Record<ScreenId, { label: string; icon: LucideIcon; hint: string }> = {
   home: { label: "Home", icon: Home, hint: "Your day at a glance" },
@@ -16,6 +16,7 @@ export const SCREEN_META: Record<ScreenId, { label: string; icon: LucideIcon; hi
   stock: { label: "Stock", icon: Boxes, hint: "Find stock, bins and count" },
   orders: { label: "Orders", icon: ClipboardList, hint: "Track orders by stage" },
   insights: { label: "Insights", icon: BarChart3, hint: "Live numbers and exceptions" },
+  returns: { label: "Returns", icon: Undo2, hint: "Approve, receive and inspect returns" },
   more: { label: "More", icon: MoreHorizontal, hint: "Profile and settings" },
 };
 
@@ -40,3 +41,13 @@ export function tabsFor(role: UserRole) {
 
 /** Roles that keep the desktop UI (admin + warehouse admin). */
 export const DESKTOP_ROLES: UserRole[] = ["super_admin", "warehouse_admin"];
+
+/** Screens reachable from More for roles whose bottom bar can't hold everything. */
+const ALL_OPS: ScreenId[] = ["orders", "receive", "putaway", "pick", "pack", "dispatch", "yard", "qc", "stock", "returns", "insights"];
+export function extraScreensFor(role: UserRole): ScreenId[] {
+  const inBar = new Set<ScreenId>(tabsFor(role).map((t) => t.id));
+  let extra: ScreenId[] = [];
+  if (role === "super_admin" || role === "warehouse_admin" || role === "operations_manager") extra = ALL_OPS;
+  else if (role === "qc_inspector" || role === "inventory_manager" || role === "inbound_supervisor") extra = ["returns"];
+  return extra.filter((s) => !inBar.has(s));
+}

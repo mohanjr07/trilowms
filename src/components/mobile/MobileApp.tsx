@@ -14,6 +14,7 @@ import { YardScreen } from "./YardScreen";
 import { QcScreen } from "./QcScreen";
 import { StockScreen } from "./StockScreen";
 import { OrdersScreen } from "./OrdersScreen";
+import { ReturnsScreen } from "./ReturnsScreen";
 import { InsightsScreen } from "./InsightsScreen";
 import { MoreScreen } from "./MoreScreen";
 import { HandheldPickScreen } from "@/components/handheld/HandheldPickScreen";
@@ -81,7 +82,8 @@ export function MobileApp() {
         {screen === "stock" && <StockScreen canCount={role !== "auditor"} />}
         {screen === "orders" && <OrdersScreen />}
         {screen === "insights" && <InsightsScreen />}
-        {screen === "more" && <MoreScreen />}
+        {screen === "returns" && <ReturnsScreen />}
+        {screen === "more" && <MoreScreen go={go} />}
       </main>
 
       <nav className="shrink-0 border-t border-border bg-card pb-[env(safe-area-inset-bottom)]">
