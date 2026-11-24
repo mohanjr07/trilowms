@@ -7,7 +7,7 @@ import { ZoneModal, DockModal, RenameWarehouseModal } from "./WarehouseEditorMod
 import type { ZoneType } from "@/lib/wms-data";
 
 export function BuilderTreePanel() {
-  const { warehouse, warehouses, activeId, switchWarehouse, deleteZone, deleteDock } = useEditorStore();
+  const { warehouse, warehouses, activeId, switchWarehouse, deleteWarehouse, deleteZone, deleteDock, _saveToCloud } = useEditorStore();
   const { selectedId, select, zoneFilter, setZoneFilter, onWarehouseSwitch } = useWMSStore();
   const [open, setOpen] = useState<Record<string, boolean>>({ root: true });
   const toggle = (k: string) => setOpen((o) => ({ ...o, [k]: !o[k] }));
@@ -77,6 +77,22 @@ export function BuilderTreePanel() {
                 <Warehouse className="h-3 w-3 flex-shrink-0" />
                 <span className="truncate flex-1">{w.name}</span>
                 <span className="text-[10px] text-mono text-muted-foreground">{w.zones.length}z</span>
+                {warehouses.length > 1 && (
+                  <button
+                    title="Delete warehouse"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!confirm(`Delete warehouse "${w.name}" and all its zones and docks? This cannot be undone.`)) return;
+                      deleteWarehouse(w.name);
+                      const next = useEditorStore.getState().activeId;
+                      onWarehouseSwitch(next);
+                      void _saveToCloud();
+                    }}
+                    className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                )}
               </div>
             ))}
           </div>

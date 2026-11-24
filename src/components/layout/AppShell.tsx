@@ -15,6 +15,15 @@ export function AppShell() {
   const path = useRouterState({ select: (st) => st.location.pathname });
   useEffect(() => { setNavOpen(false); }, [path]);
 
+  // Save layout changes (e.g. deleting a warehouse from the switcher) from ANY page, not only the Builder.
+  const isDirty = useEditorStore((s) => s.isDirty);
+  const _saveToCloud = useEditorStore((s) => s._saveToCloud);
+  useEffect(() => {
+    if (!ready || !isDirty) return;
+    const t = setTimeout(() => { void _saveToCloud(); }, 1200);
+    return () => clearTimeout(t);
+  }, [ready, isDirty, _saveToCloud]);
+
   useEffect(() => {
     _loadFromCloud().finally(() => setReady(true));
   // eslint-disable-next-line react-hooks/exhaustive-deps
