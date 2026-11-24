@@ -53,7 +53,7 @@ export function MobileApp() {
   return (
     <div className="flex flex-col h-[100dvh] w-full bg-background text-foreground overflow-hidden">
       {!fullBleed && (
-        <header className="shrink-0 flex items-center justify-between gap-2 px-5 pt-[calc(env(safe-area-inset-top)+12px)] pb-2">
+        <header className="shrink-0 flex items-center justify-between gap-2 px-5 pt-[calc(env(safe-area-inset-top)+12px)] pb-3">
           <div className="flex items-center gap-3 min-w-0">
             <button type="button" onClick={() => go("more")} aria-label="Profile" className="h-11 w-11 shrink-0 rounded-full bg-primary/15 border border-primary/30 text-primary text-sm font-bold flex items-center justify-center active:scale-95">
               {session.user.avatar}
@@ -63,13 +63,13 @@ export function MobileApp() {
               <div className="text-[11px] text-muted-foreground leading-tight truncate">{def.label} · {session.user.warehouse}</div>
             </div>
           </div>
-          <button type="button" onClick={() => void useAuthStore.getState().logout?.()} aria-label="Sign out" className="h-11 px-3 shrink-0 rounded-full bg-secondary border border-border text-[13px] font-semibold flex items-center gap-1.5 active:scale-95">
+          {screen !== "more" && <button type="button" onClick={() => void useAuthStore.getState().logout?.()} aria-label="Sign out" className="h-11 px-3 shrink-0 rounded-full bg-secondary border border-border text-[13px] font-semibold flex items-center gap-1.5 active:scale-95">
             <LogOut className="h-4 w-4" /> Sign out
-          </button>
+          </button>}
         </header>
       )}
 
-      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+      <main className={cn("flex-1 min-h-0 overflow-y-auto overscroll-contain", !fullBleed && "px-2 pt-1 pb-6")}>
         {screen === "home" && <HomeScreen go={go} />}
         {screen === "pick" && <HandheldPickScreen />}
         {screen === "putaway" && <HandheldPutawayScreen />}
