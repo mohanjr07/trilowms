@@ -2,6 +2,7 @@
  * TriloWMS — Labor Management Module Store
  */
 
+import { sendPush, employeeEmails } from "@/lib/push";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { cloudJSONStorage } from "@/lib/cloud-storage";
@@ -245,6 +246,10 @@ export const useLaborStore = create<LaborState>()(
       },
 
       assignTask: (empId, taskType, taskId, zone) => {
+        if (taskType === "PACKING" || taskType === "QC") {
+          const emp = get().employees.find((e) => e.id === empId);
+          sendPush({ emails: employeeEmails(emp) }, taskType === "QC" ? "New QC inspection assigned" : "New packing task assigned", `${taskType === "QC" ? "QC" : "Packing"} ${taskId} (${zone}) is waiting for you.`, { type: taskType.toLowerCase(), taskId });
+        }
         set((s) => ({
           employees: s.employees.map((e) =>
             e.id === empId ? { ...e, currentTaskType: taskType, currentTaskId: taskId, currentZone: zone } : e

@@ -10,6 +10,7 @@ import { useStockStore, fifoBins } from "@/lib/stock-store";
 import { useOrdersStore } from "@/lib/orders-store";
 import { useInvBinStore } from "@/lib/inventory-bin-store";
 import { useLaborStore } from "@/lib/labor-store";
+import { sendPush, employeeEmails } from "@/lib/push";
 import { useAuthStore } from "@/lib/auth-store";
 import { useTransactionStore } from "@/lib/transaction-store";
 
@@ -638,6 +639,8 @@ export const usePickingStore = create<PickingState>()(
       },
 
       assignPicker: (waveId, taskId, pickerId, pickerName) => {
+        const emp = useLaborStore.getState().employees.find((e) => e.id === pickerId);
+        sendPush({ emails: employeeEmails(emp) }, "New pick task assigned", `${pickerName}: task ${taskId} in wave ${waveId} is waiting for you.`, { type: "pick", taskId, waveId });
         set((s) => ({
           waves: s.waves.map((w) => {
             if (w.id !== waveId) return w;

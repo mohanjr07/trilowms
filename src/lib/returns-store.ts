@@ -2,6 +2,7 @@
  * TriloWMS — Returns (RMA) Module Store
  */
 
+import { sendPush } from "@/lib/push";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { cloudJSONStorage } from "@/lib/cloud-storage";
@@ -294,6 +295,7 @@ export const useReturnsStore = create<ReturnsState>()(
       },
 
       approveRma: (id, approvedBy) => {
+        sendPush({ roles: ["qc_inspector", "inbound_supervisor"] }, "Return approved", `RMA ${id} approved by ${approvedBy}. Expect it at the dock.`, { type: "rma", id });
         set((s) => ({
           rmas: s.rmas.map((r) =>
             r.id === id ? { ...r, status: "APPROVED" as RmaStatus, approvedBy, approvedAt: new Date().toISOString() } : r

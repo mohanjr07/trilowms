@@ -5,6 +5,7 @@
  * Allocation is the hook the Picking module consumes downstream.
  */
 
+import { sendPush } from "@/lib/push";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { cloudJSONStorage } from "@/lib/cloud-storage";
@@ -305,6 +306,7 @@ export const useOrdersStore = create<OrdersState>()(
 
       cancelOrder: (orderId) => {
         const o = get().orders.find((x) => x.id === orderId);
+        if (o && !["PICKING", "PACKED", "SHIPPED", "DELIVERED"].includes(o.status)) sendPush({ roles: ["outbound_supervisor", "operations_manager", "picker"] }, "Order cancelled", `Order ${orderId} was cancelled.`, { type: "order", orderId });
         // Once picking has started, stock has already left its bins, so a plain cancel would
         // lose it from the ledger. Only orders that have not been picked can be cancelled.
         if (o && ["PICKING", "PACKED", "SHIPPED", "DELIVERED"].includes(o.status)) return;

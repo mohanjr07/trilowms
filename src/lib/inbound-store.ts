@@ -3,6 +3,7 @@
  * ASN management, receiving workflow, dock scheduling, discrepancy tracking
  */
 
+import { sendPush } from "@/lib/push";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { cloudJSONStorage } from "@/lib/cloud-storage";
@@ -467,6 +468,7 @@ export const useInboundStore = create<InboundState>()(
       assignDock: (asnId, dockId) => {
         const dock = get().dockDoors.find((d) => d.id === dockId);
         if (!dock) return;
+        sendPush({ roles: ["yard_manager", "inbound_supervisor", "forklift_operator"] }, "Dock door assigned", `${asnId} scheduled at dock ${dock.code}.`, { type: "dock", asnId });
         set((s) => ({
           asns: s.asns.map((a) =>
             a.id === asnId ? { ...a, dockId, dockCode: dock.code, status: "SCHEDULED" } : a

@@ -4,6 +4,7 @@
  */
 
 import { create } from "zustand";
+import { sendPush, employeeEmails } from "@/lib/push";
 import { persist } from "zustand/middleware";
 import { cloudJSONStorage } from "@/lib/cloud-storage";
 import { useInboundStore } from "@/lib/inbound-store";
@@ -335,6 +336,9 @@ export const usePutawayStore = create<PutawayState>()(
       },
 
       assignOperator: (taskId, operatorId, operatorName) => {
+        const emp = useLaborStore.getState().employees.find((e) => e.id === operatorId);
+        const pt = get().tasks.find((t) => t.id === taskId);
+        sendPush({ emails: employeeEmails(emp) }, "New putaway task assigned", `${operatorName}: putaway ${taskId}${pt?.zone ? ` (zone ${pt.zone})` : ""} is waiting for you.`, { type: "putaway", taskId });
         set((s) => ({
           tasks: s.tasks.map((t) =>
             t.id === taskId

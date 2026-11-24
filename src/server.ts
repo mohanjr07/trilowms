@@ -90,7 +90,7 @@ async function proxySupabase(request: Request, url: URL): Promise<Response> {
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     const url = new URL(request.url);
-    if (url.pathname.startsWith("/sb/rest/v1/") || url.pathname.startsWith("/sb/auth/v1/")) {
+    if (url.pathname.startsWith("/sb/rest/v1/") || url.pathname.startsWith("/sb/auth/v1/") || url.pathname.startsWith("/sb/functions/v1/")) {
       try { return await proxySupabase(request, url); }
       catch (error) { console.error(error); return new Response("Upstream unreachable", { status: 502 }); }
     }

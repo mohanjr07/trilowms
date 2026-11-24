@@ -3,6 +3,7 @@
  * Full enterprise role-based access control system
  */
 
+import { unregisterPush } from "@/lib/push";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { supabase, supabaseConfigured } from "./supabase";
@@ -254,6 +255,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
+        void unregisterPush();
         set({ session: null, isAuthenticated: false, error: null });
         if (supabaseConfigured) void supabase.auth.signOut();
       },

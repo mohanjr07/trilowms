@@ -10,8 +10,39 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DEMO_USERS, ROLE_DEFINITIONS, type DemoUser, type UserRole } from "@/lib/auth-store";
 import { PageHeader, KPICard, Panel } from "@/components/wms/Primitives";
+import { sendPush } from "@/lib/push";
 import { seedDemoData } from "@/lib/demo-seed";
 import { cn } from "@/lib/utils";
+
+function BroadcastPanel() {
+  const [target, setTarget] = useState<string>("all");
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [sent, setSent] = useState(false);
+  const roles = Object.keys(ROLE_DEFINITIONS) as UserRole[];
+  const send = () => {
+    if (!title.trim()) return;
+    sendPush(target === "all" ? { all: true } : { roles: [target] }, title.trim(), body.trim(), { type: "broadcast" }, true);
+    setSent(true); setTimeout(() => setSent(false), 3000); setTitle(""); setBody("");
+  };
+  return (
+    <Panel title="PUSH NOTIFICATION">
+      <div className="space-y-3 max-w-xl">
+        <select value={target} onChange={(e) => setTarget(e.target.value)} className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm">
+          <option value="all">Everyone with the app</option>
+          {roles.map((r) => <option key={r} value={r}>{ROLE_DEFINITIONS[r].label}</option>)}
+        </select>
+        <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <Input placeholder="Message" value={body} onChange={(e) => setBody(e.target.value)} />
+        <div className="flex items-center gap-3">
+          <Button onClick={send} disabled={!title.trim()}>Send notification</Button>
+          {sent && <span className="text-xs text-emerald-400 flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" />Sent</span>}
+        </div>
+        <p className="text-[11px] text-muted-foreground">Delivered to devices where the operator is signed in to the Android app.</p>
+      </div>
+    </Panel>
+  );
+}
 
 function AdminKPIs() {
   const roleCount = new Set(DEMO_USERS.map((u) => u.role)).size;
@@ -337,11 +368,13 @@ export function AdminPage() {
             <TabsTrigger value="users"><Users className="h-3.5 w-3.5 mr-1.5" />Users</TabsTrigger>
             <TabsTrigger value="roles"><Shield className="h-3.5 w-3.5 mr-1.5" />Roles</TabsTrigger>
             <TabsTrigger value="warehouse"><Warehouse className="h-3.5 w-3.5 mr-1.5" />Warehouse</TabsTrigger>
+            <TabsTrigger value="push">Notify</TabsTrigger>
             <TabsTrigger value="system"><Key className="h-3.5 w-3.5 mr-1.5" />System</TabsTrigger>
           </TabsList>
           <TabsContent value="users" className="mt-4"><UsersPanel /></TabsContent>
           <TabsContent value="roles" className="mt-4"><RolesPanel /></TabsContent>
           <TabsContent value="warehouse" className="mt-4"><WarehouseConfig /></TabsContent>
+          <TabsContent value="push" className="mt-4"><BroadcastPanel /></TabsContent>
           <TabsContent value="system" className="mt-4 space-y-5"><DemoDataPanel /><SystemInfo /></TabsContent>
         </Tabs>
       </div>

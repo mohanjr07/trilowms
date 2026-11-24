@@ -25,6 +25,7 @@ import { useOutboundStore } from "@/lib/outbound-store";
 import { usePutawayStore } from "@/lib/putaway-store";
 import { usePackingStore } from "@/lib/packing-store";
 import { useConsolidationSync } from "./useSync";
+import { registerPush } from "@/lib/push";
 
 export function MobileApp() {
   const session = useAuthStore((s) => s.session)!;
@@ -33,6 +34,7 @@ export function MobileApp() {
   const [screen, setScreen] = useState<ScreenId>("home");
 
   useConsolidationSync();
+  useEffect(() => { void registerPush({ email: session.user.email, role }); }, [session.user.email, role]);
 
   const go = useCallback((s: ScreenId) => {
     setScreen((cur) => {
