@@ -21,14 +21,14 @@ function feedScanInput(value: string) {
   }, 150);
 }
 
-export function CameraScanButton() {
-  const [open, setOpen] = useState(false);
+/** Full-screen camera view: decodes the first barcode/QR and returns its text. */
+export function CameraScanOverlay({ onScan, onClose, fixed = false }: { onScan: (value: string) => void; onClose: () => void; fixed?: boolean }) {
   const [err, setErr] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const cb = useRef(onScan); cb.current = onScan;
+  const closeRef = useRef(onClose); closeRef.current = onClose;
 
   useEffect(() => {
-    if (!open) return;
-    setErr(null);
     const reader = new BrowserMultiFormatReader();
     let controls: { stop: () => void } | undefined;
     let cancelled = false;
@@ -38,15 +38,29 @@ export function CameraScanButton() {
           cancelled = true;
           controls?.stop();
           if (navigator.vibrate) navigator.vibrate(60);
-          setOpen(false);
-          feedScanInput(result.getText());
+          closeRef.current();
+          cb.current(result.getText());
         }
       })
       .then((c) => { controls = c; if (cancelled) c.stop(); })
       .catch(() => setErr("Camera not available. Allow camera access and try again."));
     return () => { cancelled = true; controls?.stop(); };
-  }, [open]);
+  }, []);
 
+  return (
+    <div className={(fixed ? "fixed" : "absolute") + " inset-0 z-50 bg-black flex flex-col"}>
+      <div className="flex items-center justify-between px-4 pt-8 pb-2 text-white text-sm">
+        <span>Point the camera at a barcode</span>
+        <button type="button" onClick={onClose} aria-label="Close camera"><X className="h-5 w-5" /></button>
+      </div>
+      <video ref={videoRef} className="flex-1 w-full object-cover" muted playsInline />
+      {err && <div className="absolute bottom-6 inset-x-4 text-center text-red-400 text-xs">{err}</div>}
+    </div>
+  );
+}
+
+export function CameraScanButton() {
+  const [open, setOpen] = useState(false);
   return (
     <>
       <button
@@ -57,16 +71,7 @@ export function CameraScanButton() {
       >
         <Camera className="h-5 w-5" />
       </button>
-      {open && (
-        <div className="absolute inset-0 z-40 bg-black flex flex-col">
-          <div className="flex items-center justify-between px-4 pt-8 pb-2 text-white text-sm">
-            <span>Point the camera at a barcode</span>
-            <button type="button" onClick={() => setOpen(false)} aria-label="Close camera"><X className="h-5 w-5" /></button>
-          </div>
-          <video ref={videoRef} className="flex-1 w-full object-cover" muted playsInline />
-          {err && <div className="absolute bottom-6 inset-x-4 text-center text-red-400 text-xs">{err}</div>}
-        </div>
-      )}
+      {open && <CameraScanOverlay onScan={feedScanInput} onClose={() => setOpen(false)} />}
     </>
   );
 }

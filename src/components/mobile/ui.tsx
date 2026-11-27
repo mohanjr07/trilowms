@@ -1,8 +1,10 @@
 /**
  * TriloWMS Mobile — small UI kit for the phone app (big touch targets, one-handed layouts).
  */
-import { useEffect } from "react";
-import { X, Search } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, Search, ScanLine } from "lucide-react";
+import { CameraScanOverlay } from "@/components/handheld/CameraScan";
+import { findSku, normalizeScan, scanBeep } from "@/lib/scan";
 import { cn } from "@/lib/utils";
 
 export type Tone = "neutral" | "primary" | "success" | "warning" | "danger" | "info";
@@ -81,6 +83,13 @@ export function Empty({ title, hint }: { title: string; hint?: string }) {
 }
 
 export function SearchBox({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+  const [scanning, setScanning] = useState(false);
+  // A scanned EAN/UPC is turned into the SKU code when the SKU master knows it.
+  const onScan = (raw: string) => {
+    const sku = findSku(raw);
+    onChange(sku ? sku.skuCode : normalizeScan(raw));
+    scanBeep(true);
+  };
   return (
     <div className="relative">
       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -88,8 +97,17 @@ export function SearchBox({ value, onChange, placeholder }: { value: string; onC
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full h-12 rounded-xl bg-card/60 border border-border pl-10 pr-3 text-[16px] focus:outline-none focus:border-primary/60"
+        className="w-full h-12 rounded-xl bg-card/60 border border-border pl-10 pr-14 text-[16px] focus:outline-none focus:border-primary/60"
       />
+      <button
+        type="button"
+        onClick={() => setScanning(true)}
+        aria-label="Scan barcode with camera"
+        className="absolute right-1.5 top-1/2 -translate-y-1/2 h-9 w-9 rounded-lg bg-primary/15 text-primary flex items-center justify-center active:scale-95"
+      >
+        <ScanLine className="h-5 w-5" />
+      </button>
+      {scanning && <CameraScanOverlay fixed onScan={onScan} onClose={() => setScanning(false)} />}
     </div>
   );
 }
